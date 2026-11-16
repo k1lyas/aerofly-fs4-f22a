@@ -1,0 +1,265 @@
+# F-22A: cockpit guide
+
+*(untested)* marks things that follow the logic of the F/A-18 the aircraft is built on, but were not tried in the
+F-22 yet. Original (Russian) of this guide: `source/aircraft/f22/GUIDE.md`.
+
+## Displays
+
+| Display | Shows |
+|---|---|
+| Upper left (UFD) | engines L/R: RPM (%), EGT (°C), FF (fuel flow, hundreds of lb/h), NOZ (nozzle, %), OIL (psi); below it ICAWS, the caution list |
+| Upper right (UFD) | standby attitude indicator (speed left, altitude right), COM1/COM2 channels, fuel (lb), local time |
+| ICP (top centre) | control panel: scratchpad on the left, 5 option lines at the arrow keys on the right |
+| PMFD (centre) | map: route, airports, beacons (HSI) |
+| Left / right / lower MFD | ENG / FUEL / FCS by default; the MENU key (bottom, middle) lists the pages |
+
+**MFD pages** (MENU): FUEL, FPAS (range), HSI, ADI, CHKLST (reference), ENG, FCS (surfaces), HUD (repeater), SA, BAY
+(weapon bays), SYS (modes and automation). There are no dummy keys on the pages: what has a label works.
+
+- **FUEL:** the arrows on the right set BINGO in steps of 500 lb *(step untested)*.
+- **FPAS:** at the present fuel flow and ground speed: fuel, BINGO, fuel above BINGO, flow, time and range to BINGO,
+  miles per 1000 lb; below it the next waypoint with distance, time and fuel there; at the bottom the wind
+  (direction and speed, *untested*).
+- **SYS:** keys on the left: DIR (direct FCS mode), VEC (thrust vectoring on / off), VOX (voice), GCS (Auto-GCAS), A/T
+  (autothrottle), ALT GR at the bottom (alternate gear extension); the arrows on the right change the A/T target. The
+  page shows the state of these modes, nozzle angle and command, the share of nozzle travel available, pitch rate,
+  angle of attack, g and its peak, calibrated airspeed.
+- **HSI:** TCN, ILS, WPDSG, SCALE; link to SA. **ADI:** link to HSI. **SA:** scale and compass, no other aircraft and
+  no map; link to HSI.
+- **CHKLST:** not interactive: stabilator position, g limit, mass.
+
+**ICAWS** (only what is active is lit): FUEL LOW, BINGO, L GEN, R GEN, PARK BRK, CANOPY, SPD BRK, FLAPS, AP OFF,
+ANTISKID, BAY OPEN, BRK ACC, FCS, PULL UP, OVER G, AOA, GCAS, A/T and the failure cautions. A new caution blinks
+until you acknowledge it with the left one of the three keys under the left UFD (MASTER CAUTION reset); then it is
+steady until its cause is gone. SPD BRK, FLAPS, PARK BRK, BAY OPEN, PULL UP, AOA, GCAS, A/T are advisories and do
+not blink. On a cold start L GEN / R GEN blink at once: that is normal, acknowledge them.
+
+## Cold start
+
+1. BATT on (two positions, ON / OFF; with engines and APU off, OFF takes all power from the aircraft).
+2. APU on, about 4 s to come up: the displays light, ICAWS shows L GEN / R GEN.
+3. GEN L, GEN R on (they only connect the generators; a generator comes on line by itself at about 55 % RPM).
+4. Left throttle from cut-off to idle: the engine starts by itself (air from the APU). L GEN goes out.
+5. The same with the right throttle. APU off.
+
+Throttles with the mouse: left button moves one lever, right button both (ranges: "Throttle and engine ratings").
+On a cold start the cockpit lights (CONSOLE, INST PNL, FLOOD) are at zero: at night turn them up once there is power.
+
+## Flaps and trim
+
+The flaps are automatic, the flap keys do nothing: gear down gives the take-off / landing position (FLAPS on ICAWS),
+gear up and the flight control system moves flaps and leading-edge flaps with angle of attack and speed. Pitch trim
+is handled by the flight control system as well; leave it alone: in flight the stick at neutral holds 1 g. Lift-off:
+about 130 kt light, 150 kt with full internal fuel, 170 kt with full ferry tanks.
+
+## ICP: how it works
+
+A key at the top selects a function → its options appear on the right → the arrow at an option selects it (a colon
+`:` = selected / on). Numbers: type the digits (they show in the scratchpad) → **MRK = enter (ENT)**. **CLR** deletes
+a character. **UNDO = ON/OFF** of the selected function (the F-22 panel has no ENT and ON/OFF keys, and the Hornet's
+logic needs them).
+
+| Key | Options |
+|---|---|
+| A/P | autopilot: ATTH, HSEL, BALT, RALT, CPL |
+| NAV | ILS, TCN (TACAN), ADF, CRS (course), HDG (selected heading) |
+| STPT | waypoint (POSN, ELEV, GRID, O/S) *(untested)* |
+| IFF | transponder: modes 1, 2, 3, 4, C *(untested)* |
+| ALT | BALT, RALT (as under A/P); ALOW: threshold of the ALTITUDE call, digits in feet → MRK |
+| HUD | NORM / REJ1 / REJ2 - declutter levels of the HUD; BARO / RALT - which altitude the HUD shows *(untested)* |
+| OTHR | ADF2 (second ADF), TIME (timer), A/T (on / off), MACH and KCAS (autothrottle target) |
+| COM1 / COM2 | radio: GRCV, SQCH, cipher, modulation *(untested; radios change almost nothing in Aerofly)* |
+
+## Autopilot
+
+1. Level the aircraft at the altitude you want.
+2. A/P → arrow at **BALT** holds the present altitude; **ATTH** holds bank and pitch.
+3. **HSEL** holds the selected heading: first NAV → HDG, type the heading (e.g. 270) → MRK. *(untested)*
+4. **RALT** holds the height above ground.
+5. Off: the arrow at the mode again (the colon goes) or the autopilot disconnect key. *(untested)*
+
+**Known limit:** do not use BALT / RALT below about 1000 ft at high subsonic speed (from about 645 KIAS): the
+aircraft goes into a strong pitch oscillation. Higher, slower or supersonic the hold is steady.
+
+## ILS approach
+
+The autopilot does not fly an ILS (the F/A-18 this logic comes from has no such mode): fly the needles by hand.
+
+1. Find the ILS frequency and the runway course (airport chart, e.g. airnav.com, or the Aerofly map).
+2. **Frequency:** NAV → arrow at **ILS** → type the 5 digits without the point (110.90 → `11090`) → **MRK**.
+   1-3 digits instead of a frequency are a channel number.
+3. **Receiver on:** on the same page **UNDO** (ON/OFF): the scratchpad shows `ON`.
+4. **Runway course:** NAV → arrow at **CRS** → type the course (e.g. `248`) → **MRK**. This is the course arrow of the HSI.
+5. Fly to the extended centreline (handy: NAV → HDG → intercept heading → MRK, then A/P → HSEL).
+6. Inside ILS coverage the needles appear on the HUD and the HSI: the vertical one is the deviation from the
+   centreline, the horizontal one from the glide slope. Keep both centred; switch the autopilot off before the glide
+   slope comes in. Vertical needle to the left - the centreline is to your left: turn left 10-20°, at the centre take
+   up the runway course. Horizontal needle above the centre - you are below the glide slope: hold altitude until it
+   centres, then descend at about 3° (vertical speed ≈ 5 × ground speed in knots, ft/min: 150 kt → about 750 ft/min).
+7. Put the airport and runway into the Aerofly route (navigation menu): route and runway then show on the PMFD map.
+
+**VOR / TACAN:** NAV → arrow at **TCN** → VOR frequency as 5 digits (114.70 → `11470`) or a TACAN channel as 1-3
+digits → **MRK** → **UNDO** (ON). The HSI shows bearing and distance to the beacon.
+
+## Fuel
+
+The fuel burn is real (Aerofly has none, it is built into the aircraft): the fuselage tanks (TK1/TK4) empty first,
+then the wing tanks, the feed tanks last; at zero the engines stop. Remaining fuel: FUEL page and right UFD; FUEL
+LOW / BINGO on ICAWS. Changing the fuel in the menu during a flight restarts the count. The aircraft's mass does not
+change as internal fuel burns (the simulator sets it).
+
+Typical fuel flow: cruise M 0.85 at 40 000 ft - about 6900 PPH (71 nm per 1000 lb); supercruise M 1.5 at 34 500 ft -
+about 20 700 PPH (42 nm); full afterburner M 2.2 at 34 000 ft - about 160 000 PPH (all internal fuel in 7 minutes).
+
+## Throttle and engine ratings
+
+The POWER ring of the game's interface shows the throttle position, not thrust and not RPM.
+
+| POWER | Lever | Rating |
+|---|---|---|
+| 0-61 % | moves forward | N2 from 65 to about 98 % |
+| **61-66 %** | **stays at the detent** | **military power, N2 100 %** |
+| 66-97 % | moves forward | afterburner from minimum up, N2 100-101 % |
+| 97-100 % | at the stop | full afterburner |
+
+RPM hardly rises in afterburner, as on the real engine: read the afterburner from fuel flow FF, nozzle NOZ and the
+flame. Speeds: military power at 34 000 ft gives about M 1.5 (no afterburner, slow to get there), afterburner M 2.2-2.25.
+
+## Thrust vectoring and direct mode
+
+The nozzles follow the stick by themselves, ±20° in pitch. On the ground with thrust the vectoring comes in between
+95 and 125 kt and fades out towards 10° of pitch; at idle the nozzles follow the stick at any speed (a check). You
+can see the nozzles from outside: stick back, the flap ends go up.
+
+**Direct mode** (a wish of ours; the real F-22 has nothing like it): the DIR key on the SYS page. The stick bypasses
+the F/A-18's laws and their protections: at low speed it commands pitch rate, at high speed it also moves the
+stabilators directly. It comes in and goes out smoothly over 2 s; FCS is lit on ICAWS. At high speed full back stick
+breaks the aircraft: the wings come off at 13.5 g (see "Structure").
+
+## Autothrottle and Auto-GCAS
+
+**Autothrottle.** The A/T key on SYS, or OTHR → A/T. Gear up it holds the speed at engagement: Mach from M 0.7 up,
+calibrated airspeed below. Gear down it holds 8.5° angle of attack. Target: the arrows on SYS (±0.05 M, ±10 kt) or
+OTHR → MACH / KCAS → digits → MRK (139 = M 1.39, 450 = 450 kt); such an entry engages it. Dry thrust only; the
+levers in the cockpit follow. It disengages when you move the throttle by more than 3 % (thrust goes to the lever
+position at once), in afterburner and at touchdown.
+
+**Auto-GCAS** (our choice; nothing is published about such a system on the F-22). On by default, the GCS key. It
+works out the height margin from flight path, bank and speed and, when it runs out, rolls the wings level and pulls;
+the stick in the cockpit moves. GCAS is lit on ICAWS. Gear up only. Cancel: stick beyond half travel, or GCS. In a
+dive and very low flight it can trigger when you did not need it.
+
+**Voices:** PULL UP with the HUD arrow, ALTITUDE once when descending below the
+ALOW threshold gear up (200 ft by default), BINGO, OVER G. Over the ILS markers a tone sounds where the game's data
+has markers for the airport. When Auto-GCAS triggers a short tone sounds *(untested)*. The VOX key mutes voices and
+tones; the lower thumbwheel right of the ICP sets their volume.
+
+**Cockpit noise:** a soft airflow with airspeed, buffet at high angle of attack and g *(untested)*.
+
+## Map
+
+The terrain map is on the centre MFD (PMFD) only, HSI page, MODE key. The side MFDs have none: the engine keeps one
+map. The ▲▼ rocker at the bottom right of the ICP is the map scale on the SA / HSI pages.
+
+## Night lighting
+
+INTERIOR LIGHTS panel on the left console: **MFD** - brightness of all MFDs, **INST PNL** - lettering of the front
+panel and the ICP keys, **CONSOLE** - lettering of the side consoles, **FLOOD** - general cockpit light. Needs power
+(battery). The game's cockpit light commands turn the same knobs.
+
+## Brightness
+
+Upper thumbwheel left of the ICP keyboard: mouse wheel or drag (UFDs and ICP together). All MFDs: the MFD knob of
+the INTERIOR LIGHTS panel. HUD: upper thumbwheel right of the ICP.
+
+## Landing and taxi light
+
+LDG/TAXI LIGHT switch (left console, at the gear handle): forward LDG, middle OFF, aft TAXI. Drag with the mouse.
+The lights work only with the nose gear down.
+
+## Weapon bays, tanks, refuelling
+
+**The load** is chosen with the livery in the aircraft menu: the plain one has empty bays; **combat** has 6 AIM-120C
+in the main bay and 2 AIM-9X in the side bays (+1112 kg); **ferry** has two 600 US gal tanks on pylons.
+
+**BAY page** on any MFD: MENU → upper left key **BAY**. The keys **LFT / CTR / RGT** open and close each bay (boxed
+= commanded open), **ALL** all of them (if all are closed: open, otherwise close). In the middle: what is in the bay
+and the door state (CLSD / MOVE / OPEN), below it the tanks. While any bay is not closed, ICAWS shows **BAY OPEN**.
+The side bays swing the AIM-9X out on its launcher with the doors. Needs power. Open bays add no drag.
+
+**Ferry tanks:** their fuel goes first; the FUEL page shows what is left in them under the wing tanks, **EXT L /
+EXT R** (lb). **Jettison:** the **EMER JETT** button (left edge of the front panel, left of MASTER ARM; in the game's
+control settings `Controls.EmergencyJettision`, if it can be assigned) drops both tanks with their pylons, as on the
+F-22. In the air and with power only; on the ground the button is locked. Each tank is pushed off by the pylon's
+ejector and falls by itself with its own mass and drag; its fuel leaves the count. To get the tanks back start a new
+flight from the menu. The aircraft's mass goes down in steps of 453 kg per tank as the ferry fuel burns.
+
+**Air refuelling (for looks):** left edge of the front panel under EMER JETT: the AAR switch opens the receptacle
+door behind the cockpit, the knob is its light. Aerofly has no air refuelling.
+
+## Outside view
+
+From outside you see a pilot in the cockpit and pictures of the pages on the screens (live screens are not drawn
+from outside). Without power the pictures go dark with the screens.
+
+## Failures (FAIL page)
+
+A hidden instructor page. To open it: type **9900** on the ICP and press **ENTR** on the empty ICP page - the right
+MFD shows FAIL at once, and the menu of every MFD keeps a **FAIL** link at the top. Left: ▲▼ cursor, **SEL** breaks
+the selected item now (or repairs it). Right: **RAND** - one random failure in 1-15 minutes (you know neither which
+nor when), **COND** - failures caused by how you fly (**on from the start**; this key turns it off), **RST** -
+repair everything, **PAGE** - second page.
+
+| Failure | What you see | What to do |
+|---|---|---|
+| L/R GEN | ICAWS L GEN | GEN off and on again: it comes back |
+| GEN ARC | L GEN, then HYD | **do not touch GEN**: a restart sets the left side on fire. Land |
+| L/R HYD | HYD, pressure falls within a minute | both systems move the surfaces - hardly felt in flight. **R HYD** (utility): the gear does not retract, extension by free fall (lever down), brakes on the accumulator only (about 8 s of full braking), no nose wheel steering: long runway. **L HYD**: the bay doors stay as they are |
+| L/R BLEED | ICAWS BLEED; at full power the EGT of that side is about 35° higher | throttle below 70 % (EGT comes back), descend; at full power a fire after a minute |
+| OBOGS | ICAWS OBOGS | below 10 000 ft: backup oxygen for 10 min, then OXY LOW |
+| L/R OIL | OIL 0; then VIB rises on the ENG page (from about 1.4 to 3+ in 50 s), EGT after it | shut the engine down (FADEC) - about 60 s at full power, 90 s at idle. Seized: L/R SEIZED, RPM 0, a restart is useless |
+| L/R AB | no afterburner | fly at MIL |
+| NOZZLE | ICAWS NOZZLE | the nozzles are frozen: no vectoring |
+| FUEL LK | nothing, the fuel just goes faster | compare FUEL / FPAS, nearest airport |
+| L MFD / PMFD | the screen is dark | use the pages on the other screens |
+| ANTISKD | ICAWS ANTISKID | brake gently |
+| L/R FLAME | L/R ENG, RPM falls | FADEC off (or throttle to cut-off), APU START, FADEC NORM, throttle forward; MOTOR if needed |
+| L/R FIRE | red FIRE; the engine runs, after 50 s of fire VIB rises | ENG page: **L FIRE** (left column, top) / **R FIRE** (right column, top). First press shuts this engine's fuel (the engine stops, the key is boxed and reads DSCH), second press fires the bottle: the fire is out. One bottle for both sides; without a bottle the key reads FUEL - a press gives the fuel back (start as after a flameout). Burning: after 40 s no hydraulics on that side, 80 s the engine seizes, 150 s the fire reaches the other hydraulic system. Two fires at once: you can put out one |
+| PITOT | the airspeed lies: rises in a climb, falls in a descent (to 0), AIR DATA after 8 s. Every speed display, the A/T and the FCS gains are wrong | fly by angle of attack and thrust, ground speed is on the map; do not engage A/T |
+| DUAL ENG | both engines stopped | air start on the APU |
+
+**FAIL page 2** (PAGE key; the cursor runs over both pages), landing gear: **L / R / N GR UP** - the up-lock does not
+release (a retracted leg stays in its bay; **ALT GR** on the SYS page is the alternate extension: the locks let go,
+the gear comes down and stays down until RST); **L / R / N DNLK** - the down-lock does not hold: amber lamp, the leg
+folds under weight; **NWS** - nose wheel steering lost, the wheel centres; **L / R BRAKE** - that side's brake and
+parking brake are gone; **L / R WHL SZ** - a wheel is seized: it drags, and a long skid at speed bursts the tyre;
+**L / R / N TIRE** - the tyre bursts at once. At the bottom TD SIDE: sideways speed of the last touchdown, kt.
+
+**COND** (failures from how you fly): gear down above 300 kt for 3 s - damaged, does not retract (GEAR); less than
+-0.5 g for 30 s - both engines stop; more than 60° angle of attack below 60 kt in afterburner for 3 s - one engine
+stalls; heavy braking heats the brakes (BRK HOT) and they fade, cooling takes about 10 minutes; above about 820 kt -
+rudder flutter (a hum, yaw shake): slow down or a fin comes off; touchdown at more than 600 ft/min (10 ft/s) - HARD
+LDG, more than 900 ft/min (15 ft/s) - the leg that took it folds (GEAR); full braking without antiskid or on
+overheated brakes bursts a tyre (a bang, the aircraft pulls to that side).
+
+**How a failure feels** (without the FAIL page): a damaged engine (oil, fire at its case) "hunts" - thrust wanders
+by a few percent, you hear it in the engine tone and feel a slight yaw, stronger towards the seizure, with a low
+uneven rumble. A seized engine stops within about 1.5 s with a grinding noise instead of running down. Above about
+250 kt the extended gear hums and shakes before it is damaged. When a generator drops, the MFD of its side blinks
+for 0.3 s (bus transfer). During its first 40 s a fire shows by FIRE alone; there is no smoke.
+
+## Structure
+
+The wing panels come off at 13.5 g (a 9 g limit with a factor of 1.5 - our estimate, the real strength of the F-22
+is not published). With the normal control laws you cannot pull more than 9 g; in DIR (up to 16 g) at high speed you
+can overdo it: a wing leaves, the aircraft jerks and is hardly controllable. A light touch of a wingtip on the runway
+is a scratch, a hard one tears the wing off. 13.5 g at 500 kt is a little over 80 % of stick travel. After a
+break-up start a **new flight from the menu**: time rewind and RST on the FAIL page do not bring a wing back. The
+fins stand any flight with the normal laws; flutter breaks them (COND, above about 820 kt) or a tumble in DIR. What is
+lost shows on the **FCS** page (table under G-LIM): OK, DEGD (one hydraulic system), HYD (no pressure), LOST; on the
+right, under the grid, what went first and at which speed, g, angle of attack and sideslip.
+
+## Controls that do nothing yet
+
+The ▲▼ rocker at the scratchpad, DVR, the two right keys under the left UFD, the keys under the right UFD (radios
+and the like: nothing in Aerofly reacts to them).

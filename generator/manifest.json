@@ -1,0 +1,81 @@
+{
+ "version": "0.9.0",
+ "built": "2026-11-16",
+ "source_commit": "0e18bba+uncommitted",
+ "repository": "k1lyas/aerofly-fs4-f22a",
+ "donor_read": [
+  "f18.tmd",
+  "f18.tmc",
+  "controls.tmd",
+  "copilot.tmc",
+  "f18_clean.tmd",
+  "f18_cold.tmd",
+  "f18_flaps.tmd",
+  "f18_gear.tmd",
+  "f18_landing.tmd",
+  "f18_start.tmd",
+  "f18_takeoff.tmd"
+ ],
+ "donor_copy": [
+  "button_small.tsb",
+  "ground_roll.tsb",
+  "jet_00.tsb",
+  "jet_00_int.tsb",
+  "jet_01_int.tsb",
+  "jet_02.tsb",
+  "jet_afterburn.tsb",
+  "knobturn.tsb",
+  "switch.tsb",
+  "display_source_light.ttx"
+ ],
+ "tested_games": [
+  {
+   "label": "Steam build 26564849, macOS",
+   "donor": {
+    "f18.tmd": "97db0f196b904228b09d54cfbcf56ee2ad9efb817baaff4a40265c63a1f94e98",
+    "f18.tmc": "c12a60885fcabcda6371ceba4eacbf460d9d74c5cf3a002a1b8d0295011a2330",
+    "controls.tmd": "a1d62b42576b58a341c69cdd632ed09254f866a22bb9217b5f6ceaf145e4baaa",
+    "copilot.tmc": "be2eb3d721e916b37fe60c0f034df482c7f45cb6d492b86533a7c41ed6e40582",
+    "f18_clean.tmd": "18b4f540ddc5224dfe93c036ded01184d4e8b4df7f3a335c83fa2e7e636b4e01",
+    "f18_cold.tmd": "82f0918e41509409986953111b440a99382f8b38e9183f3df8100647d18d4dbc",
+    "f18_flaps.tmd": "087980b7ee37efcdd47996932a3dd4efdc31f31f68ee49756e31bda7dfdb9c6d",
+    "f18_gear.tmd": "3dcf6388c2c663163236fa9b59ac6c487e8279615778d8119d0997363dd23145",
+    "f18_landing.tmd": "c9f7945ec4f50e57c504f2c47b8b4a5bc4752ab798a9d06aa245c8c92759cea5",
+    "f18_start.tmd": "ad7431106f9c3fab20dedb717308d5e5e8b989db75e839d3c6e529e38a2f209b",
+    "f18_takeoff.tmd": "b981b03b85abdacb979e253a802803048aa806d7a86a4534ad7b9b1f871f9813",
+    "button_small.tsb": "bf0baaad011d5a103471f9c51812b794bab8ae8cca5c3fcedbfcd8d833685cfc",
+    "ground_roll.tsb": "58aef1c3602eeea321918310aace36062f80c2fba99b8c0b854fd969eedd592d",
+    "jet_00.tsb": "e09d5b949db32bbcf7d8dddf41d597bc85775df154dd674ad508461bd6843db7",
+    "jet_00_int.tsb": "682c9f7c3fd415b66baafa920261d60be0b1031650eae5cb02c07b9216db6d2d",
+    "jet_01_int.tsb": "4c8b39a7cc287391c9f15c4b937cdc3aa952b0051909aa551834ef2de13a7784",
+    "jet_02.tsb": "77b166d7ba84c09114dcc392b755655fb4db37582595b950bf0d273c93e78e08",
+    "jet_afterburn.tsb": "06c180d935510c158595cd2bd5a865bc330419673b10790fdaad7e905d27201d",
+    "knobturn.tsb": "ac14ab9a8182e415456086d1cb12bc33cbdc68b2c8a998a775f2d8e0e2dce3f3",
+    "switch.tsb": "075e506c58af8c81f59baa8a0cba06a5c17c2e97b0cddcac1195ed57cd11fddc",
+    "display_source_light.ttx": "3cadf20cbbb516bf6c5eb7e4ffa2f29376661cb8f52c5cc9dc6f0a0733b9217d"
+   },
+   "output": {
+    "combat/option.tmc": "c3157861ec6bc9c42cfcf8cd9c40871e3f0710da7ff3a9762b4a375e87fb635d",
+    "controls.tmd": "5e4743a9ec627936d7a7fd598035a18631801c9fd3389c6263fdb5073c8322ad",
+    "copilot.tmc": "7ec51074860638483299b0d2354167e019f4d04aed04de29d0f7619dc6281e84",
+    "f22.tmc": "35c994ffd0aaa7386b707fe04ea016345401b0caff9ac2adc1a8312ba0696556",
+    "f22.tmd": "9a08716414acf3d94f4875b89b0031610c16ac9c1c9721cb12fd282f5cf9957c",
+    "f22_clean.tmd": "c1292137e6cd8a0666d25cd5a354d64d534d2ad5896f19d16433f528c7102842",
+    "f22_cold.tmd": "53a3eb1aca96112261c546be441897e0b396dea41757b29d34801e6ff2a0bc57",
+    "f22_flaps.tmd": "929b4ca6abcedc3eaf7d61f770280c4d0baa92aa9f4fb97caf3fec2dee79223c",
+    "f22_gear.tmd": "b66a140978e3918aaaf2877da79a1016a5bc7476e5a8bd08468aa117b68fd21a",
+    "f22_landing.tmd": "b0ea24be0db7b91f7d076494053ce492841f1c27fcfbb38b5ca64ec2d2698299",
+    "f22_start.tmd": "8320ab5b3eb92b99744a40ffc34db5f0388e60dfc2fcfcd1ada17ed82d56274d",
+    "f22_takeoff.tmd": "28cbb830de07ea970b825db0a397d5fe4ab5367b2e6e079d9c57b2ae803b7fb7",
+    "ferry/option.tmc": "2856be32424c4fc844c26ccfd0f0d40b1398d5653feb55c175ce295c42ac8a17",
+    "load_combat/option.tmc": "4f2581ef6c24c7a1c730faa3ea4aad60375b120cd1c13f7e4190a6155f854f36",
+    "load_combat/parameters.tmd": "36d50d203e566757e2cbdaac6c0362753c51a650d549826f1de69cf67b59039e",
+    "load_combat/system.tmd": "77cd1cfdd269f89c52569764f60c3de8bf2f09ff225b42c6ac935d69b542ce83",
+    "load_ferry/option.tmc": "9073a29918033613f18d3f4bb78daa8d0c8ac4c9aff9dbf2d4b9a6d6cc331c64",
+    "load_ferry/parameters.tmd": "c14da89593cd0e60102ea76e75b4adcae9099d5730cf0f5465586192666f4fb3",
+    "load_ferry/system.tmd": "da60511ef8e0457766ac08622b5a45fe9c6b6b7c8b9cf90c39b044f65175d5f0",
+    "option.tmc": "c05d53f87d3cb293b80bb1ff28cc0a719bb7e22f01a23e380e5ce7242d9d1ab2"
+   }
+  }
+ ]
+}
