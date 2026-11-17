@@ -1618,9 +1618,12 @@ for name in HYD_SERVOS:
     old = bit_command(name, node.get('Input').strip())
     obj(dyn, 'product', 'F22Hyd' + name, node, Inputs=' %s F22HydAuthority.Output ' % old)
     node.set('Input', 'F22Hyd%s.Output' % name, 'string8')
+# the controls without a function yet (cockpit_controls.py, 2026-11-16): their states - nothing reads them so far
+import cockpit_controls
+cockpit_controls.dynamics(obj, dyn, anchor)
 # static DCS controls made turning parts (ac KNOB_PARTS: the ICP thumbwheels), turned by their dynamics value 0..1
 for k in getattr(C, 'KNOB_PARTS', ()):
-    if k.get('spin'):       # the fans, burner_f22.py
+    if k.get('spin') or k.get('press'):       # the fans, burner_f22.py; push buttons, PRESS_PARTS below
         continue
     h = parts.get(k['part'], {}).get('hinge')
     if h is None:
@@ -1638,6 +1641,67 @@ for k in getattr(C, 'KNOB_PARTS', ()):
     g('graphics_rotation', k['part'] + '_Turn', Input=k['part'] + '_Angle.Output', Axis=h['axis'], Pivot=h['pivot'])
     g('rigidbodygraphics', k['part'], GeometryList=' %s ' % k['part'], **body('Fuselage'),
       InputTransform=k['part'] + '_Turn.Output')
+
+
+# keys of the screens and the ICP (ac PRESS_PARTS, 2026-11-16): objects of their own in the DCS cockpit, static there.
+# Each is a part of its own now and goes in while it is held, the stock F/A-18's way (its UFC keys: a graphics_input
+# on the key's input_button - the graphics read a button's Output, the dynamics cannot - scaled to 1.5 mm, a
+# graphics_translation into the panel). A key whose message has no input_button yet (an input_event acts on it, or
+# nothing does: the keys still free) gets a silent one of its own beside it, as the stock pairs a button and an event
+# on one message
+def press_button(k):
+    for o in dyn.children:
+        if o.type != 'input_button' or (o.get('Message') or '').strip() != k['message']:
+            continue
+        iv = o.get('InputValue')
+        if k['value'] is None or (iv is not None and abs(float(iv) - k['value']) < 1e-6):
+            return o.name
+    name = 'F22Press' + re.sub(r'\W', '', k['part'][2:])
+    fields = dict(Message=k['message'])
+    if k['value'] is not None:
+        fields['InputValue'] = '%g' % k['value']
+    D[name] = obj(dyn, 'input_button', name, D['UpFrontKey0'], **fields)
+    return name
+
+
+def press_axis(k):
+    if k['axis'] == 'x':
+        return [1.0, 0.0, 0.0]
+    if not isinstance(k['axis'][0], str):        # a cut-out button: its own push direction
+        return [float(x) for x in k['axis']]
+    c_, dn, rt = (CONNECTORS[q] for q in k['axis'])
+    a, b = [x - y for x, y in zip(rt, c_)], [x - y for x, y in zip(c_, dn)]
+    n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+    ln = math.sqrt(sum(x * x for x in n))
+    n = [x / ln for x in n]
+    if sum(x * (e - p) for x, e, p in zip(n, EYE, c_)) > 0:      # into the screen, away from the pilot
+        n = [-x for x in n]
+    return n
+
+
+def press_resolve():
+    made = 0
+    for k, node in press_pending:
+        before = len(dyn.children)
+        node.set('InputID', press_button(k) + '.Output', 'uint32')
+        made += len(dyn.children) - before
+    print('key press buttons: %d keys, %d silent buttons of their own' % (len(press_pending), made))
+
+
+n_press, press_pending = 0, []
+for k in getattr(C, 'PRESS_PARTS', ()):
+    if k['part'] not in parts:
+        print('WARNING key part %s not exported' % k['part'])
+        continue
+    # (the button is looked up at the end, press_resolve: some keys get their input_button further down, and a silent
+    # twin made here stood beside it - UFD.RightPage / RightKey1 / RightKey3 in the first build)
+    press_pending.append((k, g('graphics_input', 'Gfx' + k['part'], InputID=('uint32', 'PENDING'),
+                               Scaling=float(k.get('depth', C.PRESS_DEPTH)))))
+    g('graphics_translation', k['part'] + '_Push', Input='Gfx%s.Output' % k['part'], Axis=press_axis(k))
+    g('rigidbodygraphics', k['part'], GeometryList=' %s ' % k['part'], **body('Fuselage'),
+      InputTransform=k['part'] + '_Push.Output')
+    n_press += 1
+print('keys pushed in while held: %d' % n_press)
 # stores (stage 6): the bay missiles show with the combat load (the AIM-9X parts '__S' ride their trapeze chains);
 # the ferry tanks are drawn by their add-on, on their own bodies
 g('graphics_input', 'GfxF22CombatHidden', InputID=('uint32', published('F22CombatHidden')))
@@ -1701,6 +1765,13 @@ for gear in ('Nose', 'Left', 'Right'):
     for sig in ('Amber', 'Moving', 'NotMoving'):
         g('graphics_input', 'GfxGear%s%s' % (gear, sig), InputID=('uint32', published('F22Gear%s%s' % (gear, sig))))
     g('graphics_input', 'GfxGear%sLamp' % gear, InputID=('uint32', published('F22Gear%sLamp' % gear)))
+# the gear handle's wheel glows red while any leg is in transit (user 2026-11-16, as the F/A-18's handle light): a lamp
+# copy of the wheel on the handle (ac _gear_handle_light), hidden while dark; on the DC essential bus as the plates
+obj(dyn, 'maximum', 'F22GearAnyMoving', anchor, Inputs=' F22GearNoseMoving.Output F22GearLeftMoving.Output F22GearRightMoving.Output ')
+obj(dyn, 'product', 'F22GearHandleLight', anchor, Inputs=' F22GearAnyMoving.Output DCBusEssentialOn.Output ')
+obj(dyn, 'logic_invert', 'F22GearHandleDark', anchor, Input='F22GearHandleLight.Output')
+for sig in ('Light', 'Dark'):
+    g('graphics_input', 'GfxGearHandle' + sig, InputID=('uint32', published('F22GearHandle' + sig)))
 g('graphics_input_color', 'F22GearIndicatorColor', InputID=('uint32', published('AnnunciatorBrightness')),
   Color=('tmvector3d', ' 200.0 900.0 100.0 '))
 g('graphics_input', 'GfxF22AnnunciatorTest', InputID=('uint32', published('AnnunciatorTestOn')))
@@ -1710,8 +1781,10 @@ g('graphics_input_color', 'F22CautionIndicatorColor', InputID=('uint32', publish
 g('graphics_input', 'GfxBattLampLamp', InputID=('uint32', published('F22OnBattery')))
 GEAR_LAMPS = {'GearNose': 'F22GearIndicatorColor', 'GearLeft': 'F22GearIndicatorColor',
               'GearRight': 'F22GearIndicatorColor', 'BattLamp': 'F22CautionIndicatorColor'}
-LAMP_SWITCH = {'Formation': 'FormationLightScaled', 'Landing': 'GfxLandingLight', 'Taxi': 'GfxTaxiLight'}
-LAMP_GAIN = {'Formation': 1.0, 'Landing': 6.0, 'Taxi': 6.0}
+LAMP_SWITCH = {'Formation': 'FormationLightScaled', 'Landing': 'GfxLandingLight', 'Taxi': 'GfxTaxiLight',
+               'GearHandle': 'GfxGearHandleLight'}
+# (GearHandle: 900, the annunciators' scale, burnt the wheel out to a pink blob - user 2026-11-17: far too bright)
+LAMP_GAIN = {'Formation': 1.0, 'Landing': 6.0, 'Taxi': 6.0, 'GearHandle': 1.5}
 # ('__K<body>' / '__B<body>': a lamp on a breakable part, kept on the fuselage / flying with the body - the swap is
 # breakage_f22.damage_graphics')
 lamp_keys = sorted({re.split('__[KB]', p.split('__L')[-1] if '__L' in p else p[2:])[0] for p in list(parts) + list(anim)
@@ -1744,6 +1817,8 @@ for pname in sorted(parts):
 for n in G:
     if n.type == 'rigidbodygraphics' and '__L' in n.name:
         n.children.append(tmd.Node('string8', 'InputLuminance', 'Lamp%sColor.Output' % re.split('__[KB]', n.name.split('__L')[1])[0]))
+        if n.name.endswith('__LGearHandle'):
+            n.children.append(tmd.Node('string8', 'InputHide', 'GfxGearHandleDark.Output'))
 # ---- cockpit night lighting: the F-22 INTERIOR LIGHTS panel (left console). Every interior material has a lighting
 # map (export_parts.py, ac_f22.py LABEL_ILLUMINATION): red = flood (FLOOD knob, F/A-18 FloodLightBrightness), green =
 # side-console lettering (CONSOLE, ConsoleBrightness), blue = instrument panel and ICP key lettering (INST PNL,
@@ -2998,6 +3073,7 @@ def make_controls():
 
 
 # ---------------------------------------------------------------------------------------------- write
+press_resolve()
 tvc_f22.apply(dyn)
 # stabilators: hydraulic power and the BIT program on the vector law's tail commands (the first build gated the
 # Hornet's taileron outputs, which tvc_f22 no longer feeds to the servos - the stabilators kept moving with no hydraulic

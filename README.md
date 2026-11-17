@@ -75,7 +75,7 @@ or delete the folder `aircraft/f22` in your Aerofly user folder.
   version.
 - The aircraft loads but behaves oddly after a game update: look for a newer release; report it in the thread.
 
-Tested with: Aerofly FS 4 Steam build 26564849, macOS. Reports from other systems and game versions are welcome.
+Tested with: Aerofly FS 4 Steam build 26705403, macOS. Reports from other systems and game versions are welcome.
 
 ## Known limits of this version
 
@@ -87,6 +87,13 @@ Tested with: Aerofly FS 4 Steam build 26564849, macOS. Reports from other system
 - The SA page shows no other aircraft; no arresting hook; air refuelling is visual only.
 - Aerofly does not change the aircraft mass with internal fuel burn; radios and IFF pages do nothing in the game.
 - Items marked *(untested)* in GUIDE.md follow the F/A-18's logic and were not checked in the F-22 yet.
+
+## Want to help?
+
+Many cockpit controls already move and click but have no function yet (ECS, oxygen, AUX COMM, the knobs at the
+screens and more). **COCKPIT_CONTROLS.md** lists each of them with the name of its state: a function can be added in
+the Python scripts of the folder `generator/` alone - no 3D work and no IPACS converter; run the installer again
+to rebuild the aircraft with your change. Ideas and patches: https://www.aerofly.com/community/forum/index.php?thread/30495-f-22a-raptor-for-aerofly-fs4-work-in-progress-videos-updates-feedback-welcome/ or https://github.com/k1lyas/aerofly-fs4-f22a.
 
 ## Licence
 

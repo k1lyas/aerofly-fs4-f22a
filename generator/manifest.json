@@ -1,7 +1,7 @@
 {
  "version": "0.9.0",
- "built": "2026-11-16",
- "source_commit": "0e18bba+uncommitted",
+ "built": "2026-11-17",
+ "source_commit": "c7d4465+uncommitted",
  "repository": "k1lyas/aerofly-fs4-f22a",
  "donor_read": [
   "f18.tmd",
@@ -30,7 +30,7 @@
  ],
  "tested_games": [
   {
-   "label": "Steam build 26564849, macOS",
+   "label": "Steam build 26705403, macOS",
    "donor": {
     "f18.tmd": "97db0f196b904228b09d54cfbcf56ee2ad9efb817baaff4a40265c63a1f94e98",
     "f18.tmc": "c12a60885fcabcda6371ceba4eacbf460d9d74c5cf3a002a1b8d0295011a2330",
@@ -56,10 +56,10 @@
    },
    "output": {
     "combat/option.tmc": "c3157861ec6bc9c42cfcf8cd9c40871e3f0710da7ff3a9762b4a375e87fb635d",
-    "controls.tmd": "5e4743a9ec627936d7a7fd598035a18631801c9fd3389c6263fdb5073c8322ad",
+    "controls.tmd": "b9e4b0b0afa0bd95d07324719272ab1eb4c566a2ee198eaf57197ec077043cbe",
     "copilot.tmc": "7ec51074860638483299b0d2354167e019f4d04aed04de29d0f7619dc6281e84",
     "f22.tmc": "35c994ffd0aaa7386b707fe04ea016345401b0caff9ac2adc1a8312ba0696556",
-    "f22.tmd": "9a08716414acf3d94f4875b89b0031610c16ac9c1c9721cb12fd282f5cf9957c",
+    "f22.tmd": "688d81de03fbc506c16d3928649a382d598e1e34b4eefc6a2a8378db3c349a30",
     "f22_clean.tmd": "c1292137e6cd8a0666d25cd5a354d64d534d2ad5896f19d16433f528c7102842",
     "f22_cold.tmd": "53a3eb1aca96112261c546be441897e0b396dea41757b29d34801e6ff2a0bc57",
     "f22_flaps.tmd": "929b4ca6abcedc3eaf7d61f770280c4d0baa92aa9f4fb97caf3fec2dee79223c",

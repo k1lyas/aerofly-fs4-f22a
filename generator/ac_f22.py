@@ -235,6 +235,9 @@ LAMPS = [
     dict(key='GearRight', name=r'^CP_OFF_RIGHT_GEAR$'),
     # their amber twins while the gear moves (2026-11-06): copies of the same plates (EXTRA_OBJECTS _gear_amber_plates)
     # - one geometry drawn by two graphics objects stops the model from loading
+    # the gear handle's wheel lit red while the gear is in transit, as the F/A-18's (user 2026-11-16): a copy of the
+    # wheel riding the handle (EXTRA_OBJECTS _gear_handle_light), hidden while dark
+    dict(key='GearHandle', name=r'^CP_GEAR_HANDLE_LIGHT$'),
     dict(key='GearNoseAmber', name=r'^CP_AMBER_NOSE_GEAR$'),
     dict(key='GearLeftAmber', name=r'^CP_AMBER_LEFT_GEAR$'),
     dict(key='GearRightAmber', name=r'^CP_AMBER_RIGHT_GEAR$'),
@@ -243,7 +246,7 @@ LAMPS = [
 ]
 LAMP_COLOURS = {'Formation': (0.10, 0.80, 0.50), 'Landing': (1.0, 0.96, 0.88), 'Taxi': (1.0, 0.96, 0.88),
                 'GearNose': (0.25, 1.0, 0.35), 'GearLeft': (0.25, 1.0, 0.35), 'GearRight': (0.25, 1.0, 0.35),
-                'BattLamp': (1.0, 0.6, 0.1),
+                'BattLamp': (1.0, 0.6, 0.1), 'GearHandle': (1.0, 0.07, 0.03),
                 'GearNoseAmber': (1.0, 0.6, 0.1), 'GearLeftAmber': (1.0, 0.6, 0.1), 'GearRightAmber': (1.0, 0.6, 0.1)}
 
 # measurement helpers
@@ -844,7 +847,7 @@ def EXTRA_OBJECTS(objs, mesh_object, X, tex_dir):
         if PILOT_MATERIAL.match(o.get('edm_material', '')):
             o['aerofly_part'] = 'Pilot'
     return (_formation_panels(objs, mesh_object, X, tex_dir) + _store_objects(X, tex_dir) + _nozzle_fire(objs, mesh_object) +
-            _icp_patch(objs, mesh_object) + _flcs_bushing(objs, mesh_object) + _gear_amber_plates(objs) +
+            _icp_patch(objs, mesh_object) + _flcs_bushing(objs, mesh_object) + _gear_amber_plates(objs) + _gear_handle_light(objs) +
             _gear_debris(objs, _burst_tyres(objs)))
 
 
@@ -962,6 +965,37 @@ def _gear_amber_plates(objs):
     return out
 
 
+def _gear_handle_light(objs):
+    """The gear handle's wheel once more as a lamp (LAMPS GearHandle): the faces of the handle (CP__7.003, animated by
+    cockpit argument 83) within 19 mm of the wheel's centre (CLICK_GRIPS: the wheel is 30 mm across, 16 mm wide), blown
+    up 3 % about that centre - half a millimetre over the wheel (coincident copies are dropped by the export). The copy
+    keeps the handle's animation: it rides with it."""
+    import bmesh
+    from mathutils import Vector
+    centre = Vector(CLICK_GRIPS['GearLever'][0])
+    for o in objs:
+        if o.name != 'CP__7.003':
+            continue
+        c = o.copy()
+        c.data = o.data.copy()
+        c.name = 'CP_GEAR_HANDLE_LIGHT'
+        M = o.matrix_world
+        Mi = M.inverted()
+        bm = bmesh.new()
+        bm.from_mesh(c.data)
+        far = [f for f in bm.faces if any((M @ v.co - centre).length > 0.019 for v in f.verts)]
+        bmesh.ops.delete(bm, geom=far, context='FACES')
+        for v in bm.verts:
+            v.co = Mi @ (centre + (M @ v.co - centre) * 1.03)
+        n = len(bm.faces)
+        bm.to_mesh(c.data)
+        bm.free()
+        print('gear handle light: %d faces of the wheel' % n)
+        return [c] if n else []
+    print('WARNING gear handle light: CP__7.003 not found')
+    return []
+
+
 def _flcs_bushing(objs, mesh_object):
     """FLCS BIT switch base: the ALT FLAPS toggle's own nut (washer, ring, dome: the F22_SWITCH faces of the static panel
     within 7 mm of its axis, below its bat) copied under the BIT bat, with its UVs (the same light grey), scaled down to
@@ -1015,7 +1049,11 @@ def _flcs_bushing(objs, mesh_object):
         faces.append(tuple(idx)); fuv.append(uv)
     print('FLCS base: ALT FLAPS nut, %d faces, r %.1f mm h %.1f-%.1f mm -> scale %.2f / %.2f at %s'
           % (len(faces), r_max * 1e3, h0 * 1e3, Hh.max() * 1e3, s_r, s_h, np.round(foot, 5).tolist()))
-    return [mesh_object('FlcsBushing', verts, faces, fuv, 'f22_switch')]
+    out = [mesh_object('FlcsBushing', verts, faces, fuv, 'f22_switch')]
+    for name, _, R, t in CC.GUARDS:          # the same base under the other guarded toggles (the switch's mesh, moved)
+        Rm, tv = np.array(R), np.array(t)
+        out.append(mesh_object(name + 'Bushing', [tuple(Rm @ np.array(v) + tv) for v in verts], faces, fuv, 'f22_switch'))
+    return out
 
 
 def _nozzle_fire(objs, mesh_object):
@@ -1503,6 +1541,12 @@ CLICK_ICP += [([7.6346, -0.0966, 1.1256], 'LeftMFDBrightnessKnob', 'HUD.Brightne
 CLICK_ICP += [('ICP_KNEXT_PNT', ICP_KEY, 'ICP.MapRangeUp', 1.0, 'event', 0.005, 0.005),
               ('ICP_KPREV_PNT', ICP_KEY, 'ICP.MapRangeDown', 1.0, 'event', 0.005, 0.005)]
 ICP_KEY_SIZE = 0.015     # key face (the F/A-18 UFC keys 17-18 mm)
+# the ICP keys with a DCS click point (function keys, digits, CLR, UNDO, A/P, MRK, the five round option keys): parts
+# of their own, pushed forward while held (PRESS_PARTS below). 'UpFront.Key' / 'UpFront.Page' / 'OptionButtons.Button'
+# tell their keys apart by the value
+PRESS_PARTS_ICP = [dict(part='P_' + p[:-4], point=p, message=m, value=(v if m in ('UpFront.Key', 'UpFront.Page', 'OptionButtons.Button') else None), axis='x')
+                   for p, tpl, m, v, *_ in CLICK_ICP if isinstance(p, str) and (tpl.startswith('MenuKey') or tpl.startswith('OptionSelect'))
+                and p not in ('ICP_KNEXT_PNT', 'ICP_KPREV_PNT')]
 # the two upper thumbwheels beside the ICP turn with their value (2026-10-22: they stood still - static in the DCS
 # model, merged into larger F22_ACC2 objects; arg 918 of the DCS clicks drives nothing). Faces in the box become a
 # part of their own (tools/export_parts.py extract_knobs, pivot fitted to the wheel rim). The DCS wheel is a 270 deg
@@ -1625,6 +1669,9 @@ SWITCH_PARTS = [
 ]
 SWITCH_PARTS.append(_guard_part())
 KNOB_PARTS += SWITCH_PARTS
+# the controls without a function yet (2026-11-16): parts, click zones and states of their own, cockpit_controls.py
+import cockpit_controls as CC
+KNOB_PARTS += CC.KNOBS
 
 
 def _up(p, n, d):
@@ -1656,13 +1703,50 @@ CLICK_SWITCHES = [
 ]
 
 
+CLICK_SWITCHES += CC.CLICKS
+CLICK_ICP += CC.CLICK_KEYS
+
+
 # up-front display buttons: the left of the three under the left UFD = master caution acknowledge (DCS L_SMFD_2-4 are
 # the buttons under the screen; L_SMFD_1 is on the hood above it, by the map light)
 CLICK_UFD = [('L_SMFD_2_PNT', 'MenuKeyAP', 'Warnings.MasterCautionPilot', 1.0, 'event'),
              # right UFD (2026-11-07): top = SFI / TIME page, lower left = ST/SP, lower right = RST (the middle is free)
              ('R_SMFD_1_PNT', 'MenuKeyAP', 'UFD.RightPage', 1.0, 'event'),
              ('R_SMFD_2_PNT', 'MenuKeyAP', 'UFD.RightKey1', 1.0, 'event'),
-             ('R_SMFD_4_PNT', 'MenuKeyAP', 'UFD.RightKey3', 1.0, 'event')]
+             ('R_SMFD_4_PNT', 'MenuKeyAP', 'UFD.RightKey3', 1.0, 'event'),
+             # the UFD keys without a function yet (2026-11-16: every control prepared for later logic - clickable,
+             # moving, with a message of its own that nothing hears so far; release/COCKPIT_CONTROLS.md): left UFD top,
+             # lower middle and lower right, right UFD lower middle
+             ('L_SMFD_1_PNT', 'MenuKeyAP', 'UFD.LeftPage', 1.0, 'event'),
+             ('L_SMFD_3_PNT', 'MenuKeyAP', 'UFD.LeftKey2', 1.0, 'event'),
+             ('L_SMFD_4_PNT', 'MenuKeyAP', 'UFD.LeftKey3', 1.0, 'event'),
+             ('R_SMFD_3_PNT', 'MenuKeyAP', 'UFD.RightKey2', 1.0, 'event')]
+# Keys that are objects of their own in the DCS cockpit but stand still there (the mod gives them click points, no
+# animation): the 20 bezel keys of each MFD, the 4 keys of each UFD, the ICP keys. Each becomes a part of its own
+# (tools/export_parts.py press_parts: the cockpit object at the click point) and goes in while it is held
+# (make_f22.py, as the stock F/A-18's UFC keys: 1.5 mm). (part, click point, message, value or None, direction: 'x' =
+# forward into the ICP, or the three connectors of the screen the key belongs to - pushed along the screen's normal)
+PRESS_DEPTH = 0.0015
+# the lettering of the ICP keys: flat objects of their own just over the key faces - they go with their keys
+# (export_parts.attach_legends; user 2026-11-17: the lettering stayed in the air while the key went in)
+LEGEND_MATERIAL = r'^F22_SCREEN$'
+_QUADS = {'L_MFD_': ('LEFT-MFD-CENTER', 'LEFT-MFD-DOWN', 'LEFT-MFD-RIGHT'), 'R_MFD_': ('RIGHT-MFD-CENTER', 'RIGHT-MFD-DOWN', 'RIGHT-MFD-RIGHT'),
+          'PMFD_': ('PMFD-CENTER', 'PMFD-DOWN', 'PMFD-RIGHT'), 'B_MFD_': ('MFD-CENTER', 'MFD-DOWN', 'MFD-RIGHT'),
+          'L_SMFD_': ('LEFT-PFD-CENTER', 'LEFT-PFD-DOWN', 'LEFT-PFD-RIGHT'), 'R_SMFD_': ('RIGHT-PFD-CENTER', 'RIGHT-PFD-DOWN', 'RIGHT-PFD-RIGHT')}
+_MFD_MESSAGE = {'L_MFD_': 'LeftMFD.Select', 'R_MFD_': 'RightMFD.Select', 'PMFD_': 'MPCD.Select', 'B_MFD_': 'LowerMFD.Select'}
+
+
+def _mfd_value(point):
+    """F/A-18 bezel key number of DCS point 1..20 (make_f22.py make_controls: 15-19 top row left to right = points
+    1-5, 10-14 right column top down = 6-10, 0-4 bottom row left to right = 15-11, 5-9 left column top down = 20-16)."""
+    return 14 + point if point <= 5 else point + 4 if point <= 10 else 15 - point if point <= 15 else 25 - point
+
+
+PRESS_PARTS = [dict(part='P_%s%d' % (pre, n), point='%s%d_PNT' % (pre, n), message=msg, value=float(_mfd_value(n)), axis=_QUADS[pre])
+               for pre, msg in _MFD_MESSAGE.items() for n in range(1, 21)]
+PRESS_PARTS += [dict(part='P_' + p[:-4], point=p, message=m, value=None, axis=_QUADS[p[:7]]) for p, _, m, _, _ in CLICK_UFD]
+PRESS_PARTS += PRESS_PARTS_ICP
+PRESS_PARTS += CC.PRESSES        # pieces of larger objects (cut: True), pushed along their own axis
 # (F/A-18 control, DCS cockpit argument of the F-22 part it is put on, kind: toggle / knob / lever)
 CLICK_PARTS = [
     ('BatteryOverride', 700, 'toggle'), ('APUMaster', 701, 'toggle', 'Engines.F22Apu'),

@@ -8,4 +8,6 @@ First packaged release, for testing the installer on other computers (Windows ab
 - Aircraft state: cockpit, displays and ICP pages, cold start with APU, thrust vectoring, autothrottle, Auto-GCAS,
   fuel system, weapon bays and stores, ferry tank jettison, night lighting, failures and damage (FAIL pages 1 and 2)
 - Voice warnings spoken by a freely licensed synthesiser (Kokoro-82M)
+- Every switch, knob, key, thumbwheel and rocker of the cockpit is a moving, clickable part; those without a
+  function yet are listed with their state names in COCKPIT_CONTROLS.md, ready for new logic in the scripts
 - Known limit: altitude hold oscillates at low level above about 645 KIAS subsonic (see README)

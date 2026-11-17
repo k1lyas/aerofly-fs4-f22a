@@ -493,6 +493,9 @@ def write_preview_blend(path, exported, materials, mat_src):
             layer.data[li].uv = (u, 1.0 - v)
         me.materials.append(mats[mi])
         ob = bpy.data.objects.new('pv_' + o.name, me)
+        ob['aerofly_part'] = part_of(o)                    # (for pictures of the moving controls in their end positions)
+        if o.get('aerofly_hinge'):
+            ob['aerofly_hinge'] = o['aerofly_hinge']
         coll.objects.link(ob)
     for c in list(bpy.data.collections):
         if c.name != 'exported':
@@ -533,6 +536,47 @@ def within_radius(k, verts):
         return True
     (cy, cz), r = k['radius']
     return all(math.hypot(v.y - cy, v.z - cz) < r for v in verts)
+
+
+def within_cylinder(k, verts):
+    """ac KNOB_PARTS cylinder=((point), (axis), r): only faces within r of the line through point along axis (a knob on
+    its mount plate, a button inside its guard ring)."""
+    if 'cylinder' not in k:
+        return True
+    p, a, r = k['cylinder']
+    for v in verts:
+        d = (v.x - p[0], v.y - p[1], v.z - p[2])
+        t = d[0] * a[0] + d[1] * a[1] + d[2] * a[2]
+        if (d[0] - a[0] * t) ** 2 + (d[1] - a[1] * t) ** 2 + (d[2] - a[2] * t) ** 2 > r * r:
+            return False
+    return True
+
+
+def whole_pieces(k, bm, sel):
+    """ac KNOB_PARTS whole=True: only connected pieces of the object that are selected as a whole go (a piece of the
+    housing with some faces inside the box or the cylinder stays in one piece)."""
+    if not k.get('whole'):
+        return sel
+    ids = {f.index for f in sel}
+    keep, seen = [], set()
+    for f in sel:
+        if f.index in seen:
+            continue
+        comp, stack, ok = [], [f], True
+        seen.add(f.index)
+        while stack:
+            g = stack.pop()
+            comp.append(g)
+            for v in g.verts:
+                for g2 in v.link_faces:
+                    if g2.index not in seen:
+                        seen.add(g2.index)
+                        stack.append(g2)
+                        if g2.index not in ids:
+                            ok = False
+        if ok:
+            keep += [g for g in comp if g.index in ids]
+    return keep
 
 
 def above_plane(k, verts):
@@ -594,9 +638,11 @@ def extract_knobs():
                    if FF.matches(entry, names[min(f.material_index, len(names) - 1)] or o.get('edm_material', '')) and
                    FF.face_inside(entry, [o.matrix_world @ v.co for v in f.verts]) and
                    within_radius(k, [o.matrix_world @ v.co for v in f.verts]) and
+                   within_cylinder(k, [o.matrix_world @ v.co for v in f.verts]) and
                    ('island_top' in k or above_plane(k, [o.matrix_world @ v.co for v in f.verts])) and
                    k.get('select', lambda vs: True)([o.matrix_world @ v.co for v in f.verts])]
             sel = island_filter(k, bm, sel, o.matrix_world)
+            sel = whole_pieces(k, bm, sel)
             if not sel:
                 bm.free()
                 continue
@@ -642,10 +688,87 @@ def extract_knobs():
               % (k['part'], len(pieces), len(P), r, float(np.median(resid)), hinge['pivot']))
 
 
+def press_parts():
+    """ac PRESS_PARTS [dict(part='P_<name>', point=<connector name or (x, y, z)>, ...)]: a key that is an object of its
+    own in the DCS cockpit (static there) - the cockpit object at its click point becomes a part of its own, which
+    make_<name>.py pushes in while the key is held. Only whole small objects (under 5 cm) without a DCS animation."""
+    keys = [k for k in getattr(C, 'PRESS_PARTS', ()) if not k.get('cut')]      # (cut: pieces of a larger object, extract_knobs)
+    if not keys:
+        return
+    conn = json.loads(bpy.context.scene.get('cockpit_connectors', '{}'))
+    coll = bpy.data.collections[C.COLLECTION]
+    cands = []
+    for o in coll.objects:
+        if o.type != 'MESH' or o.get('aerofly_part') or o.get('edm_source') != 'cockpit' or not len(o.data.polygons):
+            continue
+        if int_list(o.get('edm_anim_args', '')) or excluded(o) or lamp_key(o):
+            continue
+        w = [o.matrix_world @ v.co for v in o.data.vertices]
+        lo = [min(v[i] for v in w) for i in range(3)]
+        hi = [max(v[i] for v in w) for i in range(3)]
+        if max(h - l for l, h in zip(lo, hi)) <= 0.05:
+            cands.append((o, lo, hi))
+    done, missing = 0, []
+    for k in keys:
+        p = conn.get(k['point']) if isinstance(k['point'], str) else k['point']
+        best = None
+        for o, lo, hi in cands:
+            if o.get('aerofly_part') or p is None:
+                continue
+            d = math.sqrt(sum(max(l - x, 0.0, x - h) ** 2 for x, l, h in zip(p, lo, hi)))
+            if d <= 0.008 and (best is None or d < best[0]):
+                best = (d, o)
+        if best is None:
+            missing.append(k['part'])
+            continue
+        best[1]['aerofly_part'] = k['part']
+        done += 1
+    print('parts: %d of %d keys are parts of their own (PRESS_PARTS)%s'
+          % (done, len(keys), ('; WARNING no object at: ' + ', '.join(missing)) if missing else ''))
+
+
+def attach_legends():
+    """ac LEGEND_MATERIAL: the lettering of a key is a flat object of its own (DCS material F22_SCREEN) lying a fraction
+    of a millimetre over the key's face. It joins the key's part - left in the fuselage it stayed in the air while
+    the key went in under it (user 2026-11-17, every ICP key). A legend is a small cockpit object without animation
+    whose box lies inside the box of a key (PRESS_PARTS) or of a part marked legend=True (KNOB_PARTS: the rockers)."""
+    pat = getattr(C, 'LEGEND_MATERIAL', None)
+    if not pat:
+        return
+    hosts_ok = {k['part'] for k in getattr(C, 'PRESS_PARTS', ())} | {k['part'] for k in getattr(C, 'KNOB_PARTS', ()) if k.get('legend')}
+    coll = bpy.data.collections[C.COLLECTION]
+
+    def box(o):
+        w = [o.matrix_world @ v.co for v in o.data.vertices]
+        return [min(v[i] for v in w) for i in range(3)], [max(v[i] for v in w) for i in range(3)]
+    hosts = [(o, *box(o)) for o in coll.objects if o.type == 'MESH' and o.get('aerofly_part') in hosts_ok and len(o.data.polygons)]
+    done, parts = 0, set()
+    for o in coll.objects:
+        if o.type != 'MESH' or o.get('aerofly_part') or not len(o.data.polygons) or o.get('edm_source') != 'cockpit':
+            continue
+        if not re.search(pat, o.get('edm_material', '')) or int_list(o.get('edm_anim_args', '')):
+            continue
+        lo, hi = box(o)
+        if max(h - l for l, h in zip(lo, hi)) > 0.03:
+            continue
+        for h, hlo, hhi in hosts:
+            if all(hlo[i] - 0.0015 <= lo[i] and hi[i] <= hhi[i] + 0.0015 for i in range(3)):
+                o['aerofly_part'] = h['aerofly_part']
+                if h.get('aerofly_hinge'):
+                    o['aerofly_hinge'] = h['aerofly_hinge']
+                done += 1
+                parts.add(h['aerofly_part'])
+                break
+    missing = sorted(hosts_ok - parts - {k['part'] for k in getattr(C, 'PRESS_PARTS', ()) if k.get('blank')})
+    print('parts: %d key legends joined their keys (%d keys); keys without a legend: %d' % (done, len(parts), len(missing)))
+
+
 def main():
     t0 = time.time()
     remove_faces()
     extract_knobs()
+    press_parts()
+    attach_legends()
     coll = bpy.data.collections[C.COLLECTION]
     objs = [o for o in coll.objects if o.type == 'MESH' and len(o.data.polygons) and not excluded(o)]
     if getattr(C, 'EXTRA_OBJECTS', None):     # aircraft-specific synthetic geometry (e.g. formation light panels)

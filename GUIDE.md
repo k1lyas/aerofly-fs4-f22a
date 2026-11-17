@@ -261,5 +261,9 @@ right, under the grid, what went first and at which speed, g, angle of attack an
 
 ## Controls that do nothing yet
 
-The ▲▼ rocker at the scratchpad, DVR, the two right keys under the left UFD, the keys under the right UFD (radios
-and the like: nothing in Aerofly reacts to them).
+Every switch, knob, key, thumbwheel and rocker in the cockpit moves and can be clicked, but not all of them have a
+function yet: AUX GEN, FUEL TANKS, the ECS CABIN panel, the RADIO VOL knobs other than VOX, the AUX COMM panel, the
+OXYGEN panel, the knobs at the corners of the screens, the two lower ICP thumbwheels, the upper left ICP rocker, DVR
+and four of the UFD keys. They are prepared for new functions: the list with the name of each control's state is in
+**COCKPIT_CONTROLS.md** - a function can be added with the Python scripts alone, no model work and no converter.
+The gear handle's wheel glows red while the gear is in transit.
