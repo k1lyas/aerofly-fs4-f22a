@@ -1,6 +1,6 @@
 """Aircraft config: F-22A Raptor from the Grinnelli Designs DCS mod (GPL-3), physics donor F/A-18 (stock).
 
-Read by the generic tools (export_parts.py, anim_tables.py, measure_parts.py). See docs/FIGHTER_PORT_CHECKLIST.md.
+Read by the generic tools (export_parts.py, anim_tables.py, measure_parts.py). See docs/PORTING_GUIDE.md.
 """
 import os
 import re
@@ -107,8 +107,8 @@ LABEL_ILLUMINATION = [(re.compile(r'^F22_PANEL_(LEFT|RIGHT)$', re.I), 1),
                       (re.compile(r'^F22_LABLES$', re.I), 2, 'F22_LABLES_GREEN'),
                       (re.compile(r'^F22_(PANEL_FRONT|SCREEN)$', re.I), 2)]
 
-# DCS argument -> how Aerofly drives it (see ac_su35.py for the kinds). Directions are checked with the sampled
-# tables before the first conversion (docs/FIGHTER_PORT_CHECKLIST.md section 4).
+# DCS argument -> how Aerofly drives it ('table': a sampled DCS animation table driven by a dynamics output). Directions
+# are checked with the sampled tables before the first conversion (docs/PORTING_GUIDE.md, lessons).
 DRIVERS = {
     0: dict(kind='table', source='GearSequence', range=(0.0, 1.0)),            # nose gear (1 = down)
     3: dict(kind='table', source='GearSequence', range=(0.0, 1.0)),            # right main
@@ -1430,9 +1430,9 @@ DISPLAYS.update({
     'DisplayLowerMFD': dict(quad=('MFD-CENTER', 'MFD-DOWN', 'MFD-RIGHT'), region=(36, 1228, 780, 780),
                             texture='display2', donor='DDILower', brightness='DDILowerBrightness'),
     'DisplayLeftUFD': dict(quad=('LEFT-PFD-CENTER', 'LEFT-PFD-DOWN', 'LEFT-PFD-RIGHT'), region=(860, 1260, 740, 570),
-                           texture='display2', donor='UFDLeft', brightness='UFDBrightness'),
+                           texture='display2', donor='UFDLeft', brightness='UFDLeftBrightness'),
     'DisplayRightUFD': dict(quad=('RIGHT-PFD-CENTER', 'RIGHT-PFD-DOWN', 'RIGHT-PFD-RIGHT'),
-                            region=(860, 640, 740, 570), texture='display2', donor='UFDRight', brightness='UFDBrightness'),
+                            region=(860, 640, 740, 570), texture='display2', donor='UFDRight', brightness='UFDRightBrightness'),
     'DisplayICPScratch': dict(rect=([ICP_X, 0.0477, ICP_ROWS[0]], [0.0, -ICP_HW, 0.0], [0.0, 0.0, ICP_HH]),
                               region=(30, 584, 460, 86), texture='display2', donor='ICPScratch',
                               brightness='ICPBrightness'),
@@ -1441,6 +1441,12 @@ for i_, z_ in enumerate(ICP_ROWS):
     DISPLAYS['DisplayICP%d' % (i_ + 1)] = dict(rect=([ICP_X, -0.0335, z_], [0.0, -ICP_HW, 0.0], [0.0, 0.0, ICP_HH]),
                                                region=(40, 488 - 112 * i_, 430, 80), texture='display2',
                                                donor='ICPLines', brightness='ICPBrightness')
+# worn screen glass (user 2026-11-17, after the stock F/A-18's DDIs): fingerprints by the keys, dust at the bezel, wipe
+# marks, a few scratches - in each screen's own colour map, no reflection (tools/aerofly_tex.py screen_wear_map, our
+# own procedural map; a separate glass with the instrument shader reflected the spawn point's scenery). Value: how the
+# one map is turned on that screen (1 mirror u, 2 mirror v, 4 swap) so the screens differ
+DISPLAY_WEAR = {'DisplayLeftMFD': 0, 'DisplayRightMFD': 3, 'DisplayPMFD': 5, 'DisplayLowerMFD': 6,
+                'DisplayLeftUFD': 1, 'DisplayRightUFD': 2}
 # display caps: from outside the live screens show nothing useful (and the second render target showed garbage), so a
 # still picture of each screen's start page lies 2 mm in front of it, drawn outside the pilot's own view only
 # (make_f22.py ShowInside) and lit by the screen's brightness - dark without power. Pages: mfd_pages.py
@@ -1710,13 +1716,14 @@ CLICK_ICP += CC.CLICK_KEYS
 # up-front display buttons: the left of the three under the left UFD = master caution acknowledge (DCS L_SMFD_2-4 are
 # the buttons under the screen; L_SMFD_1 is on the hood above it, by the map light)
 CLICK_UFD = [('L_SMFD_2_PNT', 'MenuKeyAP', 'Warnings.MasterCautionPilot', 1.0, 'event'),
-             # right UFD (2026-11-07): top = SFI / TIME page, lower left = ST/SP, lower right = RST (the middle is free)
+             # right UFD (2026-11-07): top = SFI / TIME page, lower left = ST/SP, lower right = RST; the middle = the
+             # next page as well, its legend on the screen (2026-11-17)
              ('R_SMFD_1_PNT', 'MenuKeyAP', 'UFD.RightPage', 1.0, 'event'),
              ('R_SMFD_2_PNT', 'MenuKeyAP', 'UFD.RightKey1', 1.0, 'event'),
              ('R_SMFD_4_PNT', 'MenuKeyAP', 'UFD.RightKey3', 1.0, 'event'),
              # the UFD keys without a function yet (2026-11-16: every control prepared for later logic - clickable,
              # moving, with a message of its own that nothing hears so far; release/COCKPIT_CONTROLS.md): left UFD top,
-             # lower middle and lower right, right UFD lower middle
+             # lower middle and lower right; right UFD lower middle (since 2026-11-17 the next page, make_f22.py)
              ('L_SMFD_1_PNT', 'MenuKeyAP', 'UFD.LeftPage', 1.0, 'event'),
              ('L_SMFD_3_PNT', 'MenuKeyAP', 'UFD.LeftKey2', 1.0, 'event'),
              ('L_SMFD_4_PNT', 'MenuKeyAP', 'UFD.LeftKey3', 1.0, 'event'),

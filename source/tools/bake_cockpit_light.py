@@ -20,7 +20,7 @@ from mathutils import Vector
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 if os.environ.get('AC_DIR'):
     sys.path.insert(0, os.environ['AC_DIR'])
-C = importlib.import_module(os.environ.get('AC', 'ac_su35'))
+C = importlib.import_module(os.environ.get('AC', 'ac_f22'))
 OUT = sys.argv[sys.argv.index('--') + 1:][0]
 os.makedirs(OUT, exist_ok=True)
 SIZE = getattr(C, 'BAKE_SIZE', 2048)

@@ -1,6 +1,6 @@
 """Sample every driven DCS animation of every exported part into rotation/translation tables.
 
-    AC=ac_su35 Blender --background --factory-startup --python anim_tables.py -- \
+    AC=ac_f22 Blender --background --factory-startup --python anim_tables.py -- \
         <io_EDM dir> <model.edm> - <parts.json> <geometry.json> <out anim.json>
 
 For a part (chain of animated nodes, nearest first) and each DRIVERS argument on that chain, the world motion
@@ -18,7 +18,7 @@ from mathutils import Matrix, Vector
 
 if os.environ.get('AC_DIR'):          # aircraft folder holding ac_<name>.py (aircraft/<name>/)
     sys.path.insert(0, os.environ['AC_DIR'])
-C = importlib.import_module(os.environ.get('AC', 'ac_su35'))
+C = importlib.import_module(os.environ.get('AC', 'ac_f22'))
 PARTS_JSON, GEOM_JSON, OUT_JSON = E.args[3:6]
 parts = json.load(open(PARTS_JSON))['parts']
 geo = json.load(open(GEOM_JSON))

@@ -5,7 +5,7 @@
 Physics and systems come from the F/A-18 (twin afterburning turbofans, its flight controller, stabilators as rigid
 bodies, the clickable avionics for the cockpit stage) re-dimensioned with the measured F-22 geometry; the CG sits at
 the same fraction of the mean aerodynamic chord as on the F/A-18. Graphics are written from scratch from the
-sampled DCS animation tables (anim.json). Same structure as make_su35.py (F-15E donor).
+sampled DCS animation tables (anim.json).
 """
 import sys, os, re, json, math, shutil
 import tmd
@@ -13,6 +13,7 @@ import tvc_f22
 import burner_f22
 import failures_f22
 import breakage_f22
+import mfd_f22
 
 DONOR, PARTS, GEOM, ANIM, PIVOTS, OUT = sys.argv[1:7]
 NAME = 'f22'
@@ -826,7 +827,7 @@ for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
     _keep(D[prefix + 'ADIMenuPage'], {2}, {1: hsi.clone()})
     _keep(D[prefix + 'FuelMenuPage'], {2}, {11: _menu_el('F22BingoUpButton', 'ArrowUpLarge.Output', 'F22BingoUp.Trigger'),
                                             12: _menu_el('F22BingoDownButton', 'ArrowDownLarge.Output', 'F22BingoDown.Trigger')})
-    _keep(D[prefix + 'FlightControlMenuPage'], {2})
+    _keep(D[prefix + 'FlightControlMenuPage'], {2})      # (DIR and VEC: below, with the SYS keys they came from)
     _keep(D[prefix + 'EngineMenuPage'], {2})
     _keep(D[prefix + 'HSIMenuPage'], {2, 5, 6, 13, 17}, {1: sa.clone()})
     _keep(D[prefix + 'SituationAwarenessMenuPage'], {2, 17}, {1: hsi.clone()})
@@ -835,7 +836,7 @@ for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
         assert els[4].name == 'UFCBUPageLink', prefix
         els[4] = tmd.Node('text_menu_basic_page_element', 'Blank', leaf=False)
     _keep(D[prefix + 'FlightPerformanceAdvisorySystemMenuPage'], {2})
-# SYS: the empty BIT page becomes the page of the vector, the FCS mode and the automatics (F22TvcPage in the graphics section), with the Hornet's BIT buttons gone. (The Hornet's RADAR page,
+# SYS: the empty BIT page becomes the page of the automatics and power (mfd_f22.sys_page), with the Hornet's BIT buttons gone. (The Hornet's RADAR page,
 # tried in the menu on 2026-11-01, is out again: no targets are drawn, a picture only with the FLIR on)
 D['F22TvcMenuLabel'] = obj(dyn, 'constant_text', 'F22TvcMenuLabel', D['F22BayMenuLabel'], Input='SYS')
 # the A/T step key's text is the step itself: 1 / 5 / 10 / 50 kt, or .01 .. .20 when the A/T holds Mach
@@ -851,8 +852,10 @@ for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
     for page in (D[prefix + 'TacticalMenuPage'], D[prefix + 'SupportMenuPage']):
         els = page.find('Elements').children
         els[4] = _menu_el('F22TvcPageLink', 'F22TvcMenuLabel.Output', bit_event + '.Trigger')
-    _keep(D[prefix + 'BuiltInTestMenuPage'], {2}, {5: _menu_el('F22DirectButton', 'F22DirectMenuLabel.Output', 'F22DirectToggle.Trigger', 'F22DirectMode.Output'),
-                                                   6: _menu_el('F22VectorButton', 'F22VectorMenuLabel.Output', 'F22VectorToggle.Trigger', 'F22VectorOn.Output'),
+    # DIR and VEC on the FCS page since 2026-11-17 (flight control modes; they were on SYS)
+    _keep(D[prefix + 'FlightControlMenuPage'], {2}, {5: _menu_el('F22DirectButton', 'F22DirectMenuLabel.Output', 'F22DirectToggle.Trigger', 'F22DirectMode.Output'),
+                                                     6: _menu_el('F22VectorButton', 'F22VectorMenuLabel.Output', 'F22VectorToggle.Trigger', 'F22VectorOn.Output')})
+    _keep(D[prefix + 'BuiltInTestMenuPage'], {2}, {
                                                    # (7, VOX: gone - the RADIO VOL knob's OFF mutes the voice, user
                                                    # 2026-11-07: one control, not three)
                                                    8: _menu_el('F22GcasButton', 'F22GcasMenuLabel.Output', 'F22GcasToggle.Trigger', 'F22GcasArmed.Output'),
@@ -987,7 +990,11 @@ obj(dyn, 'input_default', 'UFDBrightnessWheel', anchor, Message='UFD.Brightness'
 # (2026-11-05, user: after the fuel ran out the whole cockpit went dark at once) the two UFDs - ICAWS and the standby
 # flight group - are the displays left on the battery (DC essential bus); the ICP, MFDs and HUD need AC (generators /
 # APU), as the Hornet's. The F-22's exact battery loads are not public; standby + warnings on the battery is the rule
-obj(dyn, 'product', 'UFDBrightnessValue', anchor, Inputs=' DCBusEssentialOn.Output UFDBrightnessWheel.Output ')
+# each UFD also has its own BRT knob, the left of its two (user 2026-11-17: one brightness per screen;
+# cockpit_controls.BRIGHTNESS): the wheel by the ICP stays the master for both UFDs and the ICP
+for side in ('Left', 'Right'):
+    obj(dyn, 'product', 'UFD%sBrightnessValue' % side, anchor,
+        Inputs=' DCBusEssentialOn.Output UFDBrightnessWheel.Output F22%sUfdKnobLeft.Output ' % side)
 obj(dyn, 'product', 'ICPBrightnessValue', anchor, Inputs=' DDIRightOn.Output UFDBrightnessWheel.Output ')
 # (HUD brightness: a full wheel of 1.6 instead of the Hornet's 1.0 changed nothing in the game (2026-10-22): the HUD
 # renderer clamps at 1 - the HUD is drawn twice instead, graphics section)
@@ -1842,6 +1849,11 @@ for name, own in (('DDIRightBrightness', 'RightMFDBrightness'), ('DDILowerBright
                   ('MPCDBrightness', 'MPCDBrightnessSetting')):
     assert own + '.Output' in D[name].get('Inputs'), name
     setv(D[name], 'Inputs', D[name].get('Inputs').replace(own + '.Output', 'LeftMFDBrightness.Output'))
+# ... and each MFD has its own BRT knob too, the left of its two (user 2026-11-17: one brightness per screen): the
+# panel knob stays the master
+for name, knob in (('DDILeftBrightness', 'LeftMfd'), ('DDIRightBrightness', 'RightMfd'), ('DDILowerBrightness', 'LowerMfd'),
+                   ('MPCDBrightness', 'Pmfd')):
+    setv(D[name], 'Inputs', ' %s F22%sKnobLeft.Output ' % (D[name].get('Inputs').strip(), knob))
 # air refuelling receptacle light (AAR LIGHT knob, door open, DC power): a soft white glow in the receptacle
 g('graphics_input', 'GfxAARLight', InputID=('uint32', published('F22AARLight')))
 g('graphics_pointlight', 'LightAARReceptacle', **body('Fuselage'), R0=[1.307, 0.0, 0.84], X0=[0.0, 0.0, 1.0],
@@ -1867,7 +1879,7 @@ for name, sw, col, r0, x0, size, sprite, cone, centre, cutoff in LIGHTS:
 
 # ---------------------------------------------------------------------------------------------- displays and HUD
 # the stock F/A-18 display objects (they draw into the render targets display_light / hud_light, the textures of our
-# display quads and HUD projection), copied with every graphics object they read (as make_su35.py with the F-15E)
+# display quads and HUD projection), copied with every graphics object they read
 f18_gfx = {o.name: o for o in gfx.children}
 display_parts = {n: p['display'] for n, p in parts.items() if p.get('display')}
 H = getattr(C, 'HUD_DONOR', None)
@@ -1938,11 +1950,11 @@ lower_gfx = [clone_lower(copied[n]) for n in sorted(copied, key=order.index) if 
 G.extend(lower_gfx)
 copied.update({o.name: o for o in lower_gfx})
 copied['DDILower'].set('TargetPosition', ' 18 614 ', 'tmvector2d')
-for n in ('UFDBrightness', 'ICPBrightness'):
+for n in ('UFDLeftBrightness', 'UFDRightBrightness', 'ICPBrightness'):
     b_ = copied['DDIRightBrightness'].clone()
     b_.name = n
     # through an `output` object: read directly, the product gave the graphics 0 - UFDs and ICP stayed black
-    b_.set('InputID', published('UFDBrightnessValue' if n == 'UFDBrightness' else 'ICPBrightnessValue'), 'uint32')
+    b_.set('InputID', published(n + 'Value'), 'uint32')
     G.append(b_)
 
 
@@ -1970,8 +1982,12 @@ def place_copy(src, name, **fields):
     return name
 
 
-# the DDI font (fontdisplay; 2 = the UFC's segments); character stride 0.8 x size (0.625 let the letters overlap)
-UFD_FONT = dict(FontID='0', FontSize=20.0, Stride=16.0)
+# the DDI font (fontdisplay; 2 = the UFC's segments). UFD text 17 with a stride of 0.9 x size, as the MFD pages (user
+# 2026-11-17: the UFDs looked different - at 20 / 16 a letter was 3.55 mm on the UFD glass (0.177 mm per atlas unit),
+# 12 % over the MFD rows' 3.2 mm (30 page units x 0.106 mm), with the MFDs' stride: denser and bolder; 17 = 3.0 mm).
+# UFD_NARROW: the column beside the right UFD's ADI (108 units: the clock's 8 characters need a stride of 13.5)
+UFD_FONT = dict(FontID='0', FontSize=17.0, Stride=15.3)
+UFD_NARROW = dict(FontID='0', FontSize=15.0, Stride=13.5)
 
 
 def text_out(name, src):
@@ -1983,7 +1999,7 @@ def text_out(name, src):
     return out + '.Output'
 
 
-def label(text, pos, size=20.0, color=None):
+def label(text, pos, size=17.0, color=None):
     """Static text in the DDI font (green, or the given RGBA)."""
     key = re.sub(r'[^A-Za-z0-9]', '', text)
     extra = {'Color': ' %g %g %g %g ' % color} if color else {}
@@ -2005,10 +2021,10 @@ def dyn_value(gname):
     return d_ + '.Output', 1.0, 0.0
 
 
-def number(gname, key, pos, scale=1.0, n=5):
+def number(gname, key, pos, scale=1.0, n=5, font=None):
     """Live number, right-aligned in an n-character field ending at pos x + n x stride."""
     src, k, off = dyn_value(gname)
-    return number_of(src, key, pos, k * scale, off * scale, n)
+    return number_of(src, key, pos, k * scale, off * scale, n, font=font or UFD_FONT)
 
 
 def number_of(src, key, pos, scale=1.0, offset=0.0, n=5, font=UFD_FONT):
@@ -2050,7 +2066,7 @@ ufd_l = [label('ENG', (440, 890))] + [
 for row, (text, src, scale) in enumerate([('RPM', 'N2', 100.0), ('EGT', 'TemperatureInCentigrade', 1.0),
                                           ('FF', 'FuelFlow', 7936.641438), ('NOZ', 'NozzlePosition', 100.0),
                                           ('OIL', 'OilPressure', 0.000145037681)]):
-    y = 866 - 23 * row
+    y = 865 - 25 * row          # (23 at size 20: no gap between the lines)
     ufd_l.append(label(text, (440, y)))
     for side, x in ((1, 560), (2, 665)):
         if src == 'N2':       # RPM of the gearbox: the engine's N2 or, stopped, the windmill estimate the pumps run on
@@ -2070,8 +2086,8 @@ obj(dyn, 'logic_invert', 'F22GearNotDown', anchor, Input='AnyGearDown.Output')
 obj(dyn, 'logic_and', 'F22FlapsAlt', anchor, Inputs=' F22FlapsDown.Output F22GearNotDown.Output ')
 # Voice (our choice, nothing is published of the F-22's). The airliners' terrain_warning was tried first (2026-11-01) and rejected: its civil envelope spoke as soon as the nose went down, out of
 # step with the HUD's arrow. PULL UP now comes from what the arrow reads, TerrainRadar.OutputPullUpCue: 0 / 1 from the closing speed against the room to turn at this speed (game code).
-# Spoken from the first moment of the cue and repeated while it lasts, the words on the ICAWS (none on the HUD: the arrow is enough, user 2026-11-01). Voices: make_cockpit_sounds.py, macOS Samantha,
-# personal use, to be replaced before any publication. The VOX knob's OFF mutes them. (Heights called out with the gear down, as the airliners', tried and taken out: fighters do not have it)
+# Spoken from the first moment of the cue and repeated while it lasts, the words on the ICAWS (none on the HUD: the arrow is enough, user 2026-11-01). Voices: Kokoro-82M (Apache 2.0,
+# make_voices_kokoro.py; the macOS voices of the first builds are gone). The VOX knob's OFF mutes them. (Heights called out with the gear down, as the airliners', tried and taken out: fighters do not have it)
 # Volume: the RADIO VOL panel's VOX knob only (user 2026-11-07: the ICP thumbwheel, this knob and the SYS VOX key did
 # the same thing; the ICP wheel and the key are gone). 0 .. 1 in 20 clicks of 5 %, OFF at 0 mutes the voice and the
 # tones. Audio taper: equal clicks sound equally far apart - the gain falls 30 dB from the top to the first click
@@ -2300,7 +2316,7 @@ for k, cond in enumerate(icaws_order):
     obj(dyn, 'product', 'F22IcawsVal%d' % k, anchor,
         Inputs=' F22IcawsOn%d.Output %s %d.0 ' % (k, '1.0' if cond in ADVISORIES else 'ICAWSLit.Output', k + 1))
 icaws_inputs = ' BlankLabel.Output %s ' % ' '.join(ufc_label(icaws_text[c]) for c in icaws_order)
-icaws_font = dict(UFD_FONT, FontSize=16.0, Stride=14.0)
+icaws_font = dict(UFD_FONT, FontSize=15.0, Stride=13.5)
 for s_ in range(ICAWS_SLOTS):
     x, y = 437 + 122 * (s_ % 3), 742 - 20 * (s_ // 3)
     terms = {'R': [], 'Y': []}
@@ -2325,6 +2341,10 @@ g('graphics_animation_render_list', 'F22IcawsMoreList', RenderList=' %s %s ' % (
     label('MORE', (690, 650), 15.0, UFD_RED),
     number_of('F22IcawsMore.Output', 'IcawsMore', (750, 650), 1.0, n=2, font=dict(icaws_font, Color=' %g %g %g %g ' % UFD_RED))))
 g('graphics_animation_render_switch', 'F22IcawsMoreShow', Input='GfxF22IcawsOverflow.Output', RenderList=' F22Nothing F22IcawsMoreList ')
+# the legend of the ICAWS reset key (user 2026-11-17): the left of the three keys under the left UFD acknowledges the
+# cautions (Warnings.MasterCautionPilot). Key centres as the right UFD's (its TIME legends, calibrated on the user's
+# screenshot 2026-11-07: x 556 / 627 / 698, 8 units over the image's bottom edge), the left UFD's image 310 units higher
+ufd_l.append(label('RESET', (556 - int(2.5 * 13.5), 638), 15.0))
 ufd_l.append('F22IcawsMoreShow')
 window('UFDLeft', screens['DisplayLeftUFD'], ufd_l)
 # right UFD (atlas 430..800 x 320..605): standby attitude (the F/A-18 ADI page: attitude, airspeed, altitude,
@@ -2350,6 +2370,9 @@ obj(dyn, 'variable', 'F22UfdRPage', anchor, Value='0.0')
 obj(dyn, 'logic_invert', 'F22UfdRPageOther', anchor, Input='F22UfdRPage.Output')
 obj(dyn, 'event_value', 'F22UfdRPageNext', anchor, Input='F22UfdRPageOther.Output', Events=' F22UfdRPage.Set ')
 ufd_button('F22UfdRPageButton', 'UFD.RightPage', 'F22UfdRPageNext.Trigger')
+# the lower middle key too, with the next page's name over it (user 2026-11-17: the key above the screen sits over the
+# ADI's corner boxes, no room for its legend; the next page of a longer list would come the same way)
+ufd_button('F22UfdR2Button', 'UFD.RightKey2', 'F22UfdRPageNext.Trigger')
 g('graphics_input', 'GfxF22UfdRPage', InputID=('uint32', published('F22UfdRPage')))
 obj(dyn, 'logic_and', 'F22BothEnginesOut', anchor, Inputs=' Engine1NotRunning.Output Engine2NotRunning.Output F22AtAirborne.Output ')
 obj(dyn, 'logic_or', 'F22StandbyNeeded', anchor, Inputs=' F22OnBattery.Output F22BothEnginesOut.Output ')
@@ -2365,27 +2388,27 @@ obj(dyn, 'time_to_text', 'UFDClockText', anchor, Input=clock_src, Hours=('bool',
 # FPAS page's own figures (F22PerfTime / F22PerfRange), held at 999 min / 9999 NM with the engines off
 obj(dyn, 'clamp', 'F22UfdFuelTime', anchor, Input='F22PerfTime.Output', Range=('tmvector2d', ' 0.0 59940.0 '))
 obj(dyn, 'clamp', 'F22UfdFuelRange', anchor, Input='F22PerfRange.Output', Range=('tmvector2d', ' 0.0 18518000.0 '))
-ufd_r = [label('FUEL', (694, 575)), number('TotalFuel', 'FuelTotal', (694, 549), 2.204622621849, 6),
-         label('T', (694, 515)), number_of('F22UfdFuelTime.Output', 'UfdFuelTime', (720, 515), 1 / 60.0, n=4),
-         label('R', (694, 490)), number_of('F22UfdFuelRange.Output', 'UfdFuelRange', (720, 490), 1 / 1852.0, n=4),
+ufd_r = [label('FUEL', (694, 575), 15.0), number('TotalFuel', 'FuelTotal', (694, 549), 2.204622621849, 6, font=UFD_NARROW),
+         label('T', (694, 515), 15.0), number_of('F22UfdFuelTime.Output', 'UfdFuelTime', (720, 515), 1 / 60.0, n=4, font=UFD_NARROW),
+         label('R', (694, 490), 15.0), number_of('F22UfdFuelRange.Output', 'UfdFuelRange', (720, 490), 1 / 1852.0, n=4, font=UFD_NARROW),
          place_copy('UpFrontControllerLine0', 'UFDClock', Input=text_out('Clock', 'UFDClockText.Output'),
-                    Position=' 692 445 ', Length='8', **dict(UFD_FONT, FontSize=17.0, Stride=13.5))]
+                    Position=' 692 445 ', Length='8', **UFD_NARROW)]
 # (2026-11-05) the APU (OFF / STRT / ON) and both hydraulic pressures (psi), for an engine failure on the battery
 obj(dyn, 'logic_greater', 'F22ApuTurning', anchor, Input0='APUN1.Output', Input1='0.05')
 obj(dyn, 'multiplexer', 'F22ApuStage0', anchor, InputSelect='F22ApuTurning.Output', Inputs=' 0.0 1.0 ')
 obj(dyn, 'multiplexer', 'F22ApuStage', anchor, InputSelect='APUAvailable.Output', Inputs=' F22ApuStage0.Output 2.0 ')
 obj(dyn, 'multiplexer_text', 'F22ApuText', anchor, InputSelect='F22ApuStage.Output',
     Inputs=' %s ' % ' '.join(ufc_label(t) for t in ('OFF', 'STRT', 'ON')))
-small = dict(UFD_FONT, FontSize=17.0, Stride=13.5)
+small = UFD_NARROW
 # shown only when it matters (user 2026-11-05: in normal flight these lines were clutter): the APU turning, a
 # hydraulic system low, the battery alone on the bus or an engine not running (on the ground before the start too)
 obj(dyn, 'logic_or', 'F22UfdSysShow', anchor, Inputs=' F22ApuTurning.Output F22HydLow.Output F22OnBattery.Output '
     'Engine1NotRunning.Output Engine2NotRunning.Output ')
 g('graphics_input', 'GfxF22UfdSysShow', InputID=('uint32', published('F22UfdSysShow')))
-ufd_sys = [label('APU', (694, 380), 17.0),          # (size 20 ran into the state: 'APUOFF', user 2026-11-05)
+ufd_sys = [label('APU', (694, 380), 15.0),          # (size 20 ran into the state: 'APUOFF', user 2026-11-05)
           place_copy('UpFrontControllerLine0', 'UFDApu', Input=text_out('Apu', 'F22ApuText.Output'),
                      Position=' 746 380 ', Length='4', **small),
-          label('HYD', (694, 357), 17.0),               # ('HYD L/R' at 20 ran out of the window)
+          label('HYD', (694, 357), 15.0),               # ('HYD L/R' at 20 ran out of the window)
           # (two 4-digit fields at 13.5 touched: '24072407', user 2026-11-05 - smaller digits with a gap, L then R)
           number_of('F22HydSystem1.Output', 'Hyd1', (692, 334), 3000.0, n=4, font=dict(small, FontSize=15.0, Stride=12.0)),
           number_of('F22HydSystem2.Output', 'Hyd2', (750, 334), 3000.0, n=4, font=dict(small, FontSize=15.0, Stride=12.0))]
@@ -2414,22 +2437,33 @@ time_page = [label('TIME', (585, 585), 17.0),
              label('FLIGHT', (445, 500)), ufd_text('TimeFlight', 'F22FlightTimeText.Output', (590, 500), 8),
              label('TIMER', (445, 455)), ufd_text('TimeState', 'F22StopwatchState.Output', (590, 455), 4),
              ufd_text('TimeWatch', 'F22StopwatchText.Output', (470, 400), 8, dict(UFD_FONT, FontSize=34.0, Stride=28.0)),
-             label('ST/SP', (522, 328), 15.0), label('RST', (678, 328), 15.0)]
+             label('ST/SP', (522, 328), 15.0), label('SFI', (627 - int(1.5 * 13.5), 328), 15.0), label('RST', (678, 328), 15.0)]
 # (2026-11-07, user) the stopwatch also on the SFI page, under the clock - once started (running, or stopped with a
 # time on it); the flight time stays on TIME only
 obj(dyn, 'logic_greater', 'F22StopwatchUsed', anchor, Input0='F22Stopwatch.Output', Input1='0.5')
 g('graphics_input', 'GfxF22StopwatchUsed', InputID=('uint32', published('F22StopwatchUsed')))
 g('graphics_animation_render_switch', 'F22UfdSfiWatch', Input='GfxF22StopwatchUsed.Output',
-  RenderList=' F22Nothing %s ' % ufd_text('SfiWatch', 'F22StopwatchText.Output', (692, 421), 8, dict(UFD_FONT, FontSize=17.0, Stride=13.5)))
+  RenderList=' F22Nothing %s ' % ufd_text('SfiWatch', 'F22StopwatchText.Output', (692, 421), 8, UFD_NARROW))
 ufd_r.append('F22UfdSfiWatch')
+# the page key's legend: the lower middle key (see F22UfdR2Button) names the page it opens, centred over it as the TIME
+# page's ST/SP and RST
+ufd_r.append(label('TIME', (627 - int(2 * 13.5), 328), 15.0))
 g('graphics_animation_render_list', 'F22UfdSfiList', RenderList=' %s ' % ' '.join(ufd_r))
 g('graphics_animation_render_list', 'F22UfdTimeList', RenderList=' %s ' % ' '.join(time_page))
 g('graphics_animation_render_switch', 'F22UfdRPages', Input='GfxF22UfdRPage.Output', RenderList=' F22UfdSfiList F22UfdTimeList ')
 window('UFDRight', screens['DisplayRightUFD'], ['F22UfdRPages'])
 # BAY page (stage 6) on the MFDs in place of the Hornet's stores page (page 10): the left buttons L BAY / C BAY /
 # R BAY / ALL (boxed = commanded open), centre: each bay's load and door state, the ferry tanks. DDI page units
-# 0 .. 1024 (y up), the DDI font
-BAY_FONT = 34.0
+# 0 .. 1024 (y up), the DDI font. One layout on all our pages (2026-11-17, mfd_f22.py): title 34 at y 905, rows 30
+# every 50 from y 840
+BAY_FONT = mfd_f22.ROW
+TITLE_FONT = mfd_f22.TITLE
+
+
+def page_title(text):
+    return label(text, (int(500 - len(text) * TITLE_FONT * 0.45), 905), TITLE_FONT)
+
+
 for name, texts in (('F22BayStateText', ('CLSD', 'MOVE', 'OPEN')), ('F22TanksText', ('NONE', '1 X 600 GAL', '2 X 600 GAL'))):
     for t in texts:
         ufc_label(t)
@@ -2444,20 +2478,20 @@ obj(dyn, 'sum', 'F22TanksOnCount', anchor, Inputs=' F22TankOnLeft.Output F22Tank
 obj(dyn, 'product', 'F22TanksHanging', anchor, Inputs=' F22TanksOnCount.Output F22FerryTanks.Output ')
 obj(dyn, 'multiplexer_text', 'F22TanksText', anchor, InputSelect='F22TanksHanging.Output',
     Inputs=' %s ' % ' '.join(ufc_label(t) for t in ('NONE', '1 X 600 GAL', '2 X 600 GAL')))
-bay_font = dict(UFD_FONT, FontSize=BAY_FONT, Stride=BAY_FONT * 0.85)
-bay_items = [label('WEAPON BAYS', (300, 860), BAY_FONT)]
+bay_font = dict(UFD_FONT, FontSize=BAY_FONT, Stride=BAY_FONT * 0.9)
+bay_items = [page_title('WEAPON BAYS')]
 for row, (bay, short) in enumerate((('Left', 'LFT'), ('Center', 'CTR'), ('Right', 'RGT'))):
-    y = 740 - 70 * row
-    bay_items += [label(short, (150, y), BAY_FONT),
+    y = 840 - 50 * row
+    bay_items += [label(short, (110, y), BAY_FONT),
                   place_copy('UpFrontControllerLine0', 'F22BayPage%sLoad' % bay,
                              Input=text_out('Bay%sLoad' % bay, 'F22Bay%sLoadText.Output' % bay), Position=' 330 %d ' % y,
                              Length='10', **bay_font),
                   place_copy('UpFrontControllerLine0', 'F22BayPage%sState' % bay,
                              Input=text_out('Bay%sState' % bay, 'F22Bay%sStateText.Output' % bay),
                              Position=' 720 %d ' % y, Length='4', **bay_font)]
-bay_items += [label('TANKS', (150, 480), BAY_FONT),
+bay_items += [label('TANKS', (110, 640), BAY_FONT),
               place_copy('UpFrontControllerLine0', 'F22BayPageTanks', Input=text_out('Tanks', 'F22TanksText.Output'),
-                         Position=' 330 480 ', Length='11', **bay_font)]
+                         Position=' 330 640 ', Length='11', **bay_font)]
 g('graphics_animation_render_list', 'F22BayPage', RenderList=' %s ' % ' '.join(bay_items))
 n_bay = 0
 for o in G:
@@ -2510,28 +2544,28 @@ obj(dyn, 'product', 'F22PerfSpecific', anchor, Inputs=' InertialReferenceSystem.
 obj(dyn, 'product', 'F22PerfFuelToWaypoint', anchor, Inputs=' F22PerfFlow.Output GPSNavigationSystem.OutputNextWaypointTime ')
 obj(dyn, 'mixlinear', 'F22PerfFuelAtWaypointRaw', anchor, Input0='TotalFuel.Output', Input1='F22PerfFuelToWaypoint.Output', Weight0=1.0, Weight1=-1.0)
 obj(dyn, 'maximum', 'F22PerfFuelAtWaypoint', anchor, Inputs=' F22PerfFuelAtWaypointRaw.Output 0.0 ')
-perf_font = dict(UFD_FONT, FontSize=BAY_FONT, Stride=BAY_FONT * 0.85)
-perf_items = [label('FUEL PERFORMANCE', (250, 905), BAY_FONT)]
+perf_font = dict(UFD_FONT, FontSize=BAY_FONT, Stride=BAY_FONT * 0.9)
+perf_items = [page_title('FUEL PERFORMANCE')]
 perf_rows = [('FUEL LB', 'TotalFuel.Output', LB), ('BINGO LB', 'BingoFuel.Output', LB), ('TO BINGO LB', 'F22PerfMargin.Output', LB),
              ('FLOW PPH', 'F22PerfFlow.Output', LB * 3600.0), ('TIME MIN', 'F22PerfTime.Output', 1 / 60.0), ('RANGE NM', 'F22PerfRange.Output', NM),
              ('NM/1000 LB', 'F22PerfSpecific.Output', NM * 1000 / LB)]
 for row, (text, src, k) in enumerate(perf_rows):
-    y = 835 - 56 * row
-    perf_items += [label(text, (120, y), BAY_FONT), number_of(src, 'Perf%d' % row, (600, y), k, n=7, font=perf_font)]
-perf_items += [label('NEXT', (120, 430), BAY_FONT),
+    y = 840 - 50 * row
+    perf_items += [label(text, (110, y), BAY_FONT), number_of(src, 'Perf%d' % row, (600, y), k, n=7, font=perf_font)]
+perf_items += [label('NEXT', (110, 440), BAY_FONT, mfd_f22.WHITE),
                place_copy('UpFrontControllerLine0', 'F22PerfNext', Input=text_out('PerfNext', 'GPSNavigationSystem.OutputNextWaypointIdentifier'),
-                          Position=' 600 430 ', Length='7', LeftJustified='false', **perf_font)]
+                          Position=' 600 440 ', Length='7', LeftJustified='false', **perf_font)]
 for row, (text, src, k) in enumerate([('DIST NM', 'GPSNavigationSystem.OutputNextWaypointDistance', NM),
                                       ('TIME MIN', 'GPSNavigationSystem.OutputNextWaypointTime', 1 / 60.0),
                                       ('FUEL THERE LB', 'F22PerfFuelAtWaypoint.Output', LB)]):
-    y = 374 - 56 * row
-    perf_items += [label(text, (120, y), BAY_FONT), number_of(src, 'PerfNext%d' % row, (600, y), k, n=7, font=perf_font)]
+    y = 390 - 50 * row
+    perf_items += [label(text, (137, y), BAY_FONT), number_of(src, 'PerfNext%d' % row, (600, y), k, n=7, font=perf_font)]
 # the wind, for the fuel it costs: wind_vector of the stock airliners, in the F/A-18's own air data
 obj(dyn, 'wind_vector', 'WindVector', anchor, InputTrueAirspeed='AirDataComputer.OutputTrueAirspeed', InputAngleOfAttack='PitotTube.AngleOfAttack', InputX=IRS + 'X', InputY=IRS + 'Y',
     InputZ=IRS + 'Z', InputPosition=IRS + 'Position', InputVelocity=IRS + 'Velocity')
 obj(dyn, 'clamp_cyclic', 'F22WindFrom', anchor, Input='WindVector.OutputDirection', Range=('string8', ' 0.0 6.283185 '))
-perf_items += [label('WIND DEG', (120, 206), BAY_FONT), number_of('F22WindFrom.Output', 'PerfWindDir', (600, 206), 180.0 / math.pi, n=7, font=perf_font),
-               label('WIND KT', (120, 150), BAY_FONT), number_of('WindVector.OutputSpeed', 'PerfWindSpeed', (600, 150), 1.94384, n=7, font=perf_font)]
+perf_items += [label('WIND DEG', (110, 190), BAY_FONT), number_of('F22WindFrom.Output', 'PerfWindDir', (600, 190), 180.0 / math.pi, n=7, font=perf_font),
+               label('WIND KT', (110, 140), BAY_FONT), number_of('WindVector.OutputSpeed', 'PerfWindSpeed', (600, 140), 1.94384, n=7, font=perf_font)]
 g('graphics_animation_render_list', 'F22PerfPage', RenderList=' %s ' % ' '.join(perf_items))
 n_perf = 0
 for o in G:
@@ -2545,7 +2579,7 @@ print('FPAS page in %d MFD page switches' % n_perf)
 # public). 13 lines of up to 26 characters, the line's text picked by F22ChecklistIndex
 CHECKLISTS = [
     ('COLD START', ['BATT .............. ON', 'APU ............ START', 'CANOPY .......... CLOSE', 'CNI / ACP ........... ON',
-                    'FADEC ............ NORM', 'THROTTLES ......... IDLE', '  (STARTS ON APU AIR)', 'L / R GEN ........... ON',
+                    'DISPLAYS / HUD ...... BRT', 'FADEC ............ NORM', 'THROTTLES ......... IDLE', 'L / R GEN ........... ON',
                     'BATT LIGHT ........ OUT', 'APU ............... OFF', 'FLCS BIT ....... START', '  40 S, BIT PASS -> STOP',
                     'LAMP TEST ...... CHECK']),
     ('BEFORE TAKEOFF', ['CANOPY ......... CLOSED', 'BIT PASS ...... ON ICAWS', 'MASTER ARM ....... SAFE', 'ALT FLAPS ........ NORM',
@@ -2562,14 +2596,14 @@ chk_items = []
 obj(dyn, 'multiplexer_text', 'F22ChecklistTitle', anchor, InputSelect='F22ChecklistIndex.Output',
     Inputs=' %s ' % ' '.join(ufc_label(t) for t, _ in CHECKLISTS))
 chk_items.append(place_copy('UpFrontControllerLine0', 'F22ChecklistTitleText', Input=text_out('ChecklistTitle', 'F22ChecklistTitle.Output'),
-                            Position=' 300 905 ', Length='16', **dict(UFD_FONT, FontSize=BAY_FONT, Stride=BAY_FONT * 0.85)))
+                            Position=' 255 905 ', Length='16', **dict(UFD_FONT, FontSize=TITLE_FONT, Stride=TITLE_FONT * 0.9)))
 for row in range(13):
     texts = [lines[row] if row < len(lines) and lines[row] else ' ' for _, lines in CHECKLISTS]
     obj(dyn, 'multiplexer_text', 'F22ChecklistLine%d' % row, anchor, InputSelect='F22ChecklistIndex.Output',
         Inputs=' %s ' % ' '.join(ufc_label(t) if t.strip() else 'BlankLabel.Output' for t in texts))
     chk_items.append(place_copy('UpFrontControllerLine0', 'F22ChecklistLine%dText' % row,
                                 Input=text_out('ChecklistLine%d' % row, 'F22ChecklistLine%d.Output' % row),
-                                Position=' 170 %d ' % (835 - 56 * row), Length='26', **dict(UFD_FONT, FontSize=30.0, Stride=25.5)))
+                                Position=' 140 %d ' % (840 - 50 * row), Length='26', **dict(UFD_FONT, FontSize=BAY_FONT, Stride=BAY_FONT * 0.9)))
 g('graphics_animation_render_list', 'F22ChecklistPage', RenderList=' %s ' % ' '.join(chk_items))
 n_chk = 0
 for o in G:
@@ -2604,26 +2638,10 @@ for k, side in ((1, 'L'), (2, 'R')):
     obj(dyn, 'multiplexer_text', 'F22Eng%dStageText' % k, anchor, InputSelect='F22Eng%dStageW.Output' % k,
         Inputs=' %s ' % ' '.join(ufc_label(t) for t in ('%s OFF' % side, '%s MOTOR' % side, '%s START' % side,
                                                          '%s RUN' % side, '%s FADEC OFF' % side, '%s WINDMILL' % side)))
-eng_items = [place_copy('UpFrontControllerLine0', 'F22Eng%dStageItem' % k, Input=text_out('Eng%dStage' % k, 'F22Eng%dStageText.Output' % k),
-                        Position=' %d 100 ' % x, Length='12', **dict(UFD_FONT, FontSize=28.0, Stride=24.0))
-             for k, x in ((1, 130), (2, 590))]
-g('graphics_animation_render_list', 'F22EnginesPage', RenderList=' EnginesPage %s ' % ' '.join(eng_items))
-n_eng = 0
-for o in G:
-    if o.type == 'graphics_animation_render_switch' and o.find('RenderList') is not None and \
-            'EnginesPage' in o.get('RenderList').split():
-        o.set('RenderList', ' ' + ' '.join('F22EnginesPage' if t == 'EnginesPage' else t
-                                           for t in o.get('RenderList').split()) + ' ')
-        n_eng += 1
-print('ENG page start stages in %d MFD page switches' % n_eng)
+# (shown by the ENG page, mfd_f22.eng_page; the UFD shows the short texts)
 # TVC page in place of the Hornet's empty BIT page. Nozzle + = nose up. Pitch rate: InertialReferenceSystem's is + nose down
 obj(dyn, 'binary_to_text', 'F22TvcModeText', anchor, Input='F22DirectMode.Output', Text0='AUTO', Text1='DIRECT')
 obj(dyn, 'binary_to_text', 'F22TvcVectorText', anchor, Input='F22VectorOn.Output', Text0='OFF', Text1='ON')
-# the VOICE row: the VOX knob in % (OFF at 0)
-obj(dyn, 'linear', 'F22VoicePct', anchor, Input='F22VoiceVolume.Output', Scaling=100.0, Offset=0.5)
-obj(dyn, 'int_to_text', 'F22VoicePctText', anchor, Input='F22VoicePct.Output')
-obj(dyn, 'constant_text', 'F22VoiceOffText', anchor, Input='OFF')
-obj(dyn, 'multiplexer_text', 'F22TvcVoiceText', anchor, InputSelect='F22VoiceOn.Output', Inputs=' F22VoiceOffText.Output F22VoicePctText.Output ')
 DEG = 180.0 / math.pi
 obj(dyn, 'binary_to_text', 'F22TvcGcasText', anchor, Input='F22GcasArmed.Output', Text0='OFF', Text1='ON')
 obj(dyn, 'linear', 'F22AtModeShown', anchor, Input='F22AtMode.Output', Scaling=1.0, Offset=1.0)
@@ -2634,43 +2652,7 @@ obj(dyn, 'int_to_text', 'F22AtCasText', anchor, Input='F22AtCasShown.Output')
 obj(dyn, 'float_to_text', 'F22AtMachText', anchor, Input='F22AtMachTarget.Output', Decimals=('uint32', '2'))
 obj(dyn, 'constant_text', 'F22AtAoaText', anchor, Input='8.5')
 obj(dyn, 'multiplexer_text', 'F22AtTargetText', anchor, InputSelect='F22AtMode.Output', Inputs=' F22AtCasText.Output F22AtMachText.Output F22AtAoaText.Output ')
-tvc_items = [label('SYSTEMS', (390, 905), BAY_FONT),
-             label('FCS MODE', (120, 835), BAY_FONT),
-             place_copy('UpFrontControllerLine0', 'F22TvcMode', Input=text_out('TvcMode', 'F22TvcModeText.Output'),
-                        Position=' 600 835 ', Length='7', LeftJustified='false', **perf_font),
-             label('VECTOR', (120, 779), BAY_FONT),
-             place_copy('UpFrontControllerLine0', 'F22TvcVector', Input=text_out('TvcVector', 'F22TvcVectorText.Output'),
-                        Position=' 600 779 ', Length='7', LeftJustified='false', **perf_font),
-             label('VOICE %', (120, 723), BAY_FONT),
-             place_copy('UpFrontControllerLine0', 'F22TvcVoice', Input=text_out('TvcVoice', 'F22TvcVoiceText.Output'),
-                        Position=' 600 723 ', Length='7', LeftJustified='false', **perf_font),
-             label('AUTO GCAS', (120, 667), BAY_FONT),
-             place_copy('UpFrontControllerLine0', 'F22TvcGcas', Input=text_out('TvcGcas', 'F22TvcGcasText.Output'),
-                        Position=' 600 667 ', Length='7', LeftJustified='false', **perf_font),
-             label('A/T', (120, 611), BAY_FONT),
-             place_copy('UpFrontControllerLine0', 'F22TvcAt', Input=text_out('TvcAt', 'F22TvcAtText.Output'),
-                        Position=' 600 611 ', Length='7', LeftJustified='false', **perf_font),
-             label('A/T TARGET', (120, 555), BAY_FONT),
-             place_copy('UpFrontControllerLine0', 'F22TvcAtTarget', Input=text_out('TvcAtTarget', 'F22AtTargetText.Output'),
-                        Position=' 600 555 ', Length='7', LeftJustified='false', **perf_font)]
-tvc_rows = [('NOZZLE DEG', 'NozzleAngle.Output', DEG), ('ALOW FT', 'F22AltFloor.Output', 3.28084), ('AUTHORITY %', 'VectorSpeedFade.Output', 100.0),
-            ('PITCH RATE D/S', 'InertialReferenceSystem.OutputQRate', -DEG), ('AOA DEG', 'PitotTube.AngleOfAttack', DEG), ('LOAD G', 'Accelerometer.Acceleration', 1 / 9.81),
-            ('PEAK G', 'Accelerometer.MaximumPositiveAcceleration', 1 / 9.81), ('CAS KT', 'AirDataComputer.OutputCalibratedAirspeed', 1.94384)]
-for row, (text, src, k) in enumerate(tvc_rows):
-    y = 499 - 56 * row
-    tvc_items += [label(text, (120, y), BAY_FONT), number_of(src, 'Tvc%d' % row, (600, y), k, n=7, font=perf_font)]
-# the A/T keys' legends, across, level with keys 1 and 3 of the right column (user 2026-11-06: the menu's own labels sat
-# between the keys and read downwards). Calibrated on the user's SYS screenshot of 2026-11-07: the page rows (SYSTEMS
-# 905 ... CAS KT 107) sit at screenshot y = 1264.5 - 0.9107 * page y (text centres, within 3 px); the right keys at 548 /
-# 695 / 840 / 985 px -> page y 786 / 625 / 465 / 307. (The first placement, 710 / 557 / 425 / 288, came from a coarser
-# reading and stood half a key low.) Keys 2 and 4 carry the menu's arrows.
-at_font = dict(perf_font, FontSize=28.0, Stride=24.0)
-obj(dyn, 'binary_to_text', 'F22AtKeyText', anchor, Input='F22AtActive.Output', Text0='A/T', Text1='*A/T')
-tvc_items += [place_copy('UpFrontControllerLine0', 'F22TvcAtKey', Input=text_out('TvcAtKey', 'F22AtKeyText.Output'),
-                         Position=' 894 786 ', Length='4', LeftJustified='false', **at_font),
-              place_copy('UpFrontControllerLine0', 'F22TvcAtStep', Input=text_out('TvcAtStep', 'F22AtStepText.Output'),
-                         Position=' 918 465 ', Length='3', LeftJustified='false', **at_font)]
-g('graphics_animation_render_list', 'F22TvcPage', RenderList=' %s ' % ' '.join(tvc_items))
+# (the SYS and FCS pages that show these: mfd_f22.py)
 # HUD: the A/T's target under the airspeed box while the A/T holds (kt, Mach or AoA as on the SYS page; user
 # 2026-11-07). Drawn into the HUD's own render list, so it goes through the same HUD_SCALE as the F/A-18 symbology
 # (page units 0 .. 1024, centre 512 = boresight). Placed from the user's HUD screenshot: the donor's HUD is conformal
@@ -2702,16 +2684,9 @@ if H:
     g('graphics_animation_render_switch', 'F22HudAt', Input='GfxF22HudAtShow.Output', RenderList=' F22Nothing F22HudAtLit ')
     g('graphics_animation_render_list', 'F22HudWithOverlay', RenderList=' %s F22HudAt ' % copied[H['centre']].get('RenderList').strip())
     copied[H['centre']].set('RenderList', ' F22HudWithOverlay ')
-n_tvc = 0
-for o in G:
-    if o.type == 'graphics_animation_render_switch' and o.find('RenderList') is not None and \
-            'BuiltInTestPage' in o.get('RenderList').split():
-        o.set('RenderList', ' ' + ' '.join('F22TvcPage' if t == 'BuiltInTestPage' else t
-                                           for t in o.get('RenderList').split()) + ' ')
-        n_tvc += 1
-print('TVC page in %d MFD page switches' % n_tvc)
 failures_f22.graphics(globals())           # FAIL page in place of the Hornet's UFC BU page
-breakage_f22.fcs_status(globals())         # FCS page: surface status table beside the donor's page
+breakage_f22.fcs_status(globals())         # surface states (OK / DEGD / HYD / LOST / JAM) for the FCS page
+mfd_f22.pages(globals())                   # our ENG, FCS and SYS pages in place of the Hornet's (2026-11-17)
 breakage_f22.damage_graphics(globals())    # torn consoles / fins fly away on their bodies, stubs on the fuselage
 failures_f22.gear_graphics(globals())      # the gear legs drawn where their joints are (folds, jams), not the handle
 # No traffic on any cockpit screen: the Hornet's SA and radar pages and the C90's MFD hand their tmtraffic_display to an empty function in this build of the game (game code, arm64), and the
@@ -3106,11 +3081,18 @@ STATE_EXTRA = {'clean': [('servoclassic', 'F22MainGearCtlL', 'Position', 1.0),  
                         ('input_default', 'PositionLightBrightnessKnob', 'Value', 0.0),
                         ('input_default', 'FormationLightBrightnessKnob', 'Value', 0.0),
                         ('input_discrete', 'StrobeLightSwitch', 'Value', 0.0),
-                        # interior lights off (the Hornet's start values 0.4 / 0.4 / 0.6 stood in every state). MFD,
-                        # UFD and HUD brightness keep their knob positions: dark without power, readable once it is on
+                        # interior lights off (the Hornet's start values 0.4 / 0.4 / 0.6 stood in every state)
                         ('input_default', 'PanelLightKnob', 'Value', 0.0),
                         ('input_default', 'ConsoleBrightnessKnob', 'Value', 0.0),
                         ('input_default', 'FloodLightKnob', 'Value', 0.0),
+                        # every display dimmed out (user 2026-11-17: the screens turned on by hand on a cold start, as
+                        # the Hornet's DDIs from their OFF position): the MFD master, the UFD / ICP wheel, the HUD wheel
+                        # and each screen's own BRT knob (cockpit_controls.BRIGHTNESS)
+                        ('input_default', 'LeftMFDBrightness', 'Value', 0.0),
+                        ('input_default', 'UFDBrightnessWheel', 'Value', 0.0),
+                        ('input_default', 'HUDBrightnessKnob', 'Value', 0.0)] + [
+                        ('input_default', 'F22%sKnobLeft' % k, 'Value', 0.0)
+                        for k in ('LeftMfd', 'RightMfd', 'Pmfd', 'LowerMfd', 'LeftUfd', 'RightUfd')] + [
                         # (user 2026-11-06: CNI, AUX and the generators stood ON on a cold start) the console
                         # switches as the aircraft is left: CNI / ACP off, generators off, APU OFF, FLCS STOP
                         ('input_discrete', 'F22CNISwitch', 'Value', 0.0),

@@ -946,7 +946,7 @@ def graphics(ns):
     # one set of graphics for both pages (texts switched in the dynamics)
     ufc_text = ns['ufc_label']
     o_ = lambda type_, name, **f: obj(dyn, type_, name, **f) and name + '.Output'
-    items = [label('FAILURES', (360, 905), 34.0)]
+    items = [label('FAILURES', (378, 905), 34.0)]       # (centred, as the other pages' titles: mfd_f22)
     blank = {n: o_('constant_text', 'F22FailBlank%d' % n, Input=' ' * n) for n in (1, 2, 4, 8)}
     n_pages = (len(ITEMS) + PAGE_SIZE - 1) // PAGE_SIZE
     assert n_pages == 2, n_pages

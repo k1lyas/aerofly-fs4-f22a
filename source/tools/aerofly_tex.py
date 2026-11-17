@@ -235,11 +235,32 @@ def write_illumination_texture(out_dir, name, level, size=512, masks=None, flood
     save_png(base + '_illumination.png', rgb, limit=size)
 
 
-def write_display_textures(out_dir, name, light_size=2048, specular=0.25, gloss=0.9, reflection=0.04):
+def write_display_textures(out_dir, name, light_size=2048, specular=0.25, gloss=0.9, reflection=0.04, wear=None,
+                           wear_tint=(0.45, 0.46, 0.45)):
     """Cockpit display surfaces (MFDs, HUD projection): black glass; the `_light` image is only a placeholder,
-    the game renders the display into it (texture_animation TextureName <name>_light)."""
+    the game renders the display into it (texture_animation TextureName <name>_light). wear: [(x, y, w, h, variant)]
+    atlas regions (pixels from the bottom left) that get the worn-glass map (screen_wear_map; variant turns it: 1
+    mirror u, 2 mirror v, 4 swap) blended into the dark colour towards wear_tint."""
     base = os.path.join(out_dir, name)
-    save_png(base + '_color.png', np.full((64, 64, 3), 8 / 255.0, np.float32))
+    if wear:
+        dark = np.array([8 / 255.0] * 3, np.float32)
+        col = np.broadcast_to(dark, (light_size, light_size, 3)).copy()
+        m = screen_wear_map()
+        n = m.shape[0]
+        for x, y, w, h, variant in wear:
+            v, u = np.mgrid[0:h, 0:w].astype(np.float32)
+            u, v = (u + 0.5) / w, (v + 0.5) / h
+            if variant & 1:
+                u = 1 - u
+            if variant & 2:
+                v = 1 - v
+            if variant & 4:
+                u, v = v, u
+            haze = m[np.clip((v * n).astype(int), 0, n - 1), np.clip((u * n).astype(int), 0, n - 1)]
+            col[y:y + h, x:x + w] = dark + (np.array(wear_tint, np.float32) - dark) * haze[..., None]
+        save_png(base + '_color.png', col, limit=light_size)
+    else:
+        save_png(base + '_color.png', np.full((64, 64, 3), 8 / 255.0, np.float32))
     # placeholder of the render target's size (as the SDK sample's display_light.png)
     save_png(base + '_light.png', np.zeros((light_size, light_size, 3), np.float32), limit=light_size)
     save_png(base + '_bump.png', np.full((64, 64), 0.5, np.float32))
@@ -280,6 +301,67 @@ def procedural_burner(kind, n=512):
     out = np.ones((n, n, 4), np.float32)
     out[..., :3] = np.clip(rgb, 0, 1)
     return out
+
+
+def _blur(a, sigma):
+    """Gaussian blur by FFT (wraps at the edges; the glass maps are made larger and cropped)."""
+    h, w = a.shape
+    fy, fx = np.fft.fftfreq(h)[:, None], np.fft.fftfreq(w)[None, :]
+    return np.real(np.fft.ifft2(np.fft.fft2(a) * np.exp(-2 * (np.pi * sigma) ** 2 * (fx * fx + fy * fy))))
+
+
+def screen_wear_map(n=1024, seed=7):
+    """Wear of a flat LCD's face (F-22 MFDs and UFDs, user 2026-11-17): matt anti-glare glass, its marks in the
+    screen's own colour map, as the stock F/A-18's screens (write_display_textures). Map 0..1, v up, the edges of the
+    map = the bezel. (A separate cover glass with the instrument glass shader was tried and dropped the same day: that
+    shader reflects one environment picture taken at the spawn, in flight the screens showed the parking spot's trees -
+    with a black reflection map as well.) Levels after the SDK sample's instrument glass (dr400 glass_color_alpha mean
+    0.07, smudges to ~0.27): ours lighter, a display must stay readable - 0.02 on clean glass.
+      dust       along the bezel, a few mm wide, patchy
+      wipes      broad arcs of a cloth, faint
+      prints     fingertips at the edges where the bezel keys are: ridges ~0.5 mm (5 px at ~0.1 mm per px), oval
+      scratches  a few thin lines, longer near the middle"""
+    rng = np.random.default_rng(seed)
+    y, x = np.mgrid[0:n, 0:n].astype(np.float32) / n
+    edge = np.minimum(np.minimum(x, 1 - x), np.minimum(y, 1 - y))
+    noise = lambda s: (lambda b: (b - b.min()) / (np.ptp(b) + 1e-9))(_blur(rng.standard_normal((n, n)).astype(np.float32), s))
+    haze = np.full((n, n), 0.02, np.float32)
+    dust = np.clip(1 - edge / 0.05, 0, 1) ** 1.5 * np.clip(noise(6) * 1.6 - 0.4, 0, 1)
+    haze += 0.09 * dust
+    wipes = np.zeros((n, n), np.float32)
+    for _ in range(5):
+        cx, cy, r = rng.uniform(-0.3, 1.3), rng.uniform(-0.3, 1.3), rng.uniform(0.5, 1.1)
+        d = np.abs(np.hypot(x - cx, y - cy) - r)
+        wipes += np.exp(-(d / rng.uniform(0.02, 0.05)) ** 2) * rng.uniform(0.4, 1.0)
+    wipes *= np.clip(noise(40) * 2 - 0.5, 0, 1)
+    haze += 0.03 * wipes
+    prints = np.zeros((n, n), np.float32)
+    for _ in range(12):
+        side = rng.integers(4)
+        t, inset = rng.uniform(0.1, 0.9), rng.uniform(0.03, 0.12)
+        cx, cy = [(t, inset), (t, 1 - inset), (inset, t), (1 - inset, t)][side]
+        a = rng.uniform(0, np.pi)
+        u = (x - cx) * np.cos(a) + (y - cy) * np.sin(a)
+        v = -(x - cx) * np.sin(a) + (y - cy) * np.cos(a)
+        rx, ry = rng.uniform(0.045, 0.06), rng.uniform(0.06, 0.08)
+        rr = np.hypot(u / rx, v / ry)
+        ridges = 0.5 + 0.5 * np.sin(2 * np.pi * rr * rx * n / 5.0 + 3 * noise(20))
+        prints += np.clip(1 - rr, 0, 1) ** 0.7 * ridges * rng.uniform(0.5, 1.0)
+    haze += 0.07 * prints
+    scratches = np.zeros((n, n), np.float32)
+    for _ in range(9):
+        p0 = rng.uniform(0.1, 0.9, 2)
+        a, length = rng.uniform(0, np.pi), rng.uniform(0.04, 0.25)
+        bend = rng.uniform(-0.03, 0.03)
+        for s_ in np.linspace(0, 1, int(length * n * 2)):
+            px = p0[0] + np.cos(a) * length * s_ - np.sin(a) * bend * np.sin(np.pi * s_)
+            py = p0[1] + np.sin(a) * length * s_ + np.cos(a) * bend * np.sin(np.pi * s_)
+            i, j = int(py * n), int(px * n)
+            if 0 <= i < n and 0 <= j < n:
+                scratches[i, j] = max(scratches[i, j], 1.0 - 0.6 * abs(s_ - 0.5) * 2)
+    scratches = np.clip(_blur(scratches, 0.6) * 3, 0, 1)
+    haze += 0.08 * scratches
+    return np.clip(haze, 0, 0.18)
 
 
 def write_glass_textures(out_dir, name, inside, tint=(0.36, 0.38, 0.40), opacity=0.07, reflection=0.32,

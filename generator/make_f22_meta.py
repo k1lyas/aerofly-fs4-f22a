@@ -1,7 +1,7 @@
 """Write the F-22A aircraft card (.tmc), copilot hints, option.tmc and the converter model.tmc.
 
     python3 make_f22_meta.py <f18 dir> <geometry.json> <parts.json> <out dir>
-Based on the F/A-18 files; performance data of the F-22A. Same structure as make_su35_meta.py.
+Based on the F/A-18 files; performance data of the F-22A.
 """
 import sys, os, re, json, glob
 

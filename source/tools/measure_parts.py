@@ -1,6 +1,6 @@
 """Measure a posed DCS import for the Aerofly configuration (wheels, wing/stab/fin stations, fuselage, eye).
 
-    AC=ac_su35 Blender --background <pose.blend> --python measure_parts.py -- <anim_pivots.json> <out.json>
+    AC=ac_f22 Blender --background <pose.blend> --python measure_parts.py -- <anim_pivots.json> <out.json>
 
 Exact plane sections of the triangle soup (vertex slabs miss large wing triangles). Axes: X fwd, Y left, Z up.
 """
@@ -11,7 +11,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 if os.environ.get('AC_DIR'):          # aircraft folder holding ac_<name>.py (aircraft/<name>/)
     sys.path.insert(0, os.environ['AC_DIR'])
-C = importlib.import_module(os.environ.get('AC', 'ac_su35'))
+C = importlib.import_module(os.environ.get('AC', 'ac_f22'))
 ANIM, OUT = sys.argv[sys.argv.index('--') + 1:][:2]
 anim = json.load(open(ANIM))
 M = C.MEASURE

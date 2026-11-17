@@ -14,7 +14,8 @@ import numpy as np
 
 SR = 22050
 HERE = os.path.dirname(os.path.abspath(__file__))
-PHRASES = [('voice_pullup', 'Pull up.'), ('voice_altitude', 'Altitude.'), ('voice_bingo', 'Bingo fuel.'),
+# (PULL UP with its phonemes spelled out and 'up' fully stressed: 'Pull up.' read the 'up' unstressed, user 2026-11-17)
+PHRASES = [('voice_pullup', '[Pull](/pˈʊl/) [up](/ˈʌp/)!'), ('voice_altitude', 'Altitude.'), ('voice_bingo', 'Bingo fuel.'),
            ('voice_overg', 'Over G.'), ('voice_fire_left', 'Engine fire, left.'), ('voice_fire_right', 'Engine fire, right.'),
            ('voice_engine_left', 'Engine out, left.'), ('voice_engine_right', 'Engine out, right.')]
 CANDIDATES = ['af_heart', 'af_bella', 'af_sarah', 'af_kore', 'af_nicole', 'bf_emma']
@@ -60,6 +61,41 @@ def intercom(x):
     return y
 
 
+def final_stop(x):
+    """(closure start, release start) of a phrase-final plosive - the last stretch of near silence (30 ms or more under
+    3 % of the peak envelope) with a short sound after it; None if the phrase ends otherwise."""
+    win = int(0.005 * SR)
+    env = np.sqrt(np.convolve(x ** 2, np.ones(win) / win, 'same'))
+    quiet = env < 0.03 * env.max()
+    k = len(x) - 1
+    while k > 0 and quiet[k]:          # the silence after the release
+        k -= 1
+    end = k
+    while k > 0 and not quiet[k]:      # the release
+        k -= 1
+    release = k + 1
+    while k > 0 and quiet[k]:          # the closure
+        k -= 1
+    closure = k + 1
+    if release - closure < 0.03 * SR or end - release > 0.2 * SR:
+        return None
+    return closure, release
+
+
+def harden(x):
+    """A final p / t unreleased (user 2026-11-17: 'PULL UP' ended in a soft 'пь', 'LEFT' in 'ть' - Kokoro releases a
+    final stop with ~70 ms of hiss above 3 kHz, the English aspiration a Russian ear hears as softness; of three
+    versions - no release, a 15 ms release, a 15 ms release low-passed - the user took the one without): the phrase
+    ends 20 ms into the closure."""
+    st = final_stop(x)
+    if st is None:
+        return x
+    y = x[:st[0] + int(0.02 * SR)].copy()
+    n = int(0.004 * SR)
+    y[-n:] *= np.linspace(1, 0, n)
+    return y
+
+
 def write(path, x):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with wave.open(path, 'wb') as w:
@@ -82,6 +118,8 @@ if __name__ == '__main__':
         voice = sys.argv[2]
         speed = float(sys.argv[3]) if len(sys.argv) > 3 else 1.0
         for name, text in PHRASES:
-            write(os.path.join(HERE, 'sounds', 'cockpit', name + '.wav'), intercom(trim(synth(text, voice, speed))))
+            x = trim(synth(text, voice, speed))
+            print('%-20s final stop %s' % (name, 'cut' if final_stop(x) else '-'))
+            write(os.path.join(HERE, 'sounds', 'cockpit', name + '.wav'), intercom(harden(x)))
     else:
         raise SystemExit(__doc__)

@@ -28,12 +28,12 @@ STEAM = os.path.expanduser('~/Library/Application Support/Steam/steamapps')
 GAME = os.path.join(STEAM, 'common', 'Aerofly FS 4 Flight Simulator')
 DONOR = os.path.join(GAME, 'aircraft', 'f18')
 GENERATOR = ['make_f22.py', 'make_f22_meta.py', 'ac_f22.py', 'breakage_f22.py', 'burner_f22.py', 'failures_f22.py',
-             'stores_f22.py', 'tvc_f22.py', 'cockpit_controls.py', 'cockpit_fit.py']
+             'stores_f22.py', 'tvc_f22.py', 'cockpit_controls.py', 'cockpit_fit.py', 'mfd_f22.py']
 DATA = {'parts.json': os.path.join(BUILD, 'parts.json'), 'geometry.json': os.path.join(A, 'work', 'geometry.json'),
         'anim.json': os.path.join(A, 'work', 'anim.json'), 'anim_pivots.json': os.path.join(A, 'work', 'anim_pivots.json')}
 DOCS = ['README.md', 'GUIDE.md', 'CREDITS.md', 'CHANGELOG.md', 'COCKPIT_CONTROLS.md']     # (the last: written by cockpit_controls.py)
-# never in a release: text configs (built on the user's machine). The voices are in since 2026-11-16: Kokoro-82M,
-# Apache 2.0 (make_voices_kokoro.py) in place of the macOS system voices (personal use only)
+# never in a release: text configs (built on the user's machine). The voices are in: Kokoro-82M, Apache 2.0
+# (make_voices_kokoro.py)
 EXCLUDE = re.compile(r'\.(tmc|tmd)$')
 DONOR_COPY_EXTRA = ['display_source_light.ttx']       # build.sh DONOR_FILES: the F/A-18 LCD digits
 

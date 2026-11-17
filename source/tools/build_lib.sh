@@ -6,7 +6,6 @@
 #   POSE_ARGS   EDM argument pose for the export (gear down: "0=1,3=1,5=1")
 #   COCKPIT_EDM, COCKPIT_OFFSET (optional) separate DCS cockpit model and its CockpitLocalPoint (Aerofly x,y,z)
 #   DONOR_FILES (optional) further donor files installed with the configs (sprite textures ...)
-#   OWN_GEN     (optional) script that writes ALL configs from scratch (no donor, own sounds from <aircraft>/sounds/)
 # Layout under aircraft/<name>/: source/ work/ build/<name>/ converted/ logs/  (see README.md, docs/PORTING_GUIDE.md)
 A="$PWD"
 W="$(cd ../.. && pwd)"
@@ -63,13 +62,9 @@ install() {
     grep -qE 'all done|converting done' "$LOG" || { echo "converter did not finish (no 'converting done' in "$LOG")"; exit 1; }
     if pgrep -f "Aerofly FS 4.app" >/dev/null; then echo "the game is running - close it, then: $0 install"; exit 1; fi
     "$T/install_aircraft.sh" "$BD" "$OUT" "$NAME"
-    if [ -n "${OWN_GEN:-}" ]; then
-        echo "installed (own flight model and sounds, no donor files)"
-    else
-        cp "$DONOR"/*.tsb "$GAME_AC/"
-        donor_files
-        echo "installed with $DONOR_LABEL sounds"
-    fi
+    cp "$DONOR"/*.tsb "$GAME_AC/"
+    donor_files
+    echo "installed with $DONOR_LABEL sounds"
 }
 
 donor_files() {    # DONOR_FILES: further donor files the configs read (e.g. display sprite textures)
@@ -77,14 +72,6 @@ donor_files() {    # DONOR_FILES: further donor files the configs read (e.g. dis
 }
 
 configs() {
-    if [ -n "${OWN_GEN:-}" ]; then
-        # self-contained package: configs written from scratch, own WAV sounds (the converter makes the .tsb)
-        rm -f "$BD"/${NAME}_*.tmd "$BD"/*.wav
-        (cd "$A" && python3 "$OWN_GEN" "$BD/parts.json" "$I/geometry.json" "$I/anim.json" "$I/anim_pivots.json" "$BD" &&
-            cp "$A"/sounds/*.wav "$BD/" &&
-            python3 "$T/check_refs.py" "$BD/$NAME.tmd" | grep -E '^(Graphic|Sound|UNKNOWN|DYNAMICS READS|missing|unknown)' || true)
-        return
-    fi
     (cd "$A" && PYTHONPATH="$T" python3 make_$NAME.py "$DONOR" "$BD/parts.json" "$I/geometry.json" "$I/anim.json" \
         "$I/anim_pivots.json" "$BD" && PYTHONPATH="$T" python3 make_${NAME}_meta.py "$DONOR" "$I/geometry.json" \
         "$BD/parts.json" "$BD" && python3 "$T/check_refs.py" "$BD/$NAME.tmd" | grep -E '^(Graphic|Sound|UNKNOWN|DYNAMICS READS)' || true)
@@ -123,7 +110,8 @@ import_measure() {
 export_parts() {
     echo "== export parts + textures"
     rm -f "$BD"/*.png "$BD/$NAME.tgi"
-    "$B" --background "$I/${NAME}_pose.blend" --python "$T/export_parts.py" -- "$BD" "$I/geometry.json" \
+    # (the exported triangles as a scene too: the selection previews are rendered from it - what the game draws)
+    PREVIEW_BLEND="$I/${NAME}_exported.blend" "$B" --background "$I/${NAME}_pose.blend" --python "$T/export_parts.py" -- "$BD" "$I/geometry.json" \
         2>&1 | grep -E '^parts|textures written|WARNING|Error|Traceback' || true
     echo "== animation tables"
     COCKPIT_EDM="${COCKPIT_EDM:-}" COCKPIT_OFFSET="${COCKPIT_OFFSET:-}" \
@@ -150,12 +138,12 @@ bake() {
 
 previews() {
     # selection previews (as the SDK sample: 4096, nose left, framed) from the converted textures, one per repaint
-    "$B" --background "$I/${NAME}_pose.blend" --python "$T/render_preview2.py" -- "$BD/preview_${NAME}.tif" "$BD" \
+    "$B" --background "$I/${NAME}_exported.blend" --python "$T/render_preview2.py" -- "$BD/preview_${NAME}.tif" "$BD" \
         2>&1 | grep -E 'PREVIEW|Error' || true
     for r in "$BD"/*/option.tmc; do
         [ -e "$r" ] || continue
         grep -q 'Type.*addon' "$r" && continue            # load add-ons have no selection preview
-        "$B" --background "$I/${NAME}_pose.blend" --python "$T/render_preview2.py" -- "$(dirname "$r")/preview_${NAME}.tif" \
+        "$B" --background "$I/${NAME}_exported.blend" --python "$T/render_preview2.py" -- "$(dirname "$r")/preview_${NAME}.tif" \
             "$BD" "$(dirname "$r")" 2>&1 | grep -E 'PREVIEW|Error' || true
     done
 }
@@ -187,11 +175,14 @@ configs)
         [ -e "$f" ] || continue
         d="$(basename "$(dirname "$f")")"; mkdir -p "$GAME_AC/$d"; cp "$f" "$GAME_AC/$d/"
     done
-    [ -n "${OWN_GEN:-}" ] || donor_files
+    donor_files
     echo "configs copied into $GAME_AC"
     ;;
 bake)
     bake
+    ;;
+previews)
+    previews
     ;;
 convert)
     convert
@@ -200,5 +191,5 @@ convert)
 install)
     install
     ;;
-*) echo "usage: $0 [full|import|export|bake|configs|convert|install]"; exit 1 ;;
+*) echo "usage: $0 [full|import|export|bake|configs|convert|install|previews]"; exit 1 ;;
 esac

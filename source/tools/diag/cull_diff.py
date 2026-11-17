@@ -2,7 +2,7 @@
 directions; where the DCS source has a visible surface and the export has none (see-through hole) or a different one
 (wrong layer visible), that spot is reported.
 
-    AC=ac_su35 AC_DIR=aircraft/su35 Blender --background <pose.blend> --python tools/diag/cull_diff.py -- \
+    AC=ac_f22 AC_DIR=aircraft/f22 Blender --background <pose.blend> --python tools/diag/cull_diff.py -- \
         <model.tgi> [step m = 0.08] [tolerance m = 0.03]
 
 Source = the objects the exporter would use (not excluded by the aircraft config) of the imported EDM, triangles oriented
@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 if os.environ.get('AC_DIR'):
     sys.path.insert(0, os.environ['AC_DIR'])
 import tgi_write as T
-C = importlib.import_module(os.environ.get('AC', 'ac_su35'))
+C = importlib.import_module(os.environ.get('AC', 'ac_f22'))
 a = sys.argv[sys.argv.index('--') + 1:]
 TGI = a[0]
 STEP = float(a[1]) if len(a) > 1 else 0.08

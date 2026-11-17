@@ -5421,7 +5421,7 @@
     ],
     "texture": "display2",
     "donor": "UFDLeft",
-    "brightness": "UFDBrightness",
+    "brightness": "UFDLeftBrightness",
     "centre": [
      7.8002,
      0.2032,
@@ -5455,7 +5455,7 @@
     ],
     "texture": "display2",
     "donor": "UFDRight",
-    "brightness": "UFDBrightness",
+    "brightness": "UFDRightBrightness",
     "centre": [
      7.8004,
      -0.2032,

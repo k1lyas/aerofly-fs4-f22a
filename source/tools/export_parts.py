@@ -1,6 +1,6 @@
 """Generic export of an imported DCS model (.blend from edm_to_blend.py) to Aerofly converter input.
 
-    AC=ac_su35 Blender --background <pose.blend> --python export_parts.py -- <out dir> [geometry.json]
+    AC=ac_f22 Blender --background <pose.blend> --python export_parts.py -- <out dir> [geometry.json]
 
 Parts: objects whose animated ancestors include a DRIVERS argument become one part per animated node chain
 ("A_<nodes>"); body-driven parts are named "Body_<donor body>"; everything else is "Fuselage".
@@ -18,7 +18,7 @@ import aerofly_tex as X
 
 if os.environ.get('AC_DIR'):          # aircraft folder holding ac_<name>.py (aircraft/<name>/)
     sys.path.insert(0, os.environ['AC_DIR'])
-C = importlib.import_module(os.environ.get('AC', 'ac_su35'))
+C = importlib.import_module(os.environ.get('AC', 'ac_f22'))
 args = sys.argv[sys.argv.index('--') + 1:]
 OUT = args[0]
 GEOM = json.load(open(args[1])) if len(args) > 1 and os.path.exists(args[1]) else None
@@ -435,7 +435,7 @@ def gap_plates(parts, info):
 
 def burner_sleeves():
     """Open tubes inside the nozzles (C.BURNER_SLEEVES) with the burner flame texture: parts Burner_<side> and
-    Burner_<side>_B, spun in opposite directions by make_su35.py (the Concorde's reheat 'Dimrotor' sleeves)."""
+    Burner_<side>_B, spun in opposite directions by the aircraft's generator (the Concorde's reheat 'Dimrotor' sleeves)."""
     cfg = getattr(C, 'BURNER_SLEEVES', None)
     if not cfg:
         return {}
@@ -823,6 +823,10 @@ def main():
     # cockpit displays and HUD projection (synthetic parts; display content is drawn by the game)
     eye = np.array(C.MEASURE.get('eye', [0.0, 0.0, 0.0]), float)
     for pname, members in list(display_quads(objs, eye).items()) + list(hud_projection(eye).items()):
+        if pname in parts:           # (the screens' cover glass joins Fuselage: added, not in place of it)
+            parts[pname] = parts[pname] + members
+            objs = objs + members
+            continue
         parts[pname] = members
         info[pname] = {'nodes': '', 'args': [], 'parent_nodes': [], 'display': getattr(C, 'DISPLAYS', {}).get(pname, {})}
         if pname.startswith('Cap'):
@@ -1174,7 +1178,10 @@ def main():
             continue
         tex, kind, nstrength = mat_src[n]
         if kind == 'display':
-            X.write_display_textures(OUT, n, 512 if n == 'hud' else 2048, **getattr(C, 'DISPLAY_SURFACE', {}))
+            # C.DISPLAY_WEAR {display: variant}: worn glass on that display's region of this atlas
+            wear = [tuple(d['region']) + (C.DISPLAY_WEAR[dn],) for dn, d in getattr(C, 'DISPLAYS', {}).items()
+                    if dn in getattr(C, 'DISPLAY_WEAR', {}) and d.get('texture', DISPLAY_MATERIAL) == n]
+            X.write_display_textures(OUT, n, 512 if n == 'hud' else 2048, wear=wear or None, **getattr(C, 'DISPLAY_SURFACE', {}))
             continue
         if kind == 'gap':
             X.write_flat_textures(OUT, n, C.GAP_PLATES['colour'])

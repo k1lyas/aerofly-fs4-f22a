@@ -1,7 +1,7 @@
 {
  "version": "0.9.0",
  "built": "2026-11-17",
- "source_commit": "c7d4465+uncommitted",
+ "source_commit": "5c9b0a8",
  "repository": "k1lyas/aerofly-fs4-f22a",
  "donor_read": [
   "f18.tmd",
@@ -59,9 +59,9 @@
     "controls.tmd": "b9e4b0b0afa0bd95d07324719272ab1eb4c566a2ee198eaf57197ec077043cbe",
     "copilot.tmc": "7ec51074860638483299b0d2354167e019f4d04aed04de29d0f7619dc6281e84",
     "f22.tmc": "35c994ffd0aaa7386b707fe04ea016345401b0caff9ac2adc1a8312ba0696556",
-    "f22.tmd": "688d81de03fbc506c16d3928649a382d598e1e34b4eefc6a2a8378db3c349a30",
+    "f22.tmd": "4dad72537a84a6197a5160da9ec679a023c66b23e10840448e888f917227f7f2",
     "f22_clean.tmd": "c1292137e6cd8a0666d25cd5a354d64d534d2ad5896f19d16433f528c7102842",
-    "f22_cold.tmd": "53a3eb1aca96112261c546be441897e0b396dea41757b29d34801e6ff2a0bc57",
+    "f22_cold.tmd": "79128ca70a64bd787b3adfa36ed857e8626318df89d38d7784135419de11394a",
     "f22_flaps.tmd": "929b4ca6abcedc3eaf7d61f770280c4d0baa92aa9f4fb97caf3fec2dee79223c",
     "f22_gear.tmd": "b66a140978e3918aaaf2877da79a1016a5bc7476e5a8bd08468aa117b68fd21a",
     "f22_landing.tmd": "b0ea24be0db7b91f7d076494053ce492841f1c27fcfbb38b5ca64ec2d2698299",

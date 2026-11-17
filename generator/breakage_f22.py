@@ -683,8 +683,6 @@ def fcs_status(ns):
     found', the aircraft did not load)."""
     obj, dyn = ns['obj'], ns['dyn']
     joint = lambda name: next(x for x in dyn.children if x.name == name)
-    label, place_copy, text_out, UFD_FONT = ns['label'], ns['place_copy'], ns['text_out'], ns['UFD_FONT']
-    AMBER, RED, G, g = ns['AMBER'], ns['UFD_RED'], ns['G'], ns['g']
     o = lambda type_, name, **f: obj(dyn, type_, name, **f) and name + '.Output'
     not_ = lambda name, src: o('logic_greater', name, Input0='0.5', Input1=src)
     # lost parts: an inertial reference on the part's body against the fuselage's. The IRS gives no X / Y / Z (only a
@@ -739,92 +737,29 @@ def fcs_status(ns):
     not_('F22HydOut2', 'F22HydOk2.Output')
     o('sum', 'F22HydOutCount', Inputs=' F22HydOut1.Output F22HydOut2.Output ')   # 0 ok, 1 DEGD, 2 HYD
     rows = [('LEF', 'Wing'), ('TEF', 'Wing'), ('AIL', 'Wing'), ('RUD', 'Fin'), ('STAB', None)]
-    size = 26.0
-    font = dict(UFD_FONT, FontSize=size, Stride=size * 0.9)
-    green = (0.3, 1.0, 0.3, 1.0)
-    x0, xl, xr, y0, dy = 70, 300, 450, 440, 34       # (L at 230 ran into SURFACE: the font is wider than 0.9 x size)
-    items = ['FlightControlsPage', label('SURFACE', (x0, y0), size), label('L', (xl, y0), size), label('R', (xr, y0), size)]
-    blank4 = o('constant_text', 'F22FcsBlank', Input='    ')
-    texts = {}
+    o('constant_text', 'F22FcsBlank', Input='    ')
     for t in ('OK', 'DEGD', 'HYD', 'LOST', 'JAM'):
-        texts[t] = o('constant_text', 'F22FcsText' + t, Input=t)
+        o('constant_text', 'F22FcsText' + t, Input=t)
+    for k in (1, 2):
+        o('constant_text', 'F22FcsTextOut%d' % k, Input='OUT')
     lost_any = []
-    for r, (name, part) in enumerate(rows):
-        y = y0 - dy * (r + 1)
-        items.append(label(name, (x0, y), size))
-        for side, x in (('Left', xl), ('Right', xr)):
+    # F22FcsState<surface><L|R>: 0 OK, 1 DEGD, 2 HYD, 3 LOST, 4 JAM - shown by the FCS page (mfd_f22.fcs_page)
+    for name, part in rows:
+        for side in ('Left', 'Right'):
             key = name + side[0]
             if part:
                 lost = '%s.Output' % ('F22Lost%s%s' % (part, side))
                 lost_any.append(lost)
                 o('product', 'F22FcsLost3' + key, Inputs=' %s 3.0 ' % lost)
-                st = o('maximum', 'F22FcsState' + key, Inputs=' F22HydOutCount.Output F22FcsLost3%s.Output ' % key)
+                o('maximum', 'F22FcsState' + key, Inputs=' F22HydOutCount.Output F22FcsLost3%s.Output ' % key)
             else:       # the stabilators are not torn off (their joint is the actuator): JAM, the STAB failure
                 k = 1 if side == 'Left' else 2
                 o('product', 'F22FcsJam4' + key, Inputs=' F22FailStab%d.Output 4.0 ' % k)
-                st = o('maximum', 'F22FcsState' + key, Inputs=' F22HydOutCount.Output F22FcsJam4%s.Output ' % key)
-            # one text per colour, the others blank: green OK, amber DEGD / HYD, red LOST
-            for colour, rgba, choice in (('G', green, (texts['OK'], blank4, blank4, blank4, blank4)),
-                                         ('A', AMBER, (blank4, texts['DEGD'], texts['HYD'], blank4, texts['JAM'])),
-                                         ('R', RED, (blank4, blank4, blank4, texts['LOST'], blank4))):
-                src = o('multiplexer_text', 'F22FcsCell%s%s' % (colour, key), InputSelect=st, Inputs=' %s ' % ' '.join(choice))
-                items.append(place_copy('UpFrontControllerLine0', 'F22FcsCell%s%sItem' % (colour, key),
-                                        Input=text_out('FcsCell%s%s' % (colour, key), src), Position=' %d %d ' % (x, y),
-                                        Length='4', Color=' %g %g %g %g ' % rgba, **font))
-    # hydraulic systems line
-    y = y0 - dy * (len(rows) + 1)
-    for k, x in ((1, x0), (2, xl + 40)):
-        items.append(label('HYD%d' % k, (x, y), size))
-        for colour, rgba, choice in (('G', green, (texts['OK'], blank4)), ('R', RED, (blank4, o('constant_text', 'F22FcsTextOut%d' % k, Input='OUT')))):
-            src = o('multiplexer_text', 'F22FcsHyd%s%d' % (colour, k), InputSelect='F22HydOut%d.Output' % k, Inputs=' %s ' % ' '.join(choice))
-            items.append(place_copy('UpFrontControllerLine0', 'F22FcsHyd%s%dItem' % (colour, k),
-                                    Input=text_out('FcsHyd%s%d' % (colour, k), src), Position=' %d %d ' % (x + 110, y),
-                                    Length='4', Color=' %g %g %g %g ' % rgba, **font))
-    # first-loss snapshot (2026-11-10, the user: "telemetry and logs" - the game's UDP broadcast, tools/flight_recorder.py,
-    # carries position and attitude only): at the first part lost, what went and the flight state at that moment -
-    # calibrated airspeed, load factor, angle of attack, sideslip - held while a part is lost (live before), under the CAS grid.
-    # Frozen on F22Sep (2026-11-11: on LOST, 1 s late, a console broken at 13.5 g read 7.1 g)
-    snaps = (('Kt', 'AirspeedIndicator.IndicatedAirspeed', 1.94384, 0), ('G', 'Accelerometer.Acceleration', 1 / 9.81, 1),
-             ('Aoa', 'PitotTube.AngleOfAttack', 57.2958, 0), ('Beta', 'PitotTube.SideslipAngle', 57.2958, 0))
-    # held without events (2026-11-10: the event version - edge, demultiplexer, sets - took the fins' first loss but left
-    # a console's empty, never found why): every value follows the live one until a part is LOST, a frame later it
-    # holds; the what is the lost part's number, held the same way
-    whats = [('Fin', 'Left', 'FIN L'), ('Fin', 'Right', 'FIN R'), ('Wing', 'Left', 'WING L'), ('Wing', 'Right', 'WING R')]
-    nums = [o('product', 'F22SnapNum%d' % i, Inputs=' F22Sep%s%s.Output %d.0 ' % (part, side, i + 1))
-            for i, (part, side, _) in enumerate(whats)]
-    o('maximum', 'F22SnapNumNow', Inputs=' %s ' % ' '.join(nums))
-    o('logic_greater', 'F22SnapAny', Input0='F22SnapNumNow.Output', Input1='0.5')
-    o('logic_confirm_delay', 'F22SnapAnyLate', Input='F22SnapAny.Output', TimeUp=0.05, TimeDown=0.0001, Threshold=0.5)
-    not_('F22SnapFollow', 'F22SnapAnyLate.Output')
-    o('state_frozen', 'F22SnapWhat', Input='F22SnapNumNow.Output', InputEnable='F22SnapFollow.Output', Value=0.0)
-    for key, src, k, _ in snaps:
-        o('product', 'F22SnapLive' + key, Inputs=' %s %.6f ' % (src, k))
-        o('state_frozen', 'F22Snap' + key, Input='F22SnapLive%s.Output' % key, InputEnable='F22SnapFollow.Output', Value=0.0)
-    whats_txt = [o('constant_text', 'F22SnapNone', Input='-')] + [o('constant_text', 'F22SnapTxt%d' % i, Input=t)
-                                                                   for i, (_, _, t) in enumerate(whats)]
-    o('multiplexer_text', 'F22SnapWhatText', InputSelect='F22SnapWhat.Output', Inputs=' %s ' % ' '.join(whats_txt))
-    sx, sy, sdy, ssize = 605, 185, 30, 22.0
-    sfont = dict(UFD_FONT, FontSize=ssize, Stride=ssize * 0.9)
-    items.append(label('1ST LOST', (sx, sy), ssize))
-    items.append(place_copy('UpFrontControllerLine0', 'F22SnapWhatItem', Input=text_out('SnapWhat', 'F22SnapWhatText.Output'),
-                            Position=' %d %d ' % (sx + 190, sy), Length='6', Color=' %g %g %g %g ' % RED, **sfont))
-    for r, ((key, _, _, dec), name, x) in enumerate(zip(snaps, ('KT', 'G', 'AOA', 'B'), (sx, sx + 140, sx, sx + 140))):
-        y = sy - sdy * (1 + r // 2)
-        o('float_to_text', 'F22SnapText' + key, Input='F22Snap%s.Output' % key, Decimals=('uint32', str(dec)))
-        items.append(label(name, (x, y), ssize))
-        items.append(place_copy('UpFrontControllerLine0', 'F22SnapItem' + key, Input=text_out('Snap' + key, 'F22SnapText%s.Output' % key),
-                                Position=' %d %d ' % (x + int(ssize * 0.9 * (len(name) + 1)), y), Length='5', **sfont))
+                o('maximum', 'F22FcsState' + key, Inputs=' F22HydOutCount.Output F22FcsJam4%s.Output ' % key)
+    # (the first-loss snapshot under the grid - what went first, KT / G / AOA / sideslip - was a test aid of block 2,
+    # out with the Hornet page 2026-11-17: user, "telemetry left over from the tests")
     # ICAWS FCS DEGD (failures_f22.ICAWS): a surface lost or a stabilator jammed
     o('logic_or', 'F22FcsDegd', Inputs=' %s F22FailStab1.Output F22FailStab2.Output ' % ' '.join(sorted(set(lost_any))))
-    g('graphics_animation_render_list', 'F22FcsPage', RenderList=' %s ' % ' '.join(items))
-    n = 0
-    for gn in G:
-        if gn.type == 'graphics_animation_render_switch' and gn.find('RenderList') is not None and \
-                'FlightControlsPage' in gn.get('RenderList').split():
-            gn.set('RenderList', ' ' + ' '.join('F22FcsPage' if t == 'FlightControlsPage' else t
-                                                 for t in gn.get('RenderList').split()) + ' ')
-            n += 1
-    print('FCS status on %d MFD page switches' % n)
 
 
 # ---- block 3, visible breakage (2026-11-11): the DCS model's damage layers (ac_f22.py BREAK_BODIES). Export makes two

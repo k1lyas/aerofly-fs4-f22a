@@ -95,17 +95,17 @@ CONTROLS = [
     (45, 'AftRightGuarded', 'right console, far aft', '(no lettering)', 'guarded', 'Controls.F22AftRightGuarded',
      [(0, 'guarded'), (1, 'actuated')], 0),
     # the two knobs of each screen (no lettering; value rises clockwise)
-    (113, 'LeftUfdKnobLeft', 'left UFD', 'lower left knob', 'knob', 'UFD.F22LeftKnobLeft', [(0, ''), (1, '')], 0.5),
+    (113, 'LeftUfdKnobLeft', 'left UFD', 'BRT (left knob)', 'knob', 'UFD.F22LeftKnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
     (114, 'LeftUfdKnobRight', 'left UFD', 'lower right knob', 'knob', 'UFD.F22LeftKnobRight', [(0, ''), (1, '')], 0.5),
-    (115, 'RightUfdKnobLeft', 'right UFD', 'lower left knob', 'knob', 'UFD.F22RightKnobLeft', [(0, ''), (1, '')], 0.5),
+    (115, 'RightUfdKnobLeft', 'right UFD', 'BRT (left knob)', 'knob', 'UFD.F22RightKnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
     (116, 'RightUfdKnobRight', 'right UFD', 'lower right knob', 'knob', 'UFD.F22RightKnobRight', [(0, ''), (1, '')], 0.5),
-    (121, 'LeftMfdKnobLeft', 'left MFD', 'upper left knob', 'knob', 'LeftMFD.F22KnobLeft', [(0, ''), (1, '')], 0.5),
+    (121, 'LeftMfdKnobLeft', 'left MFD', 'BRT (left knob)', 'knob', 'LeftMFD.F22KnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
     (122, 'LeftMfdKnobRight', 'left MFD', 'upper right knob', 'knob', 'LeftMFD.F22KnobRight', [(0, ''), (1, '')], 0.5),
-    (117, 'PmfdKnobLeft', 'PMFD (centre)', 'upper left knob', 'knob', 'MPCD.F22KnobLeft', [(0, ''), (1, '')], 0.5),
+    (117, 'PmfdKnobLeft', 'PMFD (centre)', 'BRT (left knob)', 'knob', 'MPCD.F22KnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
     (118, 'PmfdKnobRight', 'PMFD (centre)', 'upper right knob', 'knob', 'MPCD.F22KnobRight', [(0, ''), (1, '')], 0.5),
-    (123, 'RightMfdKnobLeft', 'right MFD', 'upper left knob', 'knob', 'RightMFD.F22KnobLeft', [(0, ''), (1, '')], 0.5),
+    (123, 'RightMfdKnobLeft', 'right MFD', 'BRT (left knob)', 'knob', 'RightMFD.F22KnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
     (124, 'RightMfdKnobRight', 'right MFD', 'upper right knob', 'knob', 'RightMFD.F22KnobRight', [(0, ''), (1, '')], 0.5),
-    (140, 'LowerMfdKnobLeft', 'lower MFD', 'upper left knob', 'knob', 'LowerMFD.F22KnobLeft', [(0, ''), (1, '')], 0.5),
+    (140, 'LowerMfdKnobLeft', 'lower MFD', 'BRT (left knob)', 'knob', 'LowerMFD.F22KnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
     (141, 'LowerMfdKnobRight', 'lower MFD', 'upper right knob', 'knob', 'LowerMFD.F22KnobRight', [(0, ''), (1, '')], 0.5),
     # ICP
     (301, 'IcpWheelLowerLeft', 'ICP', 'lower left thumbwheel', 'wheel', 'ICP.F22WheelLowerLeft', [(0, ''), (1, '')], 0.5),
@@ -113,6 +113,9 @@ CONTROLS = [
     (303, 'IcpRockerLeft', 'ICP', 'upper left rocker', 'rocker', 'ICP.F22RockerLeft', [(-1, 'lower half held'), (1, 'upper half held')], 0),
     (304, 'IcpDvr', 'ICP', 'DVR key', 'button', 'ICP.F22Dvr', [(1, 'pressed')], 0),
 ]
+# the left knob of each screen is its brightness (user 2026-11-17), times the master: the INTERIOR LIGHTS panel's MFD
+# knob for the MFDs, the wheel by the ICP for the UFDs (make_f22.py); the right knobs are free
+BRIGHTNESS = {113, 115, 117, 121, 123, 140}
 SIGNAL = {c[0]: 'F22' + c[1] for c in CONTROLS}
 MESSAGE = {c[0]: c[5] for c in CONTROLS}
 PART = {c[0]: ('P_' if c[4] == 'button' else 'K_') + c[1] for c in CONTROLS}
@@ -341,6 +344,8 @@ def doc():
            '| Panel | Lettering | Kind | State (`.Output`) | Message of the click | Positions | Default |',
            '|---|---|---|---|---|---|---|']
     for i, name, panel, label, kind, message, positions, default in CONTROLS:
+        if i in BRIGHTNESS:            # these work: listed below
+            continue
         if kind == 'button':
             state = 'F22Press' + PART[i][2:]
         else:
@@ -356,9 +361,10 @@ def doc():
             'YAW TRIM, FADEC, ENGINES MOTOR, LAMP TEST / NVG, CNI, AUX/ACP, RADIO VOL VOX, DN LOCK OVERRIDE, the screen and ICP',
             'keys, the two upper ICP thumbwheels (UFD and HUD brightness), the lower right ICP rocker (map range) and the',
             'armrest over the right console (a click folds it up against the wall: state `F22Armrest`).',
-            'The keys of the screens and of the ICP all go in while held; the UFD keys `UFD.LeftPage`, `UFD.LeftKey2`,',
-            '`UFD.LeftKey3` and `UFD.RightKey2` are still free (states `F22PressL_SMFD_1`, `F22PressL_SMFD_3`, `F22PressL_SMFD_4`,',
-            '`F22PressR_SMFD_3`).', '',
+            'The left knob at each screen (4 MFDs, 2 UFDs) is that screen\'s brightness (states `F22<Screen>KnobLeft`, 0 .. 1,',
+            'default 1), under the master dimmers: the MFD knob of the INTERIOR LIGHTS panel, the wheel left of the ICP for the UFDs.',
+            'The keys of the screens and of the ICP all go in while held; the left UFD keys `UFD.LeftPage`, `UFD.LeftKey2` and',
+            '`UFD.LeftKey3` are still free (states `F22PressL_SMFD_1`, `F22PressL_SMFD_3`, `F22PressL_SMFD_4`).', '',
             'Not prepared: the cap at the right sill and the flat round plugs at the lower corners of the MFD frames (not',
             'controls), DN LOCK OVERRIDE and RESET beside the gear handle (painted on the panel: click zone only).', '']
     return '\n'.join(out)
