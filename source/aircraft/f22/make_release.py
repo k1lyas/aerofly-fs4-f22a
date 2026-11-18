@@ -224,6 +224,7 @@ def main():
     tokens = {'@VERSION@': version, '@FORUM_URL@': conf['forum'], '@UPSTREAM_URL@': conf['upstream_model'],
               '@SOURCE_URL@': ('https://github.com/' + conf['repository']) if conf.get('repository')
               else 'see the forum thread (the repository address is posted there)',
+              '@SUPPORT_URL@': ('https://ko-fi.com/' + conf['ko_fi']) if conf.get('ko_fi') else conf['forum'],
               '@TESTED@': '; '.join('Aerofly FS 4 ' + g['label'] for g in manifest['tested_games'])}
     for doc in DOCS:
         t = open(os.path.join(REL, doc), encoding='utf-8').read()

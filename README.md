@@ -108,6 +108,9 @@ thumbwheels, four UFD keys and more). **COCKPIT_CONTROLS.md** lists each of them
 the Python scripts of the folder `generator/` alone - no 3D work and no IPACS converter; run the installer again
 to rebuild the aircraft with your change. Ideas and patches: https://www.aerofly.com/community/forum/index.php?thread/30495-f-22a-raptor-for-aerofly-fs4-work-in-progress-videos-updates-feedback-welcome/ or https://github.com/k1lyas/aerofly-fs4-f22a.
 
+The add-on is free and stays free. If you enjoy it and want to say thanks, you can buy me a Monster on Ko-fi:
+https://ko-fi.com/ukraf - it pays for the AI assistant this aircraft is built with.
+
 ## Licence
 
 GNU General Public License version 3 (file LICENSE): you may use, change and share this add-on; if you share it or
