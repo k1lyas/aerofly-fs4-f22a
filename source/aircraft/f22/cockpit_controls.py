@@ -94,28 +94,37 @@ CONTROLS = [
     (43, 'Obogs', 'OXYGEN', 'OBOGS', 'toggle', 'Oxygen.F22Obogs', [(0, 'OFF'), (1, 'ON')], 1),
     (45, 'AftRightGuarded', 'right console, far aft', '(no lettering)', 'guarded', 'Controls.F22AftRightGuarded',
      [(0, 'guarded'), (1, 'actuated')], 0),
-    # the two knobs of each screen (no lettering; value rises clockwise)
+    # the two knobs of each screen (no lettering; value rises clockwise): BRT and MODE (OFF / NIGHT / DAY, user 2026-11-18,
+    # as the F/A-18 DDI's mode knob - the F-22's own bezel lettering is not public)
     (113, 'LeftUfdKnobLeft', 'left UFD', 'BRT (left knob)', 'knob', 'UFD.F22LeftKnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
-    (114, 'LeftUfdKnobRight', 'left UFD', 'lower right knob', 'knob', 'UFD.F22LeftKnobRight', [(0, ''), (1, '')], 0.5),
+    (114, 'LeftUfdKnobRight', 'left UFD', 'MODE (lower right knob)', 'selector', 'UFD.F22LeftKnobRight', [(0, 'OFF'), (1, 'NIGHT'), (2, 'DAY')], 2),
     (115, 'RightUfdKnobLeft', 'right UFD', 'BRT (left knob)', 'knob', 'UFD.F22RightKnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
-    (116, 'RightUfdKnobRight', 'right UFD', 'lower right knob', 'knob', 'UFD.F22RightKnobRight', [(0, ''), (1, '')], 0.5),
+    (116, 'RightUfdKnobRight', 'right UFD', 'MODE (lower right knob)', 'selector', 'UFD.F22RightKnobRight', [(0, 'OFF'), (1, 'NIGHT'), (2, 'DAY')], 2),
     (121, 'LeftMfdKnobLeft', 'left MFD', 'BRT (left knob)', 'knob', 'LeftMFD.F22KnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
-    (122, 'LeftMfdKnobRight', 'left MFD', 'upper right knob', 'knob', 'LeftMFD.F22KnobRight', [(0, ''), (1, '')], 0.5),
+    (122, 'LeftMfdKnobRight', 'left MFD', 'MODE (upper right knob)', 'selector', 'LeftMFD.F22KnobRight', [(0, 'OFF'), (1, 'NIGHT'), (2, 'DAY')], 2),
     (117, 'PmfdKnobLeft', 'PMFD (centre)', 'BRT (left knob)', 'knob', 'MPCD.F22KnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
-    (118, 'PmfdKnobRight', 'PMFD (centre)', 'upper right knob', 'knob', 'MPCD.F22KnobRight', [(0, ''), (1, '')], 0.5),
+    (118, 'PmfdKnobRight', 'PMFD (centre)', 'MODE (upper right knob)', 'selector', 'MPCD.F22KnobRight', [(0, 'OFF'), (1, 'NIGHT'), (2, 'DAY')], 2),
     (123, 'RightMfdKnobLeft', 'right MFD', 'BRT (left knob)', 'knob', 'RightMFD.F22KnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
-    (124, 'RightMfdKnobRight', 'right MFD', 'upper right knob', 'knob', 'RightMFD.F22KnobRight', [(0, ''), (1, '')], 0.5),
+    (124, 'RightMfdKnobRight', 'right MFD', 'MODE (upper right knob)', 'selector', 'RightMFD.F22KnobRight', [(0, 'OFF'), (1, 'NIGHT'), (2, 'DAY')], 2),
     (140, 'LowerMfdKnobLeft', 'lower MFD', 'BRT (left knob)', 'knob', 'LowerMFD.F22KnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
-    (141, 'LowerMfdKnobRight', 'lower MFD', 'upper right knob', 'knob', 'LowerMFD.F22KnobRight', [(0, ''), (1, '')], 0.5),
+    (141, 'LowerMfdKnobRight', 'lower MFD', 'MODE (upper right knob)', 'selector', 'LowerMFD.F22KnobRight', [(0, 'OFF'), (1, 'NIGHT'), (2, 'DAY')], 2),
     # ICP
+    # ICP after the F-16's (user 2026-11-18: the same thumbwheels and rockers; the F-22's ICP is not public): the upper
+    # wheels BRT (UFD / ICP, ac_f22 K_WheelUFD) and SYM (HUD, K_WheelHUD, off at the bottom), the upper left rocker
+    # INC / DEC of the autothrottle target, the lower right one map range (make_f22.py). The F-16's CONT and RET DEPR on
+    # the lower wheels were tried and taken out the same day (user: contrast not wanted - the MFDs have none - and a
+    # fixed reticle of no use): the lower wheels are free
     (301, 'IcpWheelLowerLeft', 'ICP', 'lower left thumbwheel', 'wheel', 'ICP.F22WheelLowerLeft', [(0, ''), (1, '')], 0.5),
     (302, 'IcpWheelLowerRight', 'ICP', 'lower right thumbwheel', 'wheel', 'ICP.F22WheelLowerRight', [(0, ''), (1, '')], 0.5),
-    (303, 'IcpRockerLeft', 'ICP', 'upper left rocker', 'rocker', 'ICP.F22RockerLeft', [(-1, 'lower half held'), (1, 'upper half held')], 0),
+    (303, 'IcpRockerLeft', 'ICP', 'INC / DEC (upper left rocker)', 'rocker', 'ICP.F22RockerLeft', [(-1, 'DEC held'), (1, 'INC held')], 0),
     (304, 'IcpDvr', 'ICP', 'DVR key', 'button', 'ICP.F22Dvr', [(1, 'pressed')], 0),
 ]
 # the left knob of each screen is its brightness (user 2026-11-17), times the master: the INTERIOR LIGHTS panel's MFD
-# knob for the MFDs, the wheel by the ICP for the UFDs (make_f22.py); the right knobs are free
+# knob for the MFDs, the BRT wheel by the ICP for the UFDs (make_f22.py); the right knob its mode: OFF / NIGHT (0.3) /
+# DAY (2026-11-18). ICP: the INC / DEC rocker works too (make_f22.py)
 BRIGHTNESS = {113, 115, 117, 121, 123, 140}
+MODES = {114: 'LeftUfd', 116: 'RightUfd', 118: 'Pmfd', 122: 'LeftMfd', 124: 'RightMfd', 141: 'LowerMfd'}
+WORKING = BRIGHTNESS | set(MODES) | {303}
 SIGNAL = {c[0]: 'F22' + c[1] for c in CONTROLS}
 MESSAGE = {c[0]: c[5] for c in CONTROLS}
 PART = {c[0]: ('P_' if c[4] == 'button' else 'K_') + c[1] for c in CONTROLS}
@@ -238,12 +247,12 @@ CLICKS.append(('TakeoffTrim', _add(f['centre'], NR, 0.004), _neg(NR), None, MESS
 
 # ---- the two knobs of each screen: knurled cylinders along the screen's normal in the frames' object (F22_MFD), each
 # the whole pieces within 6.8 mm of its axis (body radius 6.2 mm; the mount plate under it, 16 mm, stays). No marks:
-# 270 deg over the range, clockwise (seen by the pilot) for a rising value
+# 270 deg over the range, clockwise (seen by the pilot) for a rising value; the MODE knobs a quarter turn per detent
 for i in (113, 114, 115, 116, 117, 118, 121, 122, 123, 124, 140, 141):
     c, n = tuple(FIT[i]['centre']), _unit(FIT[i]['normal'])              # normal: towards the pilot
     KNOBS.append(dict(part=PART[i], material=MFD, box=(_add(c, (1, 1, 1), -0.013), _add(c, (1, 1, 1), 0.013)),
                       cylinder=(c, n, 0.0068), whole=True, pivot=c, axis=n, source=SIGNAL[i],
-                      angles=[(0.0, 135.0), (1.0, -135.0)]))
+                      angles=[(0.0, 90.0), (1.0, 0.0), (2.0, -90.0)] if i in MODES else [(0.0, 135.0), (1.0, -135.0)]))
     CLICKS.append(('CommICSVolumeKnob', _add(c, n, 0.004), _neg(n), None, MESSAGE[i], (0.007, 0.014)))
 
 # ---- ICP. Lower thumbwheels: the meshes of the upper ones (ac_f22 K_WheelUFD / K_WheelHUD: an open arc, turned
@@ -252,10 +261,12 @@ for i, y in ((301, 1.0), (302, -1.0)):
     KNOBS.append(dict(part=PART[i], material=ACC2, box=((7.6455, min(y * 0.090, y * 0.106), 1.05785), (7.6785, max(y * 0.090, y * 0.106), 1.10685)),
                       axis=(0.0, 1.0, 0.0), source=SIGNAL[i], pitch=7.7, phases=4, positions=21))
     CLICK_KEYS.append(([7.6491, y * 0.0975, 1.0816], 'LeftMFDBrightnessKnob', MESSAGE[i], 1.0, 'step', 0.010, 0.004))
-# rockers: upper left (an object of its own, CP__4.001; no function yet) and lower right (map range, ICP.MapRangeUp /
-# Down: pieces of the ICP's key object). Each tips 6 deg about its lateral axis towards the half that is held
+# rockers: upper left (an object of its own, CP__4.001; INC / DEC: the autothrottle target one step up / down, as the
+# SYS page's arrows, make_f22.py F22AtStepUp / Down) and lower right (map range, ICP.MapRangeUp / Down: pieces of the
+# ICP's key object). Each tips 6 deg about its lateral axis towards the half that is held
 ROCKERS = [dict(part=PART[303], signal=SIGNAL[303], up=MESSAGE[303] + 'Up', down=MESSAGE[303] + 'Down',
-                box=((7.6248, 0.0848, 1.1481), (7.6299, 0.0961, 1.1688)), new=True),
+                box=((7.6248, 0.0848, 1.1481), (7.6299, 0.0961, 1.1688)), new=True,
+                events=dict(Up='F22AtStepUp.Trigger', Down='F22AtStepDown.Trigger')),
            dict(part='K_IcpRockerRight', signal='F22IcpRockerRight', up='ICP.MapRangeUp', down='ICP.MapRangeDown',
                 box=((7.6249, -0.0794, 1.0776), (7.6299, -0.0681, 1.0983)), new=False)]
 for r in ROCKERS:
@@ -318,7 +329,7 @@ def dynamics(obj, dyn, anchor):
         for half, v, msg in (('Up', '1.0', r['up']), ('Down', '-1.0', r['down'])):
             obj(dyn, 'event_value', s + half + 'Held', anchor, Input=v, Events=' %s.Set ' % s)
             obj(dyn, 'input_button', s + half, anchor, Message=msg, InputValue='1.0',
-                Events=' %s%sHeld.Trigger ' % (s, half), EventsRelease=' %sRest.Trigger ' % s)
+                Events=' %s%sHeld.Trigger %s ' % (s, half, r.get('events', {}).get(half, '')), EventsRelease=' %sRest.Trigger ' % s)
 
 
 # ------------------------------------------------------------------------------------------------ the helpers' table
@@ -344,7 +355,7 @@ def doc():
            '| Panel | Lettering | Kind | State (`.Output`) | Message of the click | Positions | Default |',
            '|---|---|---|---|---|---|---|']
     for i, name, panel, label, kind, message, positions, default in CONTROLS:
-        if i in BRIGHTNESS:            # these work: listed below
+        if i in WORKING:               # these work: listed below
             continue
         if kind == 'button':
             state = 'F22Press' + PART[i][2:]
@@ -359,12 +370,15 @@ def doc():
     out += ['', '## Controls that already work', '',
             'These came from the same static geometry and are wired to systems (see GUIDE.md): FLCS BIT and its guard, ALT FLAPS,',
             'YAW TRIM, FADEC, ENGINES MOTOR, LAMP TEST / NVG, CNI, AUX/ACP, RADIO VOL VOX, DN LOCK OVERRIDE, the screen and ICP',
-            'keys, the two upper ICP thumbwheels (UFD and HUD brightness), the lower right ICP rocker (map range) and the',
-            'armrest over the right console (a click folds it up against the wall: state `F22Armrest`).',
+            'keys, the two upper ICP thumbwheels and both ICP rockers (as the F-16\'s: BRT of the UFDs and the ICP, SYM of the',
+            'HUD, INC / DEC of the autothrottle target, map range) and the armrest over the right console (a click folds it',
+            'up against the wall: state `F22Armrest`).',
             'The left knob at each screen (4 MFDs, 2 UFDs) is that screen\'s brightness (states `F22<Screen>KnobLeft`, 0 .. 1,',
-            'default 1), under the master dimmers: the MFD knob of the INTERIOR LIGHTS panel, the wheel left of the ICP for the UFDs.',
+            'default 1), under the master dimmers: the MFD knob of the INTERIOR LIGHTS panel, the BRT wheel left of the ICP for',
+            'the UFDs. The right knob is the screen\'s mode (states `F22<Screen>KnobRight`: 0 OFF, 1 NIGHT, 2 DAY).',
             'The keys of the screens and of the ICP all go in while held; the left UFD keys `UFD.LeftPage`, `UFD.LeftKey2` and',
-            '`UFD.LeftKey3` are still free (states `F22PressL_SMFD_1`, `F22PressL_SMFD_3`, `F22PressL_SMFD_4`).', '',
+            '`UFD.LeftKey3` and the right UFD\'s top key `UFD.RightPage` are still free (states `F22PressL_SMFD_1`,',
+            '`F22PressL_SMFD_3`, `F22PressL_SMFD_4`, `F22PressR_SMFD_1`).', '',
             'Not prepared: the cap at the right sill and the flat round plugs at the lower corners of the MFD frames (not',
             'controls), DN LOCK OVERRIDE and RESET beside the gear handle (painted on the panel: click zone only).', '']
     return '\n'.join(out)

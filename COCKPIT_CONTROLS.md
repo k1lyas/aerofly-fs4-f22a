@@ -44,27 +44,23 @@ in equal clicks (20 clicks; the FREQ knobs 36); a button is an `input_button` - 
 | OXYGEN | FLOW | two-position toggle | `F22OxygenFlow` | `Oxygen.F22Flow` | 0 = BYPASS, 1 = NORMAL | 1 |
 | OXYGEN | OBOGS | two-position toggle | `F22Obogs` | `Oxygen.F22Obogs` | 0 = OFF, 1 = ON | 1 |
 | right console, far aft | (no lettering) | guarded toggle (the red lid lifts by itself) | `F22AftRightGuarded` | `Controls.F22AftRightGuarded` | 0 = guarded, 1 = actuated | 0 |
-| left UFD | lower right knob | rotary knob | `F22LeftUfdKnobRight` | `UFD.F22LeftKnobRight` | 0 .. 1 | 0.5 |
-| right UFD | lower right knob | rotary knob | `F22RightUfdKnobRight` | `UFD.F22RightKnobRight` | 0 .. 1 | 0.5 |
-| left MFD | upper right knob | rotary knob | `F22LeftMfdKnobRight` | `LeftMFD.F22KnobRight` | 0 .. 1 | 0.5 |
-| PMFD (centre) | upper right knob | rotary knob | `F22PmfdKnobRight` | `MPCD.F22KnobRight` | 0 .. 1 | 0.5 |
-| right MFD | upper right knob | rotary knob | `F22RightMfdKnobRight` | `RightMFD.F22KnobRight` | 0 .. 1 | 0.5 |
-| lower MFD | upper right knob | rotary knob | `F22LowerMfdKnobRight` | `LowerMFD.F22KnobRight` | 0 .. 1 | 0.5 |
 | ICP | lower left thumbwheel | thumbwheel | `F22IcpWheelLowerLeft` | `ICP.F22WheelLowerLeft` | 0 .. 1 | 0.5 |
 | ICP | lower right thumbwheel | thumbwheel | `F22IcpWheelLowerRight` | `ICP.F22WheelLowerRight` | 0 .. 1 | 0.5 |
-| ICP | upper left rocker | rocker | `F22IcpRockerLeft` | `ICP.F22RockerLeftUp / ICP.F22RockerLeftDown` | -1 = lower half held, 1 = upper half held | 0 |
 | ICP | DVR key | push button | `F22PressIcpDvr` | `ICP.F22Dvr` | 1 = pressed | 0 |
 
 ## Controls that already work
 
 These came from the same static geometry and are wired to systems (see GUIDE.md): FLCS BIT and its guard, ALT FLAPS,
 YAW TRIM, FADEC, ENGINES MOTOR, LAMP TEST / NVG, CNI, AUX/ACP, RADIO VOL VOX, DN LOCK OVERRIDE, the screen and ICP
-keys, the two upper ICP thumbwheels (UFD and HUD brightness), the lower right ICP rocker (map range) and the
-armrest over the right console (a click folds it up against the wall: state `F22Armrest`).
+keys, the two upper ICP thumbwheels and both ICP rockers (as the F-16's: BRT of the UFDs and the ICP, SYM of the
+HUD, INC / DEC of the autothrottle target, map range) and the armrest over the right console (a click folds it
+up against the wall: state `F22Armrest`).
 The left knob at each screen (4 MFDs, 2 UFDs) is that screen's brightness (states `F22<Screen>KnobLeft`, 0 .. 1,
-default 1), under the master dimmers: the MFD knob of the INTERIOR LIGHTS panel, the wheel left of the ICP for the UFDs.
+default 1), under the master dimmers: the MFD knob of the INTERIOR LIGHTS panel, the BRT wheel left of the ICP for
+the UFDs. The right knob is the screen's mode (states `F22<Screen>KnobRight`: 0 OFF, 1 NIGHT, 2 DAY).
 The keys of the screens and of the ICP all go in while held; the left UFD keys `UFD.LeftPage`, `UFD.LeftKey2` and
-`UFD.LeftKey3` are still free (states `F22PressL_SMFD_1`, `F22PressL_SMFD_3`, `F22PressL_SMFD_4`).
+`UFD.LeftKey3` and the right UFD's top key `UFD.RightPage` are still free (states `F22PressL_SMFD_1`,
+`F22PressL_SMFD_3`, `F22PressL_SMFD_4`, `F22PressR_SMFD_1`).
 
 Not prepared: the cap at the right sill and the flat round plugs at the lower corners of the MFD frames (not
 controls), DN LOCK OVERRIDE and RESET beside the gear handle (painted on the panel: click zone only).

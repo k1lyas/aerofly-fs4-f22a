@@ -8,7 +8,7 @@ F-22 yet. Original (Russian) of this guide: `source/aircraft/f22/GUIDE.md`.
 | Display | Shows |
 |---|---|
 | Upper left (UFD) | engines L/R: RPM (%), EGT (°C), FF (fuel flow, lb/h), NOZ (nozzle, %), OIL (psi); below it ICAWS, the caution list |
-| Upper right (UFD) | standby attitude indicator (speed left, altitude right), COM1/COM2 channels, fuel (lb), local time; the lower middle key (the next page's name over it) or the key above the screen switches SFI / TIME |
+| Upper right (UFD) | standby attitude indicator (speed left, altitude right), COM1/COM2 channels, fuel (lb), local time; the lower middle key (the next page's name over it) switches SFI / TIME |
 | ICP (top centre) | control panel: scratchpad on the left, 5 option lines at the arrow keys on the right |
 | PMFD (centre) | map: route, airports, beacons (HSI) |
 | Left / right / lower MFD | ENG / FUEL / FCS by default; the MENU key (bottom, middle) lists the pages |
@@ -43,9 +43,9 @@ not blink. On a cold start L GEN / R GEN blink at once: that is normal, acknowle
 
 1. BATT on (two positions, ON / OFF; with engines and APU off, OFF takes all power from the aircraft).
 2. APU on, about 4 s to come up: the displays get power, ICAWS shows L GEN / R GEN.
-3. Displays up: on a cold start every display is dimmed to zero. The MFD knob of the INTERIOR LIGHTS panel and the
-   left knob at each MFD; the upper thumbwheel left of the ICP and the left knob at each UFD (the UFDs also run on
-   the battery alone); the HUD: the upper thumbwheel right of the ICP.
+3. Displays on: on a cold start every display is off - the right knob at each MFD and UFD (its mode) stands at OFF.
+   Turn it to DAY (two clicks) or NIGHT (one). The UFDs also run on the battery alone. HUD: the SYM thumbwheel, upper
+   right of the ICP.
 4. GEN L, GEN R on (they only connect the generators; a generator comes on line by itself at about 55 % RPM).
 5. Left throttle from cut-off to idle: the engine starts by itself (air from the APU). L GEN goes out.
 6. The same with the right throttle. APU off.
@@ -167,7 +167,8 @@ panel (right console) sets their volume; at OFF it mutes voices and tones.
 ## Map
 
 The terrain map is on the centre MFD (PMFD) only, HSI page, MODE key. The side MFDs have none: the engine keeps one
-map. The ▲▼ rocker at the bottom right of the ICP is the map scale on the SA / HSI pages.
+map. The ▲▼ rocker at the bottom right of the ICP is the map scale on the SA / HSI pages (the F-16 has its FLIR
+rocker there, which this aircraft does not need).
 
 ## Night lighting
 
@@ -177,9 +178,21 @@ panel and the ICP keys, **CONSOLE** - lettering of the side consoles, **FLOOD** 
 
 ## Brightness
 
-Each screen (4 MFDs, 2 UFDs) has its own brightness: the left of its two knobs. Over them the masters: for all MFDs
-the MFD knob of the INTERIOR LIGHTS panel, for both UFDs and the ICP the upper thumbwheel left of the ICP keyboard
-(mouse wheel or drag). HUD: upper thumbwheel right of the ICP.
+Each screen (4 MFDs, 2 UFDs) has two knobs. The left one is its brightness. The right one is its mode, three
+positions: OFF (screen off), NIGHT (0.3 of the day brightness) and DAY. Over them the masters: for all MFDs the MFD
+knob of the INTERIOR LIGHTS panel, for both UFDs and the ICP the BRT thumbwheel by the ICP.
+
+## ICP thumbwheels and rockers
+
+The real F-22's ICP is not public; its thumbwheels and rockers work as the F-16's, which has the same ones. Turn a
+thumbwheel with the mouse wheel or by dragging, 20 clicks over its range:
+
+- **BRT** (upper left) - brightness of the UFDs and the ICP.
+- **SYM** (upper right) - HUD brightness; at the very bottom the HUD is off, the first click turns it on at 0.3.
+- The lower thumbwheels do nothing yet.
+- **▲▼ rocker, upper left** (INC / DEC) - steps the autothrottle target up / down, as the SYS page's arrows (the step
+  size: STEP on the same page).
+- **▲▼ rocker, lower right** - map scale (see Map).
 
 ## Landing and taxi light
 
@@ -271,7 +284,6 @@ lost shows on the **FCS** page (surface table): OK, DEGD (one hydraulic system),
 
 Every switch, knob, key, thumbwheel and rocker in the cockpit moves and can be clicked, but not all of them have a
 function yet: AUX GEN, FUEL TANKS, the ECS CABIN panel, the RADIO VOL knobs other than VOX, the AUX COMM panel, the
-OXYGEN panel, the right knobs at the screens, the two lower ICP thumbwheels, the upper left ICP rocker, DVR
-and four of the UFD keys. They are prepared for new functions: the list with the name of each control's state is in
+OXYGEN panel, the two lower ICP thumbwheels, DVR, three of the left UFD's keys and the right UFD's top key. They are prepared for new functions: the list with the name of each control's state is in
 **COCKPIT_CONTROLS.md** - a function can be added with the Python scripts alone, no model work and no converter.
 The gear handle's wheel glows red while the gear is in transit.

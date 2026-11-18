@@ -14,6 +14,7 @@ import burner_f22
 import failures_f22
 import breakage_f22
 import mfd_f22
+import cockpit_controls
 
 DONOR, PARTS, GEOM, ANIM, PIVOTS, OUT = sys.argv[1:7]
 NAME = 'f22'
@@ -991,11 +992,22 @@ obj(dyn, 'input_default', 'UFDBrightnessWheel', anchor, Message='UFD.Brightness'
 # flight group - are the displays left on the battery (DC essential bus); the ICP, MFDs and HUD need AC (generators /
 # APU), as the Hornet's. The F-22's exact battery loads are not public; standby + warnings on the battery is the rule
 # each UFD also has its own BRT knob, the left of its two (user 2026-11-17: one brightness per screen;
-# cockpit_controls.BRIGHTNESS): the wheel by the ICP stays the master for both UFDs and the ICP
+# cockpit_controls.BRIGHTNESS): the wheel by the ICP stays the master for both UFDs and the ICP (BRT, as the F-16 ICP's
+# raster brightness wheel)
+# Each screen's right knob is its MODE (cockpit_controls.MODES, user 2026-11-18): OFF / NIGHT / DAY as the F/A-18
+# DDI's mode knob, NIGHT 0.3 of DAY (the Hornet's own map, LeftMFDDayNightBrightness - its day / night inputs, bound to
+# no control, stay at DAY). On a cold start the modes stand at OFF (STATE_EXTRA)
+for knob in cockpit_controls.MODES.values():
+    obj(dyn, 'linear_interpolation', 'F22%sModeLevel' % knob, anchor, Input='F22%sKnobRight.Output' % knob,
+        Map=' (0.0 0.0) (1.0 0.3) (2.0 1.0) ')
 for side in ('Left', 'Right'):
     obj(dyn, 'product', 'UFD%sBrightnessValue' % side, anchor,
-        Inputs=' DCBusEssentialOn.Output UFDBrightnessWheel.Output F22%sUfdKnobLeft.Output ' % side)
+        Inputs=' DCBusEssentialOn.Output UFDBrightnessWheel.Output F22%sUfdKnobLeft.Output F22%sUfdModeLevel.Output ' % (side, side))
 obj(dyn, 'product', 'ICPBrightnessValue', anchor, Inputs=' DDIRightOn.Output UFDBrightnessWheel.Output ')
+# HUD: off at the bottom of its wheel (user 2026-11-18: it could not be turned off, only dimmed - the Hornet's map
+# puts the wheel's 0 at 0.3 of full brightness). As the F-16's SYM wheel and the Hornet's own HUD knob, both with an
+# OFF at the end of their travel: 0 = off, the first click 0.3, then up to full as before
+setv(D['HUDBrightnessSetting'], 'Map', ' (0.0 0.0) (0.05 0.3) (1.0 1.0) ')
 # (HUD brightness: a full wheel of 1.6 instead of the Hornet's 1.0 changed nothing in the game (2026-10-22): the HUD
 # renderer clamps at 1 - the HUD is drawn twice instead, graphics section)
 
@@ -1853,7 +1865,7 @@ for name, own in (('DDIRightBrightness', 'RightMFDBrightness'), ('DDILowerBright
 # panel knob stays the master
 for name, knob in (('DDILeftBrightness', 'LeftMfd'), ('DDIRightBrightness', 'RightMfd'), ('DDILowerBrightness', 'LowerMfd'),
                    ('MPCDBrightness', 'Pmfd')):
-    setv(D[name], 'Inputs', ' %s F22%sKnobLeft.Output ' % (D[name].get('Inputs').strip(), knob))
+    setv(D[name], 'Inputs', ' %s F22%sKnobLeft.Output F22%sModeLevel.Output ' % (D[name].get('Inputs').strip(), knob, knob))
 # air refuelling receptacle light (AAR LIGHT knob, door open, DC power): a soft white glow in the receptacle
 g('graphics_input', 'GfxAARLight', InputID=('uint32', published('F22AARLight')))
 g('graphics_pointlight', 'LightAARReceptacle', **body('Fuselage'), R0=[1.307, 0.0, 0.84], X0=[0.0, 0.0, 1.0],
@@ -2350,7 +2362,7 @@ window('UFDLeft', screens['DisplayLeftUFD'], ufd_l)
 # right UFD (atlas 430..800 x 320..605): standby attitude (the F/A-18 ADI page: attitude, airspeed, altitude,
 # vertical speed; the four squares under it are its sideslip indicator - the lower one is the ball) beside total fuel
 # (lb) with the time / range to BINGO and the local time
-# (2026-11-07, user) two pages again, the top button (R_SMFD_1) flips them: SFI (this page) and TIME - kept from the
+# (2026-11-07, user) two pages again, flipped by the lower middle button (R_SMFD_3; the top one until 2026-11-18): SFI (this page) and TIME - kept from the
 # rejected UFD pages of 2026-11-06 (scratchpad make_f22_ufd_v2.py), the rest of those stays out. Back to SFI by itself
 # when the standby instruments are what is left: the battery alone on the bus, or no engine running in the air.
 
@@ -2369,9 +2381,9 @@ def ufd_text(key, src, pos, n, font=UFD_FONT):
 obj(dyn, 'variable', 'F22UfdRPage', anchor, Value='0.0')
 obj(dyn, 'logic_invert', 'F22UfdRPageOther', anchor, Input='F22UfdRPage.Output')
 obj(dyn, 'event_value', 'F22UfdRPageNext', anchor, Input='F22UfdRPageOther.Output', Events=' F22UfdRPage.Set ')
-ufd_button('F22UfdRPageButton', 'UFD.RightPage', 'F22UfdRPageNext.Trigger')
-# the lower middle key too, with the next page's name over it (user 2026-11-17: the key above the screen sits over the
-# ADI's corner boxes, no room for its legend; the next page of a longer list would come the same way)
+# the lower middle key, with the next page's name over it (user 2026-11-17: the key above the screen sits over the
+# ADI's corner boxes, no room for its legend; the next page of a longer list would come the same way). The top key
+# flipped them too until 2026-11-18 (user: one key for the pages) - free now, as the left UFD's
 ufd_button('F22UfdR2Button', 'UFD.RightKey2', 'F22UfdRPageNext.Trigger')
 g('graphics_input', 'GfxF22UfdRPage', InputID=('uint32', published('F22UfdRPage')))
 obj(dyn, 'logic_and', 'F22BothEnginesOut', anchor, Inputs=' Engine1NotRunning.Output Engine2NotRunning.Output F22AtAirborne.Output ')
@@ -2579,7 +2591,7 @@ print('FPAS page in %d MFD page switches' % n_perf)
 # public). 13 lines of up to 26 characters, the line's text picked by F22ChecklistIndex
 CHECKLISTS = [
     ('COLD START', ['BATT .............. ON', 'APU ............ START', 'CANOPY .......... CLOSE', 'CNI / ACP ........... ON',
-                    'DISPLAYS / HUD ...... BRT', 'FADEC ............ NORM', 'THROTTLES ......... IDLE', 'L / R GEN ........... ON',
+                    'MODES DAY / HUD SYM ... UP', 'FADEC ............ NORM', 'THROTTLES ......... IDLE', 'L / R GEN ........... ON',
                     'BATT LIGHT ........ OUT', 'APU ............... OFF', 'FLCS BIT ....... START', '  40 S, BIT PASS -> STOP',
                     'LAMP TEST ...... CHECK']),
     ('BEFORE TAKEOFF', ['CANOPY ......... CLOSED', 'BIT PASS ...... ON ICAWS', 'MASTER ARM ....... SAFE', 'ALT FLAPS ........ NORM',
@@ -2679,8 +2691,9 @@ if H:
         steps.append(place_copy('UpFrontControllerLine0', 'F22HudAtTarget%d' % k_, Input=at_txt, Position=' 176 687 ',
                                 Length='4', LeftJustified='false', FontID='0', FontSize=30.0, Stride=24.0,
                                 Color=' %.3f %.3f %.3f 1.0 ' % (0.65 * lum, lum, 0.75 * lum)))
-    g('graphics_linear_interpolation', 'F22HudAtLevel', Input='HUDBrightness.Output', Map=('tmvector2d', ' (0.0 0.0) (1.0 4.0) '))
-    g('graphics_animation_render_switch', 'F22HudAtLit', Input='F22HudAtLevel.Output', RenderList=' %s ' % ' '.join(steps))
+    # (nothing with the HUD off, 2026-11-18: the wheel's bottom is now off)
+    g('graphics_linear_interpolation', 'F22HudAtLevel', Input='HUDBrightness.Output', Map=('tmvector2d', ' (0.0 0.0) (0.05 1.0) (1.0 5.0) '))
+    g('graphics_animation_render_switch', 'F22HudAtLit', Input='F22HudAtLevel.Output', RenderList=' F22Nothing %s ' % ' '.join(steps))
     g('graphics_animation_render_switch', 'F22HudAt', Input='GfxF22HudAtShow.Output', RenderList=' F22Nothing F22HudAtLit ')
     g('graphics_animation_render_list', 'F22HudWithOverlay', RenderList=' %s F22HudAt ' % copied[H['centre']].get('RenderList').strip())
     copied[H['centre']].set('RenderList', ' F22HudWithOverlay ')
@@ -3085,14 +3098,11 @@ STATE_EXTRA = {'clean': [('servoclassic', 'F22MainGearCtlL', 'Position', 1.0),  
                         ('input_default', 'PanelLightKnob', 'Value', 0.0),
                         ('input_default', 'ConsoleBrightnessKnob', 'Value', 0.0),
                         ('input_default', 'FloodLightKnob', 'Value', 0.0),
-                        # every display dimmed out (user 2026-11-17: the screens turned on by hand on a cold start, as
-                        # the Hornet's DDIs from their OFF position): the MFD master, the UFD / ICP wheel, the HUD wheel
-                        # and each screen's own BRT knob (cockpit_controls.BRIGHTNESS)
-                        ('input_default', 'LeftMFDBrightness', 'Value', 0.0),
-                        ('input_default', 'UFDBrightnessWheel', 'Value', 0.0),
+                        # every display off (user 2026-11-17: the screens turned on by hand on a cold start, as the
+                        # Hornet's DDIs from their OFF position; 2026-11-18: by each screen's MODE knob at OFF, the
+                        # dimmers left where they were) and the HUD's SYM wheel down (the F-16's: it powers the HUD)
                         ('input_default', 'HUDBrightnessKnob', 'Value', 0.0)] + [
-                        ('input_default', 'F22%sKnobLeft' % k, 'Value', 0.0)
-                        for k in ('LeftMfd', 'RightMfd', 'Pmfd', 'LowerMfd', 'LeftUfd', 'RightUfd')] + [
+                        ('input_discrete', 'F22%sKnobRight' % k, 'Value', 0.0) for k in cockpit_controls.MODES.values()] + [
                         # (user 2026-11-06: CNI, AUX and the generators stood ON on a cold start) the console
                         # switches as the aircraft is left: CNI / ACP off, generators off, APU OFF, FLCS STOP
                         ('input_discrete', 'F22CNISwitch', 'Value', 0.0),

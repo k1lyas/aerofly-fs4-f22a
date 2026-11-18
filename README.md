@@ -3,6 +3,10 @@
 A free, unofficial add-on aircraft for the desktop version of Aerofly FS 4 (Windows, macOS).
 Not affiliated with or endorsed by IPACS, Lockheed Martin, Eagle Dynamics or Grinnelli Designs.
 
+**Public beta.** Developed and tested on macOS; the installer has not been run on Windows yet. If you try it on
+Windows, please tell us in the forum thread whether it worked - with `f22_install.log` from your Aerofly user folder
+if it did not.
+
 - Forum thread (news, questions, bug reports): https://www.aerofly.com/community/forum/index.php?thread/30495-f-22a-raptor-for-aerofly-fs4-work-in-progress-videos-updates-feedback-welcome/
 - Source code and new versions: https://github.com/k1lyas/aerofly-fs4-f22a
 
@@ -90,8 +94,8 @@ Tested with: Aerofly FS 4 Steam build 26705403, macOS. Reports from other system
 
 ## Want to help?
 
-Many cockpit controls already move and click but have no function yet (ECS, oxygen, AUX COMM, the knobs at the
-screens and more). **COCKPIT_CONTROLS.md** lists each of them with the name of its state: a function can be added in
+Many cockpit controls already move and click but have no function yet (ECS, oxygen, AUX COMM, two ICP
+thumbwheels, four UFD keys and more). **COCKPIT_CONTROLS.md** lists each of them with the name of its state: a function can be added in
 the Python scripts of the folder `generator/` alone - no 3D work and no IPACS converter; run the installer again
 to rebuild the aircraft with your change. Ideas and patches: https://www.aerofly.com/community/forum/index.php?thread/30495-f-22a-raptor-for-aerofly-fs4-work-in-progress-videos-updates-feedback-welcome/ or https://github.com/k1lyas/aerofly-fs4-f22a.
 

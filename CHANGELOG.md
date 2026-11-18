@@ -10,4 +10,7 @@ First packaged release, for testing the installer on other computers (Windows ab
 - Voice warnings spoken by a freely licensed synthesiser (Kokoro-82M)
 - Every switch, knob, key, thumbwheel and rocker of the cockpit is a moving, clickable part; those without a
   function yet are listed with their state names in COCKPIT_CONTROLS.md, ready for new logic in the scripts
+- Each screen's right knob is its mode (OFF / NIGHT / DAY); a cold start leaves the screens at OFF
+- ICP thumbwheels and rockers as the F-16's: BRT (UFDs and ICP), SYM (HUD, now with an OFF at the bottom), INC / DEC
+  of the autothrottle target, map scale
 - Known limit: altitude hold oscillates at low level above about 645 KIAS subsonic (see README)

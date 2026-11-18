@@ -1716,14 +1716,15 @@ CLICK_ICP += CC.CLICK_KEYS
 # up-front display buttons: the left of the three under the left UFD = master caution acknowledge (DCS L_SMFD_2-4 are
 # the buttons under the screen; L_SMFD_1 is on the hood above it, by the map light)
 CLICK_UFD = [('L_SMFD_2_PNT', 'MenuKeyAP', 'Warnings.MasterCautionPilot', 1.0, 'event'),
-             # right UFD (2026-11-07): top = SFI / TIME page, lower left = ST/SP, lower right = RST; the middle = the
-             # next page as well, its legend on the screen (2026-11-17)
-             ('R_SMFD_1_PNT', 'MenuKeyAP', 'UFD.RightPage', 1.0, 'event'),
+             # right UFD (2026-11-07): lower left = ST/SP, lower right = RST; the middle = the next page, its legend
+             # on the screen (2026-11-17; the top key flipped the pages until 2026-11-18, free now)
              ('R_SMFD_2_PNT', 'MenuKeyAP', 'UFD.RightKey1', 1.0, 'event'),
              ('R_SMFD_4_PNT', 'MenuKeyAP', 'UFD.RightKey3', 1.0, 'event'),
              # the UFD keys without a function yet (2026-11-16: every control prepared for later logic - clickable,
              # moving, with a message of its own that nothing hears so far; release/COCKPIT_CONTROLS.md): left UFD top,
-             # lower middle and lower right; right UFD lower middle (since 2026-11-17 the next page, make_f22.py)
+             # lower middle and lower right; right UFD top (the next page until 2026-11-18) and lower middle (since
+             # 2026-11-17 the next page, make_f22.py)
+             ('R_SMFD_1_PNT', 'MenuKeyAP', 'UFD.RightPage', 1.0, 'event'),
              ('L_SMFD_1_PNT', 'MenuKeyAP', 'UFD.LeftPage', 1.0, 'event'),
              ('L_SMFD_3_PNT', 'MenuKeyAP', 'UFD.LeftKey2', 1.0, 'event'),
              ('L_SMFD_4_PNT', 'MenuKeyAP', 'UFD.LeftKey3', 1.0, 'event'),
