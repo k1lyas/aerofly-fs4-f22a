@@ -83,7 +83,7 @@ def final_stop(x):
 
 
 def harden(x):
-    """A final p / t unreleased (user 2026-11-17: 'PULL UP' ended in a soft 'пь', 'LEFT' in 'ть' - Kokoro releases a
+    """A final p / t unreleased (user 2026-11-17: 'PULL UP' ended in a soft 'py', 'LEFT' in 'ty' - Kokoro releases a
     final stop with ~70 ms of hiss above 3 kHz, the English aspiration a Russian ear hears as softness; of three
     versions - no release, a 15 ms release, a 15 ms release low-passed - the user took the one without): the phrase
     ends 20 ms into the closure."""
