@@ -30,6 +30,16 @@ def say(msg=''):
     print(msg, flush=True)
 
 
+# (2026-11-18, found under Wine) printed into a pipe or file on Windows, Python writes the ANSI code page (cp1252):
+# a folder name in Cyrillic stopped the installer with UnicodeEncodeError inside its own message. Unprintable
+# characters become '?' instead; the console itself and the log file are UTF-8 anyway
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(errors='replace')
+    except (AttributeError, ValueError):
+        pass
+
+
 def stop(msg):
     say('\nSTOPPED: ' + msg)
     sys.exit(1)
@@ -55,7 +65,8 @@ def steam_roots():
                                    (winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\Valve\Steam', 'InstallPath')):
                 try:
                     with winreg.OpenKey(hive, key) as k:
-                        roots.append(winreg.QueryValueEx(k, val)[0])
+                        # (Steam writes it with forward slashes: c:/program files (x86)/steam)
+                        roots.append(os.path.normpath(winreg.QueryValueEx(k, val)[0]))
                 except OSError:
                     pass
         except ImportError:
@@ -92,6 +103,10 @@ def steam_libraries():
     return out
 
 
+# how the player starts the installer again with options (install.bat passes them on)
+RERUN = 'install.bat' if os.name == 'nt' else 'python3 install.py'
+
+
 def is_game(folder):
     return os.path.isfile(os.path.join(folder, 'aircraft', 'f18', 'f18.tmd'))
 
@@ -108,8 +123,8 @@ def find_game(arg):
         if is_game(cand):
             return cand
     stop('Aerofly FS 4 was not found in your Steam libraries.\n'
-         '  Start again with the game folder:   install.py --game "<...>/steamapps/common/%s"\n'
-         '  (Steam: right click the game > Manage > Browse local files shows it)' % GAME_FOLDER)
+         '  Start again with the game folder:   %s --game "<...>%ssteamapps%scommon%s%s"\n'
+         '  (Steam: right click the game > Manage > Browse local files shows it)' % (RERUN, os.sep, os.sep, os.sep, GAME_FOLDER))
 
 
 def windows_documents():
@@ -154,8 +169,8 @@ def find_user(arg, game):
         if os.path.isdir(c):
             return c
     stop('your Aerofly user folder was not found (looked for: %s).\n'
-         '  Start the game once so that it creates the folder, or start again with:   install.py --user "<folder>"\n'
-         '  (it is the folder that holds main.mcf)' % ', '.join(cands))
+         '  Start the game once so that it creates the folder, or start again with:   %s --user "<folder>"\n'
+         '  (it is the folder that holds main.mcf)' % (', '.join(dict.fromkeys(cands)), RERUN))
 
 
 def game_running():
@@ -188,13 +203,19 @@ def generate(donor, stage, version, log_path):
     for k in ('F22_TEST', 'AC', 'PYTHONPATH'):
         env.pop(k, None)
     data = [os.path.join(GEN, 'data', f) for f in ('parts.json', 'geometry.json', 'anim.json', 'anim_pivots.json')]
-    runs = [[sys.executable, '-X', 'utf8', os.path.join(GEN, 'make_f22.py'), donor] + data + [stage],
-            [sys.executable, '-X', 'utf8', os.path.join(GEN, 'make_f22_meta.py'), donor, data[1], data[0], stage]]
+    runs = [[os.path.join(GEN, 'make_f22.py'), donor] + data + [stage],
+            [os.path.join(GEN, 'make_f22_meta.py'), donor, data[1], data[0], stage]]
     with open(log_path, 'w', encoding='utf-8') as log:
-        for cmd in runs:
+        log.write('Python %s (%s)\n' % (sys.version.split()[0], sys.executable))
+        for argv in runs:
+            # the script run with generator/ first on its path: the Windows embeddable Python of the package does not
+            # put a script's own folder there (its ._pth file decides the path) and ignores PYTHONPATH
+            boot = ('import runpy, sys; sys.path.insert(0, %r); sys.argv = %r; runpy.run_path(%r, run_name="__main__")'
+                    % (GEN, argv, argv[0]))
+            cmd = [sys.executable, '-X', 'utf8', '-B', '-c', boot]
             r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, cwd=GEN)
             text = r.stdout.decode('utf-8', 'replace')
-            log.write('$ ' + ' '.join(cmd) + '\n' + text + '\n')
+            log.write('$ ' + ' '.join(argv) + '\n' + text + '\n')
             if r.returncode != 0:
                 say('\n'.join(text.strip().splitlines()[-12:]))
                 stop('the configuration generator failed (full output: %s).\n'

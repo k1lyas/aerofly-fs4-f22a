@@ -27,6 +27,8 @@ user's own game. Aerofly FS is a product of IPACS; this add-on is not affiliated
 
 - Blender (https://www.blender.org/)
 - IPACS Aerofly FS 4 Aircraft Converter and SDK documentation
+- Python (https://www.python.org/): the Windows embeddable package in the folder `python` (unchanged, PSF License,
+  its licence text: `python/LICENSE.txt`) runs the installer on Windows
 - io_EDM, a Blender importer for DCS model files — Copyright (c) 2016 Nicholas Devenish and contributors, MIT
   licence (not part of this package)
 

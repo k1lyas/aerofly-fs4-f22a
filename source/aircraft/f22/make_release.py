@@ -36,6 +36,12 @@ DOCS = ['README.md', 'GUIDE.md', 'CREDITS.md', 'CHANGELOG.md', 'COCKPIT_CONTROLS
 # (make_voices_kokoro.py)
 EXCLUDE = re.compile(r'\.(tmc|tmd)$')
 DONOR_COPY_EXTRA = ['display_source_light.ttx']       # build.sh DONOR_FILES: the F/A-18 LCD digits
+# the official Windows embeddable Python (python.org, PSF licence, unchanged) in the package's python\ folder: on
+# Windows install.bat runs it, so a player needs no Python of his own (user 2026-11-18). Not in git: downloaded once
+# into work/vendor, checked against the SHA-256 python.org publishes. x64 (Windows on ARM runs it emulated)
+EMBED_PY = ('python-3.14.10-embed-amd64.zip', '90905e64a840557d8c1bc4f5b74db3d7ee85e3ffb217611cac1c7813acea4159',
+            'https://www.python.org/ftp/python/3.14.10/python-3.14.10-embed-amd64.zip')
+BINARY = ('.ttx', '.tmb', '.tsb', '.exe', '.dll', '.pyd', '.zip', '.cat')
 
 
 SOURCE_README = """# Sources of the F-22A add-on (GPL-3)
@@ -161,6 +167,12 @@ def main():
         shutil.copy2(src, os.path.join(gen, 'data', f))
     for f in ['install.py', 'install.bat', 'install.command']:
         shutil.copy2(os.path.join(REL, f), root)
+    emb = os.path.join(A, 'work', 'vendor', EMBED_PY[0])
+    if not os.path.isfile(emb) or sha(emb) != EMBED_PY[1]:
+        stop('the Windows embeddable Python is missing or not the published file: download %s into %s (SHA-256 %s)'
+             % (EMBED_PY[2], os.path.dirname(emb), EMBED_PY[1]))
+    with zipfile.ZipFile(emb) as z:
+        z.extractall(os.path.join(root, 'python'))
     # the sources of our part (GPL-3: every package carries them) - only what the build really uses: the scripts the
     # build files start, what those import, the generator, the sound scripts and the release tooling. Debug tools,
     # experiments, working notes and the converter config (it holds a local path) stay out
@@ -235,7 +247,7 @@ def main():
         private.append(mail)
     for d, _, files in os.walk(root):
         for f in files:
-            if f.endswith(('.ttx', '.tmb', '.tsb')):
+            if f.endswith(BINARY):
                 continue
             text = open(os.path.join(d, f), encoding='utf-8', errors='replace').read()
             hit = next((x for x in private if x and x in text), None)

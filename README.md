@@ -3,9 +3,9 @@
 A free, unofficial add-on aircraft for the desktop version of Aerofly FS 4 (Windows, macOS).
 Not affiliated with or endorsed by IPACS, Lockheed Martin, Eagle Dynamics or Grinnelli Designs.
 
-**Public beta.** Developed and tested on macOS; the installer has not been run on Windows yet. If you try it on
-Windows, please tell us in the forum thread whether it worked - with `f22_install.log` from your Aerofly user folder
-if it did not.
+**Public beta.** Flown on macOS; the installer was tested on Windows 11 too, but not yet with the Windows version of
+the game. If you install it on Windows, please tell us in the forum thread whether it worked - with `f22_install.log`
+from your Aerofly user folder if it did not.
 
 - Forum thread (news, questions, bug reports): https://www.aerofly.com/community/forum/index.php?thread/30495-f-22a-raptor-for-aerofly-fs4-work-in-progress-videos-updates-feedback-welcome/
 - Source code and new versions: https://github.com/k1lyas/aerofly-fs4-f22a
@@ -28,8 +28,10 @@ How to use the cockpit: see **GUIDE.md**.
 
 - Aerofly FS 4 for PC or Mac (Steam). The mobile version cannot load add-on aircraft.
 - The stock **F/A-18C** that comes with the game (it does - do not delete it).
-- **Python 3.8 or newer** (no extra packages). Windows: https://www.python.org/downloads/ (tick "Add python.exe
-  to PATH") or `winget install Python.Python.3.12`. macOS: `xcode-select --install` or python.org.
+- Windows: nothing else - the package brings its own Python (the official embeddable Python from python.org in the
+  folder `python`; nothing is installed on your computer).
+- macOS: Python 3, part of Apple's command line developer tools. If they are missing, the installer's first start
+  makes macOS offer them: click **Install**, wait until it is done (a few minutes) and start the installer again.
 - About 300 MB of free disk space.
 
 ## Why there is an installer
@@ -49,9 +51,10 @@ own folder is not changed; only `aircraft/f22` in your Aerofly user folder is wr
 4. Start the game: the aircraft is listed as **F-22A**.
 
 The installer finds the game in your Steam libraries and your user folder
-(`Documents\Aerofly FS 4` on Windows, `~/Library/Application Support/Aerofly FS 4` on macOS). If it cannot:
+(`Documents\Aerofly FS 4` on Windows, `~/Library/Application Support/Aerofly FS 4` on macOS). If it cannot, start it
+from a command window in the package folder with the folders named (Windows: `install.bat`, macOS: `python3 install.py`):
 
-    python3 install.py --game "<...>/steamapps/common/Aerofly FS 4 Flight Simulator" --user "<your Aerofly FS 4 folder>"
+    install.bat --game "<...>\steamapps\common\Aerofly FS 4 Flight Simulator" --user "<your Aerofly FS 4 folder>"
 
 At the end it says whether the files it built are identical to the build that was flight tested
 (`verified: ...`). With another game version they may differ; the aircraft is installed all the same.
@@ -66,13 +69,19 @@ A game update does not touch the installed F-22. Reinstall only when a new relea
 
 ## Uninstall
 
-    python3 install.py --uninstall
+    install.bat --uninstall            (Windows)
+    python3 install.py --uninstall     (macOS)
 
 or delete the folder `aircraft/f22` in your Aerofly user folder.
 
 ## If something goes wrong
 
-- *Python was not found*: install it (see above), then start the installer again.
+- *Python 3 is not ready* (macOS): install the command line developer tools (`xcode-select --install` in Terminal)
+  or Python from https://www.python.org/downloads/, then start the installer again. On Windows the package's own
+  Python is used; if the folder `python` was deleted, install Python 3.8+ from python.org instead.
+- *Windows warns before install.bat runs* ("Windows protected your PC" or "The publisher could not be verified"):
+  Windows asks this for any script from a downloaded zip. Click **More info** > **Run anyway** (or **Run**). The
+  installer and its Python are plain files you can read in the package.
 - *Aerofly FS 4 was not found*: use `--game` as shown above (Steam: right click the game > Manage > Browse local files).
 - *The configuration generator failed*: your F/A-18 files differ from the tested ones in a way the generator cannot
   handle. Please post the file `f22_install.log` from your Aerofly user folder in the forum thread, with your game
