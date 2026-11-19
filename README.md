@@ -61,8 +61,10 @@ own folder is not changed; only `aircraft/f22` in your Aerofly user folder is wr
 1. Get the package: the zip of the latest release (or "Code > Download ZIP" of the repository) and unzip it
    anywhere (not into the game folder).
 2. Close Aerofly FS 4.
-3. Windows: double click **install.bat**. macOS: right click **install.command** > Open (the first time macOS asks
-   for confirmation), or in a terminal: `python3 install.py`.
+3. Windows: double click **install.bat**.
+   macOS: open **Terminal**, type `cd ` (with a space), drag the unzipped package folder into the Terminal window,
+   press Enter, then type `python3 install.py` and press Enter. (Double clicking **install.command** works too, but
+   macOS 15 and newer block it the first time: allow it under System Settings > Privacy & Security > Open Anyway.)
 4. Start the game: the aircraft is listed as **F-22A**.
 
 The installer finds the game in your Steam libraries and your user folder
@@ -91,6 +93,14 @@ or delete the folder `aircraft/f22` in your Aerofly user folder.
 
 ## If something goes wrong
 
+- *macOS says it cannot verify the developer of install.command*: macOS does this for any script downloaded from
+  the internet. Use the Terminal way from "Install" above, or allow it once under System Settings > Privacy &
+  Security > **Open Anyway**.
+- *Aerofly runs on your Mac in CrossOver, Wine, GameHub or a similar Windows layer*: the game and its user folder
+  are inside that Windows environment, where the macOS installer does not look. Run **install.bat** inside the same
+  environment (as on a Windows PC), or name both folders, for example for a CrossOver bottle:
+  `python3 install.py --game "~/Library/Application Support/CrossOver/Bottles/<bottle>/drive_c/Program Files (x86)/Steam/steamapps/common/Aerofly FS 4 Flight Simulator" --user "~/Library/Application Support/CrossOver/Bottles/<bottle>/drive_c/users/crossover/Documents/Aerofly FS 4"`.
+  In Parallels or UTM it is a real Windows: install as on a PC, inside the virtual machine.
 - *Python 3 is not ready* (macOS): install the command line developer tools (`xcode-select --install` in Terminal)
   or Python from https://www.python.org/downloads/, then start the installer again. On Windows the package's own
   Python is used; if the folder `python` was deleted, install Python 3.8+ from python.org instead.
