@@ -1,0 +1,58 @@
+name: Bug report
+description: Something does not work - in the installer or in the aircraft
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time! Please check "Known limits" in the README first - the altitude-hold oscillation at
+        low level and high subsonic speed, for example, is known.
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where is the problem?
+      options:
+        - The installer
+        - The aircraft in the game
+    validations:
+      required: true
+  - type: input
+    id: addon
+    attributes:
+      label: Add-on version
+      description: The first line of f22_version.txt in your Aerofly user folder (aircraft/f22), or the version of the zip.
+      placeholder: "0.9.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: Computer
+      options:
+        - Windows
+        - macOS
+        - Linux (Proton)
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: Game version
+      description: Steam > Aerofly FS 4 > Properties > Updates shows the build, or the date of the last game update.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: Steps to see it again help a lot (state you started in, what you clicked, speed / altitude ...).
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Installer output or f22_install.log
+      description: For installer problems - drag f22_install.log (in your Aerofly user folder) here, or paste the last lines of the installer window.
+  - type: textarea
+    id: shots
+    attributes:
+      label: Screenshots
+      description: Optional - drag images here.

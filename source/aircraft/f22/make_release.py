@@ -41,7 +41,7 @@ DONOR_COPY_EXTRA = ['display_source_light.ttx']       # build.sh DONOR_FILES: th
 # into work/vendor, checked against the SHA-256 python.org publishes. x64 (Windows on ARM runs it emulated)
 EMBED_PY = ('python-3.14.10-embed-amd64.zip', '90905e64a840557d8c1bc4f5b74db3d7ee85e3ffb217611cac1c7813acea4159',
             'https://www.python.org/ftp/python/3.14.10/python-3.14.10-embed-amd64.zip')
-BINARY = ('.ttx', '.tmb', '.tsb', '.exe', '.dll', '.pyd', '.zip', '.cat')
+BINARY = ('.ttx', '.tmb', '.tsb', '.exe', '.dll', '.pyd', '.zip', '.cat', '.jpg', '.png')
 
 
 SOURCE_README = """# Sources of the F-22A add-on (GPL-3)
@@ -225,6 +225,7 @@ def main():
               '@SOURCE_URL@': ('https://github.com/' + conf['repository']) if conf.get('repository')
               else 'see the forum thread (the repository address is posted there)',
               '@SUPPORT_URL@': ('https://ko-fi.com/' + conf['ko_fi']) if conf.get('ko_fi') else conf['forum'],
+              '@REPO@': conf.get('repository', ''),
               '@TESTED@': '; '.join('Aerofly FS 4 ' + g['label'] for g in manifest['tested_games'])}
     for doc in DOCS:
         t = open(os.path.join(REL, doc), encoding='utf-8').read()
@@ -234,6 +235,8 @@ def main():
         if left:
             stop('release/%s: unknown placeholder %s' % (doc, left[0]))
         open(os.path.join(root, doc), 'w', encoding='utf-8', newline='\n').write(t)
+    # the README's pictures (2026-11-19: the user's in-game screenshots, cropped)
+    shutil.copytree(os.path.join(REL, 'media'), os.path.join(root, 'media'))
     shutil.rmtree(tmp)
     print('package tree: %d files, %.0f MB; built on install: %d files; left out: %s'
           % (sum(len(fs) for _, _, fs in os.walk(root)),
