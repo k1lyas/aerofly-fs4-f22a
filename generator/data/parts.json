@@ -18,6 +18,20 @@
     106
    ]
   },
+  "L_NavRed__KLeftWing": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    102
+   ]
+  },
+  "L_NavRed__BLeftWing": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    102
+   ]
+  },
   "Fuselage__KRightWing": {
    "nodes": "",
    "args": [],
@@ -247,8 +261,6 @@
     -1000,
     -1069,
     -1096,
-    -1092,
-    -1189,
     -1070,
     -1068,
     -1
@@ -1650,6 +1662,20 @@
      -4.5069,
      0.3349
     ]
+   ]
+  },
+  "L_NavGreen__KRightWing": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    132
+   ]
+  },
+  "L_NavGreen__BRightWing": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    132
    ]
   },
   "A_141__KRightWing": {
@@ -7610,9 +7636,9 @@
    2
   ],
   "Fuselage": [
-   48,
-   729763,
-   357230
+   46,
+   729522,
+   356978
   ],
   "Fuselage__BLeftVerticalStabilizer": [
    2,
@@ -7620,9 +7646,9 @@
    710
   ],
   "Fuselage__BLeftWing": [
-   4,
-   7912,
-   2136
+   3,
+   7296,
+   1968
   ],
   "Fuselage__BRightVerticalStabilizer": [
    2,
@@ -7630,9 +7656,9 @@
    790
   ],
   "Fuselage__BRightWing": [
-   4,
-   7936,
-   2144
+   3,
+   7320,
+   1976
   ],
   "Fuselage__KLeftVerticalStabilizer": [
    2,
@@ -7640,9 +7666,9 @@
    710
   ],
   "Fuselage__KLeftWing": [
-   4,
-   7912,
-   2136
+   3,
+   7296,
+   1968
   ],
   "Fuselage__KRightVerticalStabilizer": [
    2,
@@ -7650,9 +7676,9 @@
    790
   ],
   "Fuselage__KRightWing": [
-   4,
-   7936,
-   2144
+   3,
+   7320,
+   1976
   ],
   "HudCombiner": [
    1,
@@ -8028,6 +8054,26 @@
    1,
    4,
    2
+  ],
+  "L_NavGreen__BRightWing": [
+   1,
+   616,
+   168
+  ],
+  "L_NavGreen__KRightWing": [
+   1,
+   616,
+   168
+  ],
+  "L_NavRed__BLeftWing": [
+   1,
+   616,
+   168
+  ],
+  "L_NavRed__KLeftWing": [
+   1,
+   616,
+   168
   ],
   "P_B_MFD_1": [
    1,
@@ -8662,11 +8708,13 @@
  },
  "materials": {
   "f_22a_default": "standard exterior",
+  "lamp_navred": "standard exterior",
   "helmet_glass_mirror": "standard exterior",
   "lamp_taxi": "standard exterior",
   "glass_outside": "glass exterior",
   "glass_inside": "glass interior",
   "hgu_55p": "standard interior",
+  "lamp_navgreen": "standard exterior",
   "lamp_landing": "standard exterior",
   "f22a_pilot": "standard interior",
   "f22_side": "standard interior",

@@ -7,22 +7,32 @@ F-22 yet. Original (Russian) of this guide: `source/aircraft/f22/GUIDE.md`.
 
 | Display | Shows |
 |---|---|
-| Upper left (UFD) | engines L/R: RPM (%), EGT (°C), FF (fuel flow, lb/h), NOZ (nozzle, %), OIL (psi); below it ICAWS, the caution list |
-| Upper right (UFD) | standby attitude indicator (speed left, altitude right), COM1/COM2 channels, fuel (lb), local time; the lower middle key (the next page's name over it) switches SFI / TIME |
+| Upper left (UFD) | engines L/R: state (a burning engine shows L FIRE / R FIRE in red), RPM (%), EGT (°C), FF (fuel flow, lb/h), NOZ (nozzle, %), OIL (psi); below it ICAWS, the caution list |
+| Upper right (UFD) | standby attitude indicator (speed left, altitude right), fuel (lb, coloured: green, amber under JOKER, red under BINGO) with time and range to BINGO, local time; the lower middle key (the next page's name over it) cycles SFI → TIME → NAV |
 | ICP (top centre) | control panel: scratchpad on the left, 5 option lines at the arrow keys on the right |
 | PMFD (centre) | map: route, airports, beacons (HSI) |
 | Left / right / lower MFD | ENG / FUEL / FCS by default; the MENU key (bottom, middle) lists the pages |
 
-**MFD pages** (MENU): FUEL, FPAS (range), HSI, ADI, CHKLST (reference), ENG, FCS (flight controls), HUD (repeater), SA, BAY
-(weapon bays), SYS (automation and power). There are no dummy keys on the pages: what has a label works.
+**MFD pages** (MENU): FUEL, FPAS (range), HSI, ADI, CHKLST (checklists), ENG, FCS (flight controls), HUD (repeater), SA,
+BAY (weapon bays), STAT (status), APPR (approach), SYS (automation and power). There are no dummy keys on the pages:
+what has a label works. On the right MFD's menu, **AUTO** (boxed when on, off at start) lets that screen follow the
+flight: the checklist when parked with the brake set, APPR when the gear goes down in the air, FUEL when it comes up.
 
-- **FUEL:** the arrows on the right set BINGO in steps of 500 lb *(step untested)*.
-- **FPAS:** at the present fuel flow and ground speed: fuel, BINGO, fuel above BINGO, flow, time and range to BINGO,
-  miles per 1000 lb; below it the next waypoint with distance, time and fuel there; at the bottom the wind
-  (direction and speed, *untested*).
-- **ENG:** each engine's state (OFF, MOTOR, START, RUN, FADEC = stopped by its FADEC switch, WMILL = windmilling,
-  SEIZED), N2 and N1 %, EGT °C, fuel flow lb/h, thrust kN, nozzle %, oil psi, vibration; below, the APU and the inlet
-  temperature. Top keys: L FIRE / R FIRE.
+- **FUEL:** the upper two arrows on the right set BINGO, the lower two JOKER (shown beside them), 100 lb a press.
+  JOKER is the fuel to end the fight and turn for home (5000 lb at start, BINGO 3000).
+- **FPAS:** at the present fuel flow and ground speed: fuel (in the fuel colour), JOKER, BINGO, fuel above BINGO, flow,
+  time and range to BINGO, miles per 1000 lb; below it the next waypoint with distance, time and fuel there; at the
+  bottom the wind (direction and speed, *untested*).
+- **ENG:** either side of the title a round N2 gauge per engine (the figure inside, the arc full at 100 %); below, each engine's state (OFF, MOTOR, START, RUN, FADEC = stopped by its FADEC switch, WMILL = windmilling,
+  SEIZED; FIRE in red while it burns), N1 %, EGT °C, fuel flow lb/h, thrust kN, nozzle %, oil psi, vibration;
+  below, the APU and the inlet temperature, and the aircraft as a whole: GW (gross weight, lb: empty + fuel + weapons
+  as the mod counts them), THR (both engines' thrust, kN) and T/W (thrust to weight). Top keys: L FIRE / R FIRE.
+- **STAT:** the systems in one grid - BATT, APU, GEN L/R, HYD, A/T, AP, GCAS, VEC, DIR, BAY, GEAR, HOOK, P BRK,
+  CANOPY, NAV, FORM, LDG, TAXI, BIT. White = off, green = on, amber = fault (a generator or hydraulics down, running
+  on the battery, the canopy open in the air; DIR is amber whenever it is on).
+- **APPR:** IAS, angle of attack, pitch, flight path angle, vertical speed, radar altitude; on the right the angle of
+  attack cue against the 8.5° the autothrottle holds with the gear down - FAST (below 7.5°), ON SPD, SLOW (above
+  9.5°); below, gear (UP / TRANS / DOWN), speed brake, A/T, hook.
 - **FCS:** each surface left and right: deflection in degrees and status (OK, DEGD = one hydraulic system, HYD = no
   pressure, JAM, LOST); hydraulic pressure; FCS mode, vectoring, nozzle angle, vector authority, pitch rate; g limit,
   angle of attack, g and its peak. Keys on the left: DIR (direct FCS mode), VEC (thrust vectoring on / off).
@@ -31,13 +41,22 @@ F-22 yet. Original (Russian) of this guide: `source/aircraft/f22/GUIDE.md`.
   its target.
 - **HSI:** TCN, ILS, WPDSG, SCALE; link to SA. **ADI:** link to HSI. **SA:** scale and compass, no other aircraft and
   no map; link to HSI.
-- **CHKLST:** not interactive: stabilator position, g limit, mass.
+- **CHKLST:** four lists picked by the left keys - START (cold start), T/O, LAND, SHUT. A line whose switch the
+  aircraft can read turns from white to green once it is done (BATT on, APU running, canopy closed, CNI / ACP,
+  display modes and HUD, generators, FLCS BIT, lamp test, lights, gear down, ICAWS clear...); notes are grey, what is
+  automatic (TRIM AUTO) is green at once.
 
-**ICAWS** (only what is active is lit): FUEL LOW, BINGO, L GEN, R GEN, PARK BRK, CANOPY, SPD BRK, FLAPS, AP OFF,
-ANTISKID, BAY OPEN, BRK ACC, FCS, PULL UP, OVER G, AOA, GCAS, A/T and the failure cautions. A new caution blinks
+**ICAWS** (only what is active is lit): FUEL LOW, BINGO, JOKER, OVERSPD, GEAR SPD, L GEN, R GEN, PARK BRK, CANOPY,
+SPD BRK, FLAPS, AP OFF, ANTISKID, BAY OPEN, BRK ACC, FCS, PULL UP, OVER G, AOA, GCAS, A/T and the failure cautions.
+OVERSPD comes faster than 780 KCAS (the structure's limit is 800, rudder flutter starts over it); GEAR SPD with a gear
+down faster than 280 KCAS (it is damaged from 300). A new caution blinks
 until you acknowledge it with the left one of the three keys under the left UFD (MASTER CAUTION reset, RESET on the screen); then it is
-steady until its cause is gone. SPD BRK, FLAPS, PARK BRK, BAY OPEN, PULL UP, AOA, GCAS, A/T are advisories and do
+steady until its cause is gone. SPD BRK, FLAPS, PARK BRK, BAY OPEN, PULL UP, AOA, GCAS, A/T, JOKER are advisories and do
 not blink. On a cold start L GEN / R GEN blink at once: that is normal, acknowledge them.
+
+**NAV** (right UFD, third page): the local time top left; the next waypoint of the Aerofly route (name, distance in NM, time in minutes), the
+selected course (CRS) and heading (HSEL); RCV - whether the ILS and TACAN receivers are on (ICP: NAV → ILS / TCN →
+UNDO). The boxed TCN / ILS on the HSI are another thing: they only pick what the HSI shows.
 
 ## Cold start
 
@@ -49,6 +68,9 @@ not blink. On a cold start L GEN / R GEN blink at once: that is normal, acknowle
 4. GEN L, GEN R on (they only connect the generators; a generator comes on line by itself at about 55 % RPM).
 5. Left throttle from cut-off to idle: the engine starts by itself (air from the APU). L GEN goes out.
 6. The same with the right throttle. APU off.
+7. FLCS BIT (left console, the switch under the red guard - the guard lifts by itself): START - for 40 s the control
+   surfaces run through their travel, stick and pedals do nothing, FLCS BIT on ICAWS; when BIT PASS shows, back to
+   STOP. It needs power and hydraulic pressure and does not run in the air.
 
 Throttles with the mouse: left button moves one lever, right button both (ranges: "Throttle and engine ratings").
 On a cold start the cockpit lights (CONSOLE, INST PNL, FLOOD) are at zero: at night turn them up once there is power.
@@ -58,7 +80,7 @@ On a cold start the cockpit lights (CONSOLE, INST PNL, FLOOD) are at zero: at ni
 The flaps are automatic, the flap keys do nothing: gear down gives the take-off / landing position (FLAPS on ICAWS),
 gear up and the flight control system moves flaps and leading-edge flaps with angle of attack and speed. Pitch trim
 is handled by the flight control system as well; leave it alone: in flight the stick at neutral holds 1 g. Lift-off:
-about 130 kt light, 150 kt with full internal fuel, 170 kt with full ferry tanks.
+about 135 kt with the stick fully back, more when heavy (ferry tanks).
 
 ## ICP: how it works
 
@@ -82,16 +104,17 @@ logic needs them).
 
 1. Level the aircraft at the altitude you want.
 2. A/P → arrow at **BALT** holds the present altitude; **ATTH** holds bank and pitch.
-3. **HSEL** holds the selected heading: first NAV → HDG, type the heading (e.g. 270) → MRK. *(untested)*
+3. **HSEL** holds the selected heading (HSEL lower left on the HSI, the bug on the HUD heading tape): the lower left ICP
+   thumbwheel (1° a click) or NAV → HDG → digits → MRK. It does not follow the course line (CSEL) or the route.
+   **CPL** shows as the fifth line only while TACAN or ILS is received (right UFD NAV: RCV ON): it flies the TACAN
+   radial (CRS) or the ILS localizer. It does not follow the Aerofly route. *(untested)*
 4. **RALT** holds the height above ground.
 5. Off: the arrow at the mode again (the colon goes) or the autopilot disconnect key. *(untested)*
 
-**Known limit:** do not use BALT / RALT below about 1000 ft at high subsonic speed (from about 645 KIAS): the
-aircraft goes into a strong pitch oscillation. Higher, slower or supersonic the hold is steady.
-
 ## ILS approach
 
-The autopilot does not fly an ILS (the F/A-18 this logic comes from has no such mode): fly the needles by hand.
+Fly the needles by hand. With the ILS received, the autopilot's CPL follows the localizer, perhaps the glide slope too
+*(untested)*; it does not land the aircraft.
 
 1. Find the ILS frequency and the runway course (airport chart, e.g. airnav.com, or the Aerofly map).
 2. **Frequency:** NAV → arrow at **ILS** → type the 5 digits without the point (110.90 → `11090`) → **MRK**.
@@ -153,9 +176,10 @@ levers in the cockpit follow. It disengages when you move the throttle by more t
 position at once), in afterburner and at touchdown.
 
 **Auto-GCAS** (our choice; nothing is published about such a system on the F-22). On by default, the GCS key. It
-works out the height margin from flight path, bank and speed and, when it runs out, rolls the wings level and pulls;
-the stick in the cockpit moves. GCAS is lit on ICAWS. Gear up only. Cancel: stick beyond half travel, or GCS. In a
-dive and very low flight it can trigger when you did not need it.
+works out the height margin from flight path, bank and speed and steps in at the last moment, as a pilot would: rolls
+the wings level and pulls hard (about 8 g); the stick in the cockpit moves. While you already pull more than 2 g it
+leaves you alone. GCAS is lit on ICAWS. Gear up only. Cancel: stick beyond half travel, or GCS. Diving fast from a
+ridge into a valley it can still step in before you needed it.
 
 **Voices:** PULL UP with the HUD arrow, ALTITUDE once when descending below the
 ALOW threshold gear up (200 ft by default), BINGO, OVER G. Over the ILS markers a tone sounds where the game's data
@@ -189,7 +213,8 @@ thumbwheel with the mouse wheel or by dragging, 20 clicks over its range:
 
 - **BRT** (upper left) - brightness of the UFDs and the ICP.
 - **SYM** (upper right) - HUD brightness; at the very bottom the HUD is off, the first click turns it on at 0.3.
-- The lower thumbwheels do nothing yet.
+- **HDG** (lower left) - the selected heading (HSEL), **CRS** (lower right) - the selected course (CSEL), 1° a
+  click; turning one opens the ICP's HDG / CRS page with the value (as the F-16's HDG and CRS knobs on the HSI).
 - **▲▼ rocker, upper left** (INC / DEC) - steps the autothrottle target up / down, as the SYS page's arrows (the step
   size: STEP on the same page).
 - **▲▼ rocker, lower right** - map scale (see Map).
@@ -206,7 +231,7 @@ in the main bay and 2 AIM-9X in the side bays (+1112 kg); **ferry** has two 600 
 
 **BAY page** on any MFD: MENU → upper left key **BAY**. The keys **LFT / CTR / RGT** open and close each bay (boxed
 = commanded open), **ALL** all of them (if all are closed: open, otherwise close). In the middle: what is in the bay
-and the door state (CLSD / MOVE / OPEN), below it the tanks. While any bay is not closed, ICAWS shows **BAY OPEN**.
+and the door state (CLSD / MOVE / OPEN), below it the tanks. Under the table the aircraft from above (from our model): the bay doors (solid frame closed, dashed moving, open with a second frame or the door folded out), the missiles with the combat load, the tanks on their pylons while they hang. While any bay is not closed, ICAWS shows **BAY OPEN**.
 The side bays swing the AIM-9X out on its launcher with the doors. Needs power. Open bays add no drag.
 
 **Ferry tanks:** their fuel goes first; the FUEL page shows what is left in them under the wing tanks, **EXT L /
@@ -248,7 +273,7 @@ repair everything, **PAGE** - second page.
 | L/R FLAME | L/R ENG, RPM falls | FADEC off (or throttle to cut-off), APU START, FADEC NORM, throttle forward; MOTOR if needed |
 | L/R FIRE | red FIRE; the engine runs, after 50 s of fire VIB rises | ENG page: **L FIRE** (left column, top) / **R FIRE** (right column, top). First press shuts this engine's fuel (the engine stops, the key is boxed and reads DSCH), second press fires the bottle: the fire is out. One bottle for both sides; without a bottle the key reads FUEL - a press gives the fuel back (start as after a flameout). Burning: after 40 s no hydraulics on that side, 80 s the engine seizes, 150 s the fire reaches the other hydraulic system. Two fires at once: you can put out one |
 | PITOT | the airspeed lies: rises in a climb, falls in a descent (to 0), AIR DATA after 8 s. Every speed display, the A/T and the FCS gains are wrong | fly by angle of attack and thrust, ground speed is on the map; do not engage A/T |
-| DUAL ENG | both engines stopped | air start on the APU |
+| DUAL ENG | both engines stopped | air start on the APU. Until then the windmilling engines keep the hydraulic pressure but turn the pumps slowly: the surfaces move slowly, the aircraft answers late and can drop a wing; a running APU adds some flow. Out of fuel there is no restart |
 
 **FAIL page 2** (PAGE key; the cursor runs over both pages), landing gear: **L / R / N GR UP** - the up-lock does not
 release (a retracted leg stays in its bay; **ALT GR** on the SYS page is the alternate extension: the locks let go,
@@ -284,6 +309,6 @@ lost shows on the **FCS** page (surface table): OK, DEGD (one hydraulic system),
 
 Every switch, knob, key, thumbwheel and rocker in the cockpit moves and can be clicked, but not all of them have a
 function yet: AUX GEN, FUEL TANKS, the ECS CABIN panel, the RADIO VOL knobs other than VOX, the AUX COMM panel, the
-OXYGEN panel, the two lower ICP thumbwheels, DVR, three of the left UFD's keys and the right UFD's top key. They are prepared for new functions: the list with the name of each control's state is in
+OXYGEN panel, DVR, three of the left UFD's keys and the right UFD's top key. They are prepared for new functions: the list with the name of each control's state is in
 **COCKPIT_CONTROLS.md** - a function can be added with the Python scripts alone, no model work and no converter.
 The gear handle's wheel glows red while the gear is in transit.

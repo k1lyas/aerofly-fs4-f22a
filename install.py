@@ -9,8 +9,8 @@
 
 Why an installer: the flight model, systems, displays and engine sounds of this add-on are built on the stock
 F/A-18C. Those files belong to IPACS and are not in this package. The installer reads the F/A-18 of YOUR OWN game
-and writes the F-22's configuration files from it on your machine; it also copies the F/A-18's engine sounds. Nothing
-in the game folder is changed - only <user folder>/aircraft/f22 is written.
+and writes the F-22's configuration files from it on your machine; it also copies the F/A-18's sounds and the stock
+F-15E's engine sounds. Nothing in the game folder is changed - only <user folder>/aircraft/f22 is written.
 
 Needs Python 3.8 or newer, no extra packages. This file is part of the F-22A add-on, GPL-3 (see LICENSE).
 """
@@ -187,13 +187,20 @@ def game_running():
 
 # ------------------------------------------------------------------------------------------ the work
 def donor_state(donor, manifest):
-    """'tested' when every F/A-18 file the add-on reads is one of the files a release was tested with."""
+    """'tested' when every stock file the add-on reads or copies is one of the files a release was tested with: the
+    F/A-18's and the other stock aircraft's (stock_copy: the F-15E's engine sounds, paths under the game's aircraft/)."""
     missing = [f for f in manifest['donor_read'] + manifest['donor_copy'] if not os.path.isfile(os.path.join(donor, f))]
     if missing:
         stop('your F/A-18 folder lacks: %s\n  (%s) - verify the game files in Steam and try again' %
              (', '.join(missing), donor))
+    stock = os.path.dirname(donor)
+    missing = [f for f in manifest.get('stock_copy', {}).values() if not os.path.isfile(os.path.join(stock, f))]
+    if missing:
+        stop('your game lacks: %s\n  (under %s) - verify the game files in Steam and try again' %
+             (', '.join(missing), stock))
     for build in manifest['tested_games']:
-        if all(sha(os.path.join(donor, f)) == h for f, h in build['donor'].items()):
+        if all(sha(os.path.join(donor, f)) == h for f, h in build['donor'].items()) and \
+                all(sha(os.path.join(stock, f)) == h for f, h in build.get('stock', {}).items()):
             return build
     return None
 
@@ -291,9 +298,9 @@ def main():
     donor = os.path.join(game, 'aircraft', 'f18')
     build = donor_state(donor, manifest)
     if build:
-        say('F/A-18 files:  known (%s)' % build['label'])
+        say('stock files:   known (%s)' % build['label'])
     else:
-        say('F/A-18 files:  NOT one of the tested game versions - the F-22 is built from them all the same;\n'
+        say('stock files:   NOT one of the tested game versions - the F-22 is built from them all the same;\n'
             '               if it misbehaves, look for a newer release and report your game version')
 
     stage = os.path.join(user, '%s-installing' % NAME)       # beside aircraft/: the same disk, moved in at the end
@@ -306,6 +313,8 @@ def main():
     generate(donor, stage, version, log_path)
     for f in manifest['donor_copy']:
         shutil.copy2(os.path.join(donor, f), os.path.join(stage, f))
+    for f, src in manifest.get('stock_copy', {}).items():        # e.g. f15e_jet_00.tsb <- aircraft/f15e/jet_00.tsb
+        shutil.copy2(os.path.join(os.path.dirname(donor), src), os.path.join(stage, f))
     with open(os.path.join(stage, 'f22_version.txt'), 'w', encoding='utf-8', newline='\n') as fh:
         fh.write('F-22A Raptor add-on %s\ninstalled %s\n' % (version, time.strftime('%Y-%m-%d %H:%M')))
 

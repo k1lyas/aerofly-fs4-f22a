@@ -36,7 +36,10 @@ EXCLUDE_NAME = re.compile(r'WeaponPylon|^F-22A_Cockpit_ACES_II|^HUD GLASS$|^hud 
 # the frame behind and the UFD housing stay whole. The first build removed the lenses only: the panel showed the empty
 # cells and the background through them (user, 2026-10-22)
 EXCLUDE_ARGS = (10716, 10717)
-REMOVE_FACES = [dict(material=r'^F22_ACC$', box=((7.63, 0.10, 1.125), (7.735, 0.175, 1.18)), mirror_y=True,
+# (the box went down from z 1.125 to 1.112 on 2026-11-21: 127 small faces of the map light's cable, up to 2.7 cm, hung just
+# under it and showed through the dark UFD picture as a dark curve - user; found by a ray pick in f22.tgi. The hood's
+# long faces, up to 19 cm, still stay: a face goes only when all its vertices are inside)
+REMOVE_FACES = [dict(material=r'^F22_ACC$', box=((7.63, 0.10, 1.112), (7.735, 0.175, 1.18)), mirror_y=True,
                      note='map light brackets'),
                 dict(material=r'^F22_(ACC|SCREEN)$', centre=(7.6819, 0.2352, 1.0689),
                      axes=((-0.4336, 0.269, -0.86), (0.3782, -0.8119, -0.4447), (-0.8179, -0.518, 0.2503)),
@@ -219,7 +222,11 @@ DRIVERS.update({COCKPIT_ARG_BASE + a: d for a, d in COCKPIT_DRIVERS.items()})
 
 # exterior lights (positions and colours of the DCS light nodes; make_f22.py adds the sources and the switches of the
 # F/A-18): the landing / taxi lamp lenses on the nose gear glow (lit '_ON' twins are hidden DCS variants). The wingtip
-# nav / anti-collision lights have no lens geometry (F22A_BANO are glow cards of the DCS renderer): point lights only.
+# nav lights: the model's own teardrop lens on top of each tip ('_1' left, '_1.006' right: 13 x 6 x 13 cm at x -2.05
+# .. -1.92, y +-6.19 .. 6.26, z 0.075 .. 0.203, painted red / green in the skin atlas) glows itself (user 2026-11-22:
+# the point lights alone hung ~7 cm above it in the air); the point lights sit on its top (make_f22.py LIGHTS). The
+# F22A_BANO objects are glow cards of the DCS renderer (excluded). The lenses are on the wing consoles: they bend with
+# them and fly off with them, dark (breakage_f22.py).
 # Formation lights: the DCS F22A_LIGHT objects are glow boxes for DCS's additive renderer (one 8 cm above the wing,
 # side faces through the skin) - opaque in Aerofly they floated, showed through the skin and mirrored the sun. A glow
 # mask on the painted strips was pixelated (~60x140 texels per strip) and left the painted black edge. Instead: flat
@@ -228,6 +235,8 @@ LAMPS = [
     dict(key='Formation', name=r'^FORMATION_PANEL_'),
     dict(key='Landing', name=r'^ARG_LANDING_605$'),
     dict(key='Taxi', name=r'^ARG_TAXI_604$'),
+    dict(key='NavRed', name=r'^_1$'),
+    dict(key='NavGreen', name=r'^_1\.006$'),
     # gear position lights on the landing gear panel (user 2026-11-04): the mod's NOSE / LEFT / RIGHT plates beside the
     # gear handle (DCS arguments 723 / 724 / 725, 'N_GEAR_LIGHT'); green when that gear is down and locked (make_f22.py)
     dict(key='GearNose', name=r'^CP_OFF_NOSE_GEAR$'),
@@ -245,6 +254,7 @@ LAMPS = [
     dict(key='BattLamp', name=r'^CP_OFF_BATTERY$'),
 ]
 LAMP_COLOURS = {'Formation': (0.10, 0.80, 0.50), 'Landing': (1.0, 0.96, 0.88), 'Taxi': (1.0, 0.96, 0.88),
+                'NavRed': (1.0, 0.02, 0.01), 'NavGreen': (0.02, 1.0, 0.12),
                 'GearNose': (0.25, 1.0, 0.35), 'GearLeft': (0.25, 1.0, 0.35), 'GearRight': (0.25, 1.0, 0.35),
                 'BattLamp': (1.0, 0.6, 0.1), 'GearHandle': (1.0, 0.07, 0.03),
                 'GearNoseAmber': (1.0, 0.6, 0.1), 'GearLeftAmber': (1.0, 0.6, 0.1), 'GearRightAmber': (1.0, 0.6, 0.1)}
@@ -1453,6 +1463,34 @@ DISPLAY_WEAR = {'DisplayLeftMFD': 0, 'DisplayRightMFD': 3, 'DisplayPMFD': 5, 'Di
 DISPLAY_CAPS = {'DisplayLeftMFD': 'eng', 'DisplayRightMFD': 'fuel', 'DisplayPMFD': 'sa', 'DisplayLowerMFD': 'fcs',
                 'DisplayLeftUFD': 'ufd_left', 'DisplayRightUFD': 'ufd_right', 'DisplayICPScratch': 'icp_scratch'}
 DISPLAY_CAPS.update({'DisplayICP%d' % (i_ + 1): 'icp%d' % (i_ + 1) for i_ in range(len(ICP_ROWS))})
+
+
+def DISPLAY_SYMBOLS(out_dir, name, X):
+    """Picture sprites of our MFD pages (mfd_symbols.py: the aircraft with its bays and tanks, the N2 gauge) in the free
+    corners of the display2 atlas's colour map - the pages draw them with texture_animation_rectangle (2026-11-22)."""
+    if name != 'display2':
+        return
+    import os, sys
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import subprocess
+    import bpy
+    import mfd_symbols
+    # the model's top-view masks (mfd_silhouette.py), rendered from the exported model when missing or older than the
+    # script (as the display caps' pictures)
+    pages = os.path.join(here, 'work', 'mfd_pages')
+    script = os.path.join(here, 'mfd_silhouette.py')
+    masks = {k: os.path.join(pages, 'sil_%s.png' % k) for k in ('airframe', 'canopy', 'fins')}
+    if any(not os.path.exists(m) or os.path.getmtime(m) < os.path.getmtime(script) for m in masks.values()):
+        subprocess.run([bpy.app.binary_path, '--background', os.path.join(here, 'work', 'f22_exported.blend'),
+                        '--python', script, '--', pages], check=True, stdout=subprocess.DEVNULL)
+    mfd_symbols.set_masks(**{k: X.load_image(m)[..., 0] > 0.5 for k, m in masks.items()})
+    path = os.path.join(out_dir, name + '_color.png')
+    img = X.load_image(path)[..., :3].copy()           # rows from the bottom, as the atlas
+    assert img.shape[0] == mfd_symbols.ATLAS, img.shape
+    mfd_symbols.paint(img)
+    X.save_png(path, img)
 
 
 def CAP_TEXTURES(out_dir, name, X):

@@ -22,7 +22,16 @@ GROUND_ANGLE = math.radians(10.0)   # full stick on the ground: 20 deg rotated a
 # on the runway at ~90 kt (flight 2026-10-30, 10 deg pitch at 94 kt); a smooth rotation at 130 kt was right
 GROUND_SPEED_MAP = ' (48.9 0.0) (64.3 1.0) '       # calibrated airspeed, m/s: 95 .. 125 kt
 GROUND_PITCH_MAP = ' (0.105 1.0) (0.175 0.0) '     # pitch, rad: gone by 10 deg, the tail touches at ~12-14 deg
+# Pitch loop gain by calibrated airspeed, m/s (our schedule, as real flight controls lower their gains with dynamic
+# pressure). Flight 2026-11-20 (calm air, telemetry logs/test_091_2026-11-20.jsonl): with the altitude hold the
+# Hornet's laws on this airframe fell into a pitch limit cycle at 1.1-1.5 Hz, +-5..6 deg, set off near M 0.97 and
+# then kept up down to 563 kt at 600 ft - a high-q loop-gain problem, not a Mach one (the lift-slope and stabilator
+# sweep fixes did not change it, nor TVC off). This airframe makes ~1.7x the Hornet's g per degree, so the laws' loop
+# runs ~2x hot at high q: full gain to 430 kt, 0.7 at 525, 0.55 from about 600 kt. The g law still holds the
+# commanded g (it gets the stabilators it needs), only softer; DIRECT is not touched (the pilot's own loop)
+PITCH_Q_GAIN = ' (220.0 1.0) (270.0 0.7) (310.0 0.55) (400.0 0.5) '
 NOZZLE_RATE = 0.7                   # rad/s, the stabilators' own (not public for the F119)
+DIRECT_NOZZLE_RATE = 1.2            # rad/s in DIRECT (2026-11-21, a sharper flip; the F119's slew rate is not public either)
 NOZZLE_MASS = 300.0                 # out of the engine body, whose centre moves so that the common centre stays put
 # Stabilator (rad, + nose down) -> nozzle (rad, + nose up). Small signals at half gain: the nozzle moment does not fall
 # with speed as the tail's does, at 100 kt on full dry thrust it already adds ~1.1x the tail's own gain to the
@@ -40,9 +49,13 @@ SPEED_MAP = ' (0.0 1.0) (150.0 1.0) (260.0 0.25) '
 # hard link in DCS - full stick fast and low overstresses the airframe, the wings break at 13.5 g, breakage_f22.py; the
 # peak 62 deg/s stays). Push: the same near standstill, then 5 g. No more pull past 60-70 deg angle of attack, the
 # F-22's published trimmed alpha. Roll and yaw stay with the flight controller.
-DIRECT_PULL_MAP = ' (0.0 0.45) (50.0 0.55) (100.0 1.08) (150.0 1.046) (200.0 0.785) (300.0 0.523) (400.0 0.392) '
-DIRECT_PUSH_MAP = ' (0.0 0.45) (100.0 0.49) (150.0 0.33) (200.0 0.25) (300.0 0.16) (400.0 0.12) '
-DIRECT_ALPHA_MAP = ' (1.05 1.0) (1.22 0.0) '
+# 2026-11-21 (user: 'flip it sharper at the top of a vertical climb, more vector in DIR'): the nozzles' +-20 deg stays (the
+# F119's and the drawn travel); what held the flip was the law - 26-31 deg/s asked when slow, no pull past 60-70 deg
+# alpha. Slow now 52-57 deg/s pull and push (the thrust's +-20 deg at full burner, ~600 kN m, has the authority), the
+# pull goes on to ~100 deg alpha (through the stall: a flip, unprotected as DIRECT is meant to be)
+DIRECT_PULL_MAP = ' (0.0 0.9) (50.0 1.0) (100.0 1.08) (150.0 1.046) (200.0 0.785) (300.0 0.523) (400.0 0.392) '
+DIRECT_PUSH_MAP = ' (0.0 0.9) (50.0 0.8) (100.0 0.55) (150.0 0.33) (200.0 0.25) (300.0 0.16) (400.0 0.12) '
+DIRECT_ALPHA_MAP = ' (1.6 1.0) (1.85 0.0) '
 # rate error (rad/s) -> surface (rad), by calibrated airspeed: a ~6 rad/s loop on the estimated moments; simulated in 1 DOF
 # with the servo rates, 40-600 kt, idle to afterburner. Inverse with dynamic pressure, nozzles only when slow
 DIRECT_TAIL_GAIN = ' (0.0 1.2) (77.0 1.2) (110.0 0.6) (150.0 0.32) (200.0 0.18) (260.0 0.108) (350.0 0.06) '
@@ -123,7 +136,12 @@ def apply(dyn):
               Weight0=1.0, Weight1=1.0),
         _node('clamp', 'VectorFromLawClamped', Input='VectorFromLaw.Output',
               Range=('tmvector2d', ' %.4f %.4f ' % (-MAX_ANGLE, MAX_ANGLE))),
-        _node('product', 'VectorAirCommand', Inputs=' VectorFromLawClamped.Output VectorSpeedFade.Output VectorInAir.Output '),
+        _node('linear_interpolation', 'F22PitchQGainSpeed', Input='AirDataComputer.OutputCalibratedAirspeed',
+              Map=('tmvector2d', PITCH_Q_GAIN)),
+        # full gain while Auto-GCAS flies the recovery (the autopilot is off then): its fly-up must be crisp
+        _node('maximum', 'F22PitchQGain', Inputs=' F22PitchQGainSpeed.Output F22GcasActive.Output '),
+        _node('product', 'VectorAirCommand',
+              Inputs=' VectorFromLawClamped.Output VectorSpeedFade.Output VectorInAir.Output F22PitchQGain.Output '),
         _node('linear', 'VectorFromStick', Input='ServoElevatorStick.Output', Scaling=-GROUND_ANGLE),
         _node('linear_interpolation', 'VectorGroundSpeedFade', Input='AirDataComputer.OutputCalibratedAirspeed',
               Map=('tmvector2d', GROUND_SPEED_MAP)),
@@ -136,7 +154,14 @@ def apply(dyn):
                                                        'VectorGroundPitchFade.Output OnGroundSensor.Output '),
         _node('mixlinear', 'VectorCommand', Input0='VectorAirCommand.Output', Input1='VectorGroundCommand.Output',
               Weight0=1.0, Weight1=1.0),
-        _node('servoclassic', 'NozzleAngle', Input='F22VectorCommandGated.Output', Speed=NOZZLE_RATE, P1=1.0),
+        # the nozzles' slew: the stabilators' rate (through F22NozzleSlow), faster in DIRECT (the command straight to
+        # NozzleAngle, which stays the servo the failure / power gates of make_f22 and failures_f22 hook into)
+        _node('servoclassic', 'F22NozzleSlow', Input='F22VectorCommandGated.Output', Speed=NOZZLE_RATE, P1=1.0),
+        _node('product', 'F22NozzleSlowKept', Inputs=' F22NozzleSlow.Output F22DirectKeep.Output '),
+        _node('product', 'F22NozzleDirect', Inputs=' F22VectorCommandGated.Output F22DirectBlend.Output '),
+        _node('mixlinear', 'F22NozzleTarget', Input0='F22NozzleSlowKept.Output', Input1='F22NozzleDirect.Output',
+              Weight0=1.0, Weight1=1.0),
+        _node('servoclassic', 'NozzleAngle', Input='F22NozzleTarget.Output', Speed=DIRECT_NOZZLE_RATE, P1=1.0),
         # DCS args 622/623: no longer drives the drawn nozzles (ac_f22.py NOZZLE_PLATES read NozzleAngle), the table parts still need the signal
         _node('linear', 'VectorPitch', Input='NozzleAngle.Output', Scaling=-1.0 / MAX_ANGLE),
         # the mode from the DIR key of the SYS page only (user 2026-11-05: the MASTER ARM switch flipped it too - a weapons
@@ -176,7 +201,7 @@ def apply(dyn):
         _node('mixlinear', 'F22DirectTail', Input0='F22DirectLoop.Output', Input1='F22DirectHard.Output',
               Weight0=1.0, Weight1=1.0),
         _node('product', 'F22DirectTailBlended', Inputs=' F22DirectTail.Output F22DirectBlend.Output '),
-        _node('product', 'F22ControllerTailKept', Inputs=' VectorTailMean.Output F22DirectKeep.Output '),
+        _node('product', 'F22ControllerTailKept', Inputs=' VectorTailMean.Output F22DirectKeep.Output F22PitchQGain.Output '),
         _node('mixlinear', 'F22TailPitch', Input0='F22ControllerTailKept.Output', Input1='F22DirectTailBlended.Output',
               Weight0=1.0, Weight1=1.0),
         _node('mixlinear', 'F22TailRoll', Input0='FlightController.OutputLeftTaileron',

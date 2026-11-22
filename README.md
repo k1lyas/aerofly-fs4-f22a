@@ -7,7 +7,7 @@
 
 ![F-22A over the hills](media/exterior.jpg)
 
-A free, open-source add-on aircraft for the desktop version of Aerofly FS 4 (Windows, macOS) - version 0.9.0.
+A free, open-source add-on aircraft for the desktop version of Aerofly FS 4 (Windows, macOS) - version 0.9.1.
 Not affiliated with or endorsed by IPACS, Lockheed Martin, Eagle Dynamics or Grinnelli Designs.
 
 **[Download the latest release](https://github.com/k1lyas/aerofly-fs4-f22a/releases/latest)** - unzip, run the installer, fly. How to fly it:
@@ -27,9 +27,10 @@ Not affiliated with or endorsed by IPACS, Lockheed Martin, Eagle Dynamics or Gri
 
 - **Exterior and cockpit** of the F-22A (model of the Grinnelli Designs DCS World mod, GPL-3) - every switch, knob,
   key, thumbwheel and rocker moves and clicks
-- **Displays**: HUD, moving map / HSI, engine, fuel, FPAS, flight control, systems and weapon bay pages; UFDs with
-  ICAWS warnings and a standby attitude indicator; ICP with radio, navigation and autopilot pages; screen modes
-  OFF / NIGHT / DAY
+- **Displays**: HUD, moving map / HSI, engine (round N2 gauges), fuel, FPAS, flight control, systems, status,
+  approach and weapon bay pages (the aircraft from above with its doors, missiles and tanks); live checklists; UFDs
+  with ICAWS warnings, a standby attitude indicator, timer and NAV pages; ICP with radio, navigation and autopilot
+  pages, HDG / CRS thumbwheels; screen modes OFF / NIGHT / DAY
 - **Systems**: cold start with APU, engine start from the throttles, electrical and hydraulic systems
 - **Flight**: thrust vectoring nozzles driven by the flight control laws, autothrottle, Auto-GCAS
 - **Fuel and lights**: fuel burn with tank sequencing, afterburner flame, night lighting, formation lights
@@ -41,7 +42,8 @@ Not affiliated with or endorsed by IPACS, Lockheed Martin, Eagle Dynamics or Gri
 
 ## What you need
 
-- Aerofly FS 4 for PC or Mac (Steam). The mobile version cannot load add-on aircraft.
+- Aerofly FS 4 for PC or Mac (Steam). The mobile version does not load add-on aircraft (for Android there is an
+  unofficial way, see "Android" below).
 - The stock **F/A-18C** that comes with the game (it does - do not delete it).
 - Windows: nothing else - the package brings its own Python (the official embeddable Python from python.org in the
   folder `python`; nothing is installed on your computer).
@@ -51,10 +53,11 @@ Not affiliated with or endorsed by IPACS, Lockheed Martin, Eagle Dynamics or Gri
 
 ## Why there is an installer
 
-The flight model, systems, displays and engine sounds of this add-on are built on the game's F/A-18C. Those files
-belong to IPACS, so they are **not in this package**. The installer reads the F/A-18 of *your own* game, writes the
-F-22's configuration files from it on your computer and copies the F/A-18's engine sounds next to them. The game's
-own folder is not changed; only `aircraft/f22` in your Aerofly user folder is written.
+The flight model, systems and displays of this add-on are built on the game's F/A-18C, its engine sounds are the
+game's F-15E's. Those files belong to IPACS, so they are **not in this package**. The installer reads the F/A-18 of
+*your own* game, writes the F-22's configuration files from it on your computer and copies the F/A-18's sounds and
+the F-15E's engine sounds next to them. The game's own folder is not changed; only `aircraft/f22` in your Aerofly user
+folder is written.
 
 ## Install
 
@@ -91,6 +94,28 @@ A game update does not touch the installed F-22. Reinstall only when a new relea
 
 or delete the folder `aircraft/f22` in your Aerofly user folder.
 
+## Android (unofficial)
+
+Aerofly FS Global on Android has no add-on folder, but it keeps each downloaded aircraft as a `.tme` file, which is
+an ordinary zip archive. The F-22 can take the place of one of them. This is **not supported** by IPACS or by us:
+you lose that aircraft while the F-22 sits in its place, a game update may undo it, and we cannot help when it
+fails. Players report that it works.
+
+1. Install the F-22 on a PC or Mac as above: the installer builds the aircraft there. You need the finished folder
+   `aircraft/f22` from your Aerofly user folder.
+2. On the phone, in `Android/data/com.aerofly.aeroflyfsg1/files/`, pick an aircraft you can do without, for example
+   `dlc_aircraft_<name>.tme`, and **keep a copy of the original file** somewhere safe.
+3. Rename the copy you work on to `.zip` and unpack it. Rename the unpacked folder `dlc_aircraft_<name>` to
+   `aircraft_<name>`; the aircraft's files are in it under `aircraft/<name>/`.
+4. Empty `aircraft/<name>/` and copy all files of the F-22 folder into it.
+5. Rename the F-22's own aircraft files to the other aircraft's name: `f22.tmb`, `f22.tmc`, `f22.tmd` and the
+   `f22_*.tmd` files (clean, cold, flaps, gear, landing, start, takeoff) become `<name>.tmb`, `<name>_clean.tmd`
+   and so on. Leave the textures (`.ttx`) and sounds (`.tsb`) as they are.
+6. Pack the folder back into a zip with the same layout as before, rename it to the original `.tme` name and put it
+   back. In the game the F-22 now flies in that aircraft's place.
+
+To undo it, put the original `.tme` back.
+
 ## If something goes wrong
 
 - *macOS says it cannot verify the developer of install.command*: macOS does this for any script downloaded from
@@ -117,19 +142,13 @@ Tested with: Aerofly FS 4 Steam build 26705403, macOS. Reports from other system
 
 ## Known limits of this version
 
-- Engine sound is the F/A-18's.
-- Altitude hold (BALT and RALT) at low level and high subsonic speed: from about 645 KIAS below roughly 1000 ft the
-  aircraft goes into a strong pitch oscillation. Use the hold higher, slower or supersonic; disconnect it if it
-  starts. The aircraft makes too much lift per degree of angle of attack for the F/A-18's autopilot; a flight model
-  revision is planned.
+- Engine sound is the stock F-15E's (F100 engines, not the F-22's F119).
 - The SA page shows no other aircraft; no arresting hook; air refuelling is visual only.
 - Aerofly does not change the aircraft mass with internal fuel burn; radios and IFF pages do nothing in the game.
 - Items marked *(untested)* in GUIDE.md follow the F/A-18's logic and were not checked in the F-22 yet.
 
 ## Planned
 
-- A flight model revision (the altitude-hold oscillation above)
-- Own engine sound
 - HOTAS buttons in the cockpit; smoke and fire after damage
 
 ## Want to help?

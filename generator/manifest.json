@@ -1,7 +1,7 @@
 {
- "version": "0.9.0",
- "built": "2026-11-19",
- "source_commit": "4276827",
+ "version": "0.9.1",
+ "built": "2026-11-22",
+ "source_commit": "a2a8d72+uncommitted",
  "repository": "k1lyas/aerofly-fs4-f22a",
  "donor_read": [
   "f18.tmd",
@@ -28,6 +28,13 @@
   "switch.tsb",
   "display_source_light.ttx"
  ],
+ "stock_copy": {
+  "f15e_jet_00.tsb": "f15e/jet_00.tsb",
+  "f15e_jet_00_int.tsb": "f15e/jet_00_int.tsb",
+  "f15e_jet_01_int.tsb": "f15e/jet_01_int.tsb",
+  "f15e_jet_02.tsb": "f15e/jet_02.tsb",
+  "f15e_jet_afterburn.tsb": "f15e/jet_afterburn.tsb"
+ },
  "tested_games": [
   {
    "label": "Steam build 26705403, macOS",
@@ -54,12 +61,19 @@
     "switch.tsb": "075e506c58af8c81f59baa8a0cba06a5c17c2e97b0cddcac1195ed57cd11fddc",
     "display_source_light.ttx": "3cadf20cbbb516bf6c5eb7e4ffa2f29376661cb8f52c5cc9dc6f0a0733b9217d"
    },
+   "stock": {
+    "f15e/jet_00.tsb": "5f08ab2a435d10995a9e20fb1715063adcaed48292cf64581caf160daff21fab",
+    "f15e/jet_00_int.tsb": "a77439dbc8d2e6e60ce36dd1dbc93b222c9444904c387bb0b7370b3defdaa866",
+    "f15e/jet_01_int.tsb": "0a7b7f0084bd8856920e16a0064d05069801fdf162b8807b90b43226fe18a6bd",
+    "f15e/jet_02.tsb": "10dfe9376803ed728f101b0a096e778cae08b64b85793ebeefc7761561985d90",
+    "f15e/jet_afterburn.tsb": "a60505b54363f4a3565f8eedd9e0ea39afcd11b2eccfb94e16d0f4da60f078d1"
+   },
    "output": {
     "combat/option.tmc": "c3157861ec6bc9c42cfcf8cd9c40871e3f0710da7ff3a9762b4a375e87fb635d",
-    "controls.tmd": "f45a10e4bc5fb0000120044975025e5a1b06a3137ca0b1ef81fb794f9dbe5af8",
+    "controls.tmd": "53e604c402262a8fc7c7c7a7ed942cba4ff740f8cce59c40438433e1b50860a1",
     "copilot.tmc": "7ec51074860638483299b0d2354167e019f4d04aed04de29d0f7619dc6281e84",
-    "f22.tmc": "35c994ffd0aaa7386b707fe04ea016345401b0caff9ac2adc1a8312ba0696556",
-    "f22.tmd": "90d89f672c990a05d29fb2e37fa58e96b1d7882d7156a24ea0b7dde8a5d9f292",
+    "f22.tmc": "f8d7185d00b2ca03ffb9fa84206110f88a846d63a251eaba3aa26fcfa4b53282",
+    "f22.tmd": "30b75bcb2035e67909e1b84049feeb26e05f11765b52cfad05ac7078e0b24a9b",
     "f22_clean.tmd": "c1292137e6cd8a0666d25cd5a354d64d534d2ad5896f19d16433f528c7102842",
     "f22_cold.tmd": "948b874706bd0f30b5c7f4ca7a6357adf430d8193ee7ae199b9cc40e5fb01309",
     "f22_flaps.tmd": "929b4ca6abcedc3eaf7d61f770280c4d0baa92aa9f4fb97caf3fec2dee79223c",

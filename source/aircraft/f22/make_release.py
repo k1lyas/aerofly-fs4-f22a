@@ -7,7 +7,7 @@ Result: dist/F-22A-Raptor-<version>/ and dist/F-22A-Raptor-<version>.zip (+ .sha
 
 The package holds no IPACS file: the converter output (model, textures, own sounds), the configuration generator
 (make_f22.py and its modules) and release/install.py, which builds the configs on the user's machine from the user's
-own stock F/A-18 and copies the F/A-18's sounds. Steps here:
+own stock F/A-18 and copies the F/A-18's sounds and the stock F-15E's engine sounds. Steps here:
   1. checks: the conversion finished, no diagnostic state in the generator sources, VERSION is x.y.z
   2. package tree: converted/aircraft/f22 without text configs and without sounds no config uses (the voices are
      Kokoro's, make_voices_kokoro.py - freely licensed); generator/ ; installer, documents, licence
@@ -28,7 +28,7 @@ STEAM = os.path.expanduser('~/Library/Application Support/Steam/steamapps')
 GAME = os.path.join(STEAM, 'common', 'Aerofly FS 4 Flight Simulator')
 DONOR = os.path.join(GAME, 'aircraft', 'f18')
 GENERATOR = ['make_f22.py', 'make_f22_meta.py', 'ac_f22.py', 'breakage_f22.py', 'burner_f22.py', 'failures_f22.py',
-             'stores_f22.py', 'tvc_f22.py', 'cockpit_controls.py', 'cockpit_fit.py', 'mfd_f22.py']
+             'stores_f22.py', 'tvc_f22.py', 'cockpit_controls.py', 'cockpit_fit.py', 'mfd_f22.py', 'mfd_symbols.py', 'engine_sound_f22.py']
 DATA = {'parts.json': os.path.join(BUILD, 'parts.json'), 'geometry.json': os.path.join(A, 'work', 'geometry.json'),
         'anim.json': os.path.join(A, 'work', 'anim.json'), 'anim_pivots.json': os.path.join(A, 'work', 'anim_pivots.json')}
 DOCS = ['README.md', 'GUIDE.md', 'CREDITS.md', 'CHANGELOG.md', 'COCKPIT_CONTROLS.md']     # (the last: written by cockpit_controls.py)
@@ -36,6 +36,10 @@ DOCS = ['README.md', 'GUIDE.md', 'CREDITS.md', 'CHANGELOG.md', 'COCKPIT_CONTROLS
 # (make_voices_kokoro.py)
 EXCLUDE = re.compile(r'\.(tmc|tmd)$')
 DONOR_COPY_EXTRA = ['display_source_light.ttx']       # build.sh DONOR_FILES: the F/A-18 LCD digits
+sys.path.insert(0, A)
+import engine_sound_f22                                # its STOCK_COPIES: the F-15E engine sounds
+# other stock aircraft's files the configs play: installed name -> path under the game's aircraft/ (build.sh STOCK_COPIES)
+STOCK_COPY = {k + '.tsb': v for k, v in engine_sound_f22.STOCK_COPIES.items()}
 # the official Windows embeddable Python (python.org, PSF licence, unchanged) in the package's python\ folder: on
 # Windows install.bat runs it, so a player needs no Python of his own (user 2026-11-18). Not in git: downloaded once
 # into work/vendor, checked against the SHA-256 python.org publishes. x64 (Windows on ARM runs it emulated)
@@ -55,8 +59,8 @@ The part we wrote, as the GPL asks for with every copy: the scripts that turn th
   `build/config.tmc` naming your output folder (see the IPACS aircraft SDK).
 - `aircraft/f22/make_f22.py` and the modules it imports - the configuration generator (the copy the installer runs is
   in `../generator/`).
-- `aircraft/f22/make_cockpit_sounds.py`, `make_voices_kokoro.py`, `mfd_pages.py` - cockpit sounds, voice warnings,
-  the still pictures of the screens.
+- `aircraft/f22/make_cockpit_sounds.py`, `make_damage_sounds.py`, `make_voices_kokoro.py`, `mfd_pages.py` - cockpit
+  sounds, damage sounds (from CC0 Freesound recordings, not included), voice warnings, the still pictures of the screens.
 - `aircraft/f22/make_release.py`, `tools/clean_check.py` - release packaging and the check that no IPACS file is in a
   package. The installer and the documents it packs are the files at the top of this package.
 
@@ -71,8 +75,8 @@ def source_files():
     t, a = 'tools', 'aircraft/f22'
     sh = ''.join(open(os.path.join(REPO, f), encoding='utf-8').read() for f in (a + '/build.sh', t + '/build_lib.sh'))
     start = [t + '/' + m for m in re.findall(r'\$T/([\w/]+\.(?:py|sh))', sh)] + [t + '/build_lib.sh', t + '/clean_check.py'] + \
-            [a + '/' + f for f in ('build.sh', 'make_f22.py', 'make_f22_meta.py', 'ac_f22.py', 'mfd_pages.py',
-                                   'make_cockpit_sounds.py', 'make_voices_kokoro.py', 'make_release.py', 'VERSION',
+            [a + '/' + f for f in ('build.sh', 'make_f22.py', 'make_f22_meta.py', 'ac_f22.py', 'mfd_pages.py', 'mfd_silhouette.py',
+                                   'make_cockpit_sounds.py', 'make_damage_sounds.py', 'make_voices_kokoro.py', 'make_release.py', 'VERSION',
                                    'release/release.json')]
     mods = {}
     for d in (t, t + '/diag', a):
@@ -203,9 +207,13 @@ def main():
         if f.endswith('.tsb') and not re.search(r'\b%s\b' % re.escape(f[:-4]), text):
             os.remove(os.path.join(pkg_ac, f))
             left_out.append(f + ' (unused)')
-    clash = [f for f in donor_tsb + DONOR_COPY_EXTRA if os.path.exists(os.path.join(pkg_ac, f))]
+    clash = [f for f in donor_tsb + DONOR_COPY_EXTRA + sorted(STOCK_COPY) if os.path.exists(os.path.join(pkg_ac, f))]
     if clash:
-        stop('package files with the names of F/A-18 files the installer copies: %s' % ', '.join(clash))
+        stop('package files with the names of stock files the installer copies: %s' % ', '.join(clash))
+    stock_dir = os.path.dirname(DONOR)
+    unused = [f for f in STOCK_COPY if not re.search(r'\b%s\b' % re.escape(f[:-4]), text)]
+    if unused:
+        stop('stock copies no built config plays: %s' % ', '.join(unused))
     donor_read = ['f18.tmd', 'f18.tmc', 'controls.tmd', 'copilot.tmc'] + sorted(
         os.path.basename(p) for p in glob.glob(os.path.join(DONOR, 'f18_*.tmd'))
         if os.path.basename(p)[4:-4] in ('clean', 'cold', 'flaps', 'gear', 'landing', 'start', 'takeoff'))
@@ -214,9 +222,10 @@ def main():
     manifest = {
         'version': version, 'built': time.strftime('%Y-%m-%d'), 'source_commit': commit,
         'repository': conf.get('repository', ''),
-        'donor_read': donor_read, 'donor_copy': donor_tsb + DONOR_COPY_EXTRA,
+        'donor_read': donor_read, 'donor_copy': donor_tsb + DONOR_COPY_EXTRA, 'stock_copy': STOCK_COPY,
         'tested_games': [{'label': 'Steam build %s, macOS' % build_id,
                           'donor': {f: sha(os.path.join(DONOR, f)) for f in donor_read + donor_tsb + DONOR_COPY_EXTRA},
+                          'stock': {v: sha(os.path.join(stock_dir, v)) for v in STOCK_COPY.values()},
                           'output': {f.replace(os.sep, '/'): sha(os.path.join(ref, f)) for f in built}}]
                         + conf.get('extra_tested_games', []),
     }

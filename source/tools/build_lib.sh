@@ -47,8 +47,12 @@ convert() {
     # no audio device for the converter, it plays nothing: its sound init (tmsyssound_sl) is the known place where the window comes up with a dead Convert button
     ( WINEDLLOVERRIDES="mmdevapi=d" "$CX/wine" --bottle Aerofly --wait-children "$CONV\\bin64\\aerofly_fs_4_aircraft_converter.exe" "dir='$CONV'" \
         "model='Z:$(echo "$BD" | tr / '\\\\')'" > "$LOG" 2>&1 & )
-    for _ in $(seq 1 360); do
+    for i in $(seq 1 360); do
         grep -qE 'all done|converting done' "$LOG" 2>/dev/null && break
+        # it can die at start-up under CrossOver (2026-11-21: 'vkAcquireNextImageKHR' assertion) - then say so, not wait 30 min
+        if [ "$i" -gt 6 ] && ! pgrep -f aerofly_fs_4_aircraft_converter >/dev/null; then
+            echo "converter exited without converting (crashed?), last log lines:"; tail -3 "$LOG"; break
+        fi
         sleep 5
     done
     sleep 3
@@ -64,7 +68,13 @@ install() {
     "$T/install_aircraft.sh" "$BD" "$OUT" "$NAME"
     cp "$DONOR"/*.tsb "$GAME_AC/"
     donor_files
+    stock_copies
     echo "installed with $DONOR_LABEL sounds"
+}
+
+stock_copies() {   # STOCK_COPIES: "f15e/jet_00.tsb:f15e_jet_00.tsb ..." - other stock aircraft's files the configs play
+    local root; root="$(dirname "$DONOR")"
+    for p in ${STOCK_COPIES:-}; do cp "$root/${p%%:*}" "$GAME_AC/${p##*:}"; done
 }
 
 donor_files() {    # DONOR_FILES: further donor files the configs read (e.g. display sprite textures)
@@ -170,6 +180,7 @@ configs)
     [ -d "$GAME_AC" ] || { echo "$NAME is not installed in the game yet - run ./build.sh convert"; exit 0; }
     # (copilot.tmc too: the game's own settings for the aircraft - takeoff trim, ratings - were copied only on install)
     for f in "$BD"/$NAME*.tmd "$BD/$NAME.tmc" "$BD/controls.tmd" "$BD/copilot.tmc"; do [ -f "$f" ] && cp "$f" "$GAME_AC/"; done
+    stock_copies
     # repaint / load add-on folders: option.tmc and the add-on parameters.tmd / system.tmd
     for f in "$BD"/*/option.tmc "$BD"/*/*.tmd; do
         [ -e "$f" ] || continue

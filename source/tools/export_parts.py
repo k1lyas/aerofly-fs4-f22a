@@ -1182,6 +1182,8 @@ def main():
             wear = [tuple(d['region']) + (C.DISPLAY_WEAR[dn],) for dn, d in getattr(C, 'DISPLAYS', {}).items()
                     if dn in getattr(C, 'DISPLAY_WEAR', {}) and d.get('texture', DISPLAY_MATERIAL) == n]
             X.write_display_textures(OUT, n, 512 if n == 'hud' else 2048, wear=wear or None, **getattr(C, 'DISPLAY_SURFACE', {}))
+            if hasattr(C, 'DISPLAY_SYMBOLS'):          # picture sprites in the atlas's free corners (texture_animation_rectangle)
+                C.DISPLAY_SYMBOLS(OUT, n, X)
             continue
         if kind == 'gap':
             X.write_flat_textures(OUT, n, C.GAP_PLATES['colour'])

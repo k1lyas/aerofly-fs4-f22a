@@ -44,16 +44,15 @@ in equal clicks (20 clicks; the FREQ knobs 36); a button is an `input_button` - 
 | OXYGEN | FLOW | two-position toggle | `F22OxygenFlow` | `Oxygen.F22Flow` | 0 = BYPASS, 1 = NORMAL | 1 |
 | OXYGEN | OBOGS | two-position toggle | `F22Obogs` | `Oxygen.F22Obogs` | 0 = OFF, 1 = ON | 1 |
 | right console, far aft | (no lettering) | guarded toggle (the red lid lifts by itself) | `F22AftRightGuarded` | `Controls.F22AftRightGuarded` | 0 = guarded, 1 = actuated | 0 |
-| ICP | lower left thumbwheel | thumbwheel | `F22IcpWheelLowerLeft` | `ICP.F22WheelLowerLeft` | 0 .. 1 | 0.5 |
-| ICP | lower right thumbwheel | thumbwheel | `F22IcpWheelLowerRight` | `ICP.F22WheelLowerRight` | 0 .. 1 | 0.5 |
 | ICP | DVR key | push button | `F22PressIcpDvr` | `ICP.F22Dvr` | 1 = pressed | 0 |
 
 ## Controls that already work
 
 These came from the same static geometry and are wired to systems (see GUIDE.md): FLCS BIT and its guard, ALT FLAPS,
 YAW TRIM, FADEC, ENGINES MOTOR, LAMP TEST / NVG, CNI, AUX/ACP, RADIO VOL VOX, DN LOCK OVERRIDE, the screen and ICP
-keys, the two upper ICP thumbwheels and both ICP rockers (as the F-16's: BRT of the UFDs and the ICP, SYM of the
-HUD, INC / DEC of the autothrottle target, map range) and the armrest over the right console (a click folds it
+keys, all four ICP thumbwheels and both ICP rockers (as the F-16's: BRT of the UFDs and the ICP, SYM of the
+HUD, HDG and CRS - the selected heading and course, 1 deg a click -, INC / DEC of the autothrottle target, map
+range) and the armrest over the right console (a click folds it
 up against the wall: state `F22Armrest`).
 The left knob at each screen (4 MFDs, 2 UFDs) is that screen's brightness (states `F22<Screen>KnobLeft`, 0 .. 1,
 default 1), under the master dimmers: the MFD knob of the INTERIOR LIGHTS panel, the BRT wheel left of the ICP for

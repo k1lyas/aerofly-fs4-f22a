@@ -9,8 +9,8 @@ The part we wrote, as the GPL asks for with every copy: the scripts that turn th
   `build/config.tmc` naming your output folder (see the IPACS aircraft SDK).
 - `aircraft/f22/make_f22.py` and the modules it imports - the configuration generator (the copy the installer runs is
   in `../generator/`).
-- `aircraft/f22/make_cockpit_sounds.py`, `make_voices_kokoro.py`, `mfd_pages.py` - cockpit sounds, voice warnings,
-  the still pictures of the screens.
+- `aircraft/f22/make_cockpit_sounds.py`, `make_damage_sounds.py`, `make_voices_kokoro.py`, `mfd_pages.py` - cockpit
+  sounds, damage sounds (from CC0 Freesound recordings, not included), voice warnings, the still pictures of the screens.
 - `aircraft/f22/make_release.py`, `tools/clean_check.py` - release packaging and the check that no IPACS file is in a
   package. The installer and the documents it packs are the files at the top of this package.
 

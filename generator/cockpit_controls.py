@@ -113,9 +113,11 @@ CONTROLS = [
     # wheels BRT (UFD / ICP, ac_f22 K_WheelUFD) and SYM (HUD, K_WheelHUD, off at the bottom), the upper left rocker
     # INC / DEC of the autothrottle target, the lower right one map range (make_f22.py). The F-16's CONT and RET DEPR on
     # the lower wheels were tried and taken out the same day (user: contrast not wanted - the MFDs have none - and a
-    # fixed reticle of no use): the lower wheels are free
-    (301, 'IcpWheelLowerLeft', 'ICP', 'lower left thumbwheel', 'wheel', 'ICP.F22WheelLowerLeft', [(0, ''), (1, '')], 0.5),
-    (302, 'IcpWheelLowerRight', 'ICP', 'lower right thumbwheel', 'wheel', 'ICP.F22WheelLowerRight', [(0, ''), (1, '')], 0.5),
+    # fixed reticle of no use). Since 2026-11-22 the lower wheels set HSEL and CRS, as the F-16's HDG and CRS knobs on
+    # the HSI (user: the selected heading was set by the keypad only): a click is the Hornet's own heading / course
+    # step message (1 deg), the wheel turns with the value it set (dynamics() below)
+    (301, 'IcpWheelLowerLeft', 'ICP', 'HDG (lower left thumbwheel)', 'wheel', 'Autopilot.SelectedHeading', [(0, ''), (1, '')], 0.5),
+    (302, 'IcpWheelLowerRight', 'ICP', 'CRS (lower right thumbwheel)', 'wheel', 'Navigation.SelectedCourse1', [(0, ''), (1, '')], 0.5),
     (303, 'IcpRockerLeft', 'ICP', 'INC / DEC (upper left rocker)', 'rocker', 'ICP.F22RockerLeft', [(-1, 'DEC held'), (1, 'INC held')], 0),
     (304, 'IcpDvr', 'ICP', 'DVR key', 'button', 'ICP.F22Dvr', [(1, 'pressed')], 0),
 ]
@@ -124,7 +126,9 @@ CONTROLS = [
 # DAY (2026-11-18). ICP: the INC / DEC rocker works too (make_f22.py)
 BRIGHTNESS = {113, 115, 117, 121, 123, 140}
 MODES = {114: 'LeftUfd', 116: 'RightUfd', 118: 'Pmfd', 122: 'LeftMfd', 124: 'RightMfd', 141: 'LowerMfd'}
-WORKING = BRIGHTNESS | set(MODES) | {303}
+WORKING = BRIGHTNESS | set(MODES) | {301, 302, 303}
+# the lower ICP wheels: what they set (radians, 0 .. 2 pi, steps of 1 deg)
+WHEEL_SETS = {301: 'SelectedHeading', 302: 'SelectedCourse'}
 SIGNAL = {c[0]: 'F22' + c[1] for c in CONTROLS}
 MESSAGE = {c[0]: c[5] for c in CONTROLS}
 PART = {c[0]: ('P_' if c[4] == 'button' else 'K_') + c[1] for c in CONTROLS}
@@ -310,6 +314,13 @@ def dynamics(obj, dyn, anchor):
             obj(dyn, 'input_discrete', SIGNAL[i], anchor, Message=message,
                 Range=' %.1f %.1f ' % (positions[0][0], positions[-1][0]), Value=float(default),
                 EventsUp=' %s ' % sound, EventsDown=' %s ' % sound)
+        elif i in WHEEL_SETS:
+            # no state of its own: the click steps SelectedHeading / SelectedCourse; the wheel shows the last degrees of
+            # it - degree mod 4 -> detent 0..3 of 20, one ridge phase each (make_f22's ridge-pitch steps)
+            src = WHEEL_SETS[i]
+            obj(dyn, 'linear', SIGNAL[i] + 'Deg', anchor, Input=src + '.Output', Scaling=57.29577951)
+            obj(dyn, 'clamp_cyclic', SIGNAL[i] + 'Phase', anchor, Input=SIGNAL[i] + 'Deg.Output', Range=('string8', ' -0.5 3.5 '))
+            obj(dyn, 'linear', SIGNAL[i], anchor, Input=SIGNAL[i] + 'Phase.Output', Scaling=0.05)
         elif kind in ('knob', 'wheel'):
             n = 37 if i in (34, 35) else 21
             obj(dyn, 'input_default', SIGNAL[i], anchor, Message=message, Range=' 0.0 1.0 ', Positions=('uint', str(n)),
@@ -370,8 +381,9 @@ def doc():
     out += ['', '## Controls that already work', '',
             'These came from the same static geometry and are wired to systems (see GUIDE.md): FLCS BIT and its guard, ALT FLAPS,',
             'YAW TRIM, FADEC, ENGINES MOTOR, LAMP TEST / NVG, CNI, AUX/ACP, RADIO VOL VOX, DN LOCK OVERRIDE, the screen and ICP',
-            'keys, the two upper ICP thumbwheels and both ICP rockers (as the F-16\'s: BRT of the UFDs and the ICP, SYM of the',
-            'HUD, INC / DEC of the autothrottle target, map range) and the armrest over the right console (a click folds it',
+            'keys, all four ICP thumbwheels and both ICP rockers (as the F-16\'s: BRT of the UFDs and the ICP, SYM of the',
+            'HUD, HDG and CRS - the selected heading and course, 1 deg a click -, INC / DEC of the autothrottle target, map',
+            'range) and the armrest over the right console (a click folds it',
             'up against the wall: state `F22Armrest`).',
             'The left knob at each screen (4 MFDs, 2 UFDs) is that screen\'s brightness (states `F22<Screen>KnobLeft`, 0 .. 1,',
             'default 1), under the master dimmers: the MFD knob of the INTERIOR LIGHTS panel, the BRT wheel left of the ICP for',

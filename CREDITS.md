@@ -19,9 +19,10 @@ were added. The DCS flight model, avionics code and sounds of the mod are **not*
 
 ## Built on the Aerofly FS 4 F/A-18C
 
-Flight model, flight control laws, avionics and engine sounds come from the stock F/A-18C of **IPACS** Aerofly FS 4.
-None of those files is distributed here: the installer builds the F-22's configuration from the F/A-18 in the
-user's own game. Aerofly FS is a product of IPACS; this add-on is not affiliated with or endorsed by IPACS.
+Flight model, flight control laws and avionics come from the stock F/A-18C of **IPACS** Aerofly FS 4, the engine
+sounds from its stock F-15E. None of those files is distributed here: the installer builds the F-22's configuration
+from the F/A-18 in the user's own game and copies the F-15E's engine sounds from it. Aerofly FS is a product of
+IPACS; this add-on is not affiliated with or endorsed by IPACS.
 
 ## Tools
 
@@ -36,7 +37,21 @@ user's own game. Aerofly FS is a product of IPACS; this add-on is not affiliated
 
 Dimensions of the AIM-120C, AIM-9X and the 600 gal tank were measured from public images (Wikimedia Commons, public
 domain / CC; USAF fact sheets; designation-systems.net; The War Zone). Cockpit sounds other than the F/A-18's are
-synthesised by our own script.
+synthesised by our own script, except the damage sounds (below).
+
+## Damage sounds
+
+The sounds of a gear leg breaking, the airframe sliding on the runway, an engine seizing, a tyre bursting and a
+compressor stall are built by our script (`source/aircraft/f22/make_damage_sounds.py`) from field recordings on
+Freesound (https://freesound.org), all released under CC0 (public domain dedication) - thank you to their authors:
+
+- "Car Crash_EXT.wav" by PauliusI (freesound.org/s/346299)
+- "kettlebell on concrete rock stone metal drag impact.wav" and "kettlebell concrete drag metal rock stone earth.wav"
+  by rsellick (freesound.org/s/545544, freesound.org/s/545562)
+- "crowbar metal drag on concrete scrape and handling.wav" and "metal gate open with anchor bar drag on concrete loud
+  scrape and drop down hit resonate.flac" by kyles (freesound.org/s/452587, freesound.org/s/450356)
+- "BOOMING PUNCHY EXPLOSION - close, big SCHOEPS MK41.wav" by misosound (freesound.org/s/251759)
+- "Mossberg 500A - 1 shot and pump" by AnthonyChan0 (freesound.org/s/159710)
 
 ## Voice warnings
 

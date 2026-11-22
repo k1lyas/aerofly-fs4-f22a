@@ -17,6 +17,7 @@ EDM="$SRC/Shapes/F-22A.EDM"
 DONOR="$HOME/Library/Application Support/Steam/steamapps/common/Aerofly FS 4 Flight Simulator/aircraft/f18"
 DONOR_LABEL=F/A-18
 DONOR_FILES="display_source_light.ttx"   # F/A-18 LCD digits (UFD engine numbers, fuel, clock)
+STOCK_COPIES="$(python3 -c 'import engine_sound_f22 as E; print(" ".join("%s:%s.tsb" % (v, k) for k, v in E.STOCK_COPIES.items()))')"   # F-15E engine
 EXTRA_WAVS="$PWD/sounds/cockpit"       # own cockpit sounds, make_cockpit_sounds.py: the converter makes the .tsb
 LIVERY_DIR="$SRC/Liveries/${LIVERY:-Default}"
 TEX_DIRS=("$SRC/Textures/F-22A" "$SRC/Textures/F-22A_Cockpit")

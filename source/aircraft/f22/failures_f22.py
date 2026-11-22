@@ -305,7 +305,7 @@ def dynamics(ns):
     brake = dyn_node('F22BrakeSupply')
     assert brake.get('Inputs').split() == ['F22HydAuthority.Output', 'F22BrakeAccCharged.Output'], brake.get('Inputs')
     setv(brake, 'Inputs', ' F22HydSystem2.Output F22BrakeAccCharged.Output ')
-    steer = dyn_node('F22HydServoSteering')
+    steer = dyn_node('F22HydCmdServoSteering')      # (the command; F22HydServoSteering is its flow-limited follower)
     st = steer.get('Inputs').split()
     assert st[-1] == 'F22HydAuthority.Output', st
     setv(steer, 'Inputs', ' %s F22HydSystem2.Output ' % ' '.join(st[:-1]))
@@ -680,13 +680,16 @@ def dynamics(ns):
     if _have_sound('stall_bang'):
         for k in (1, 2):
             engine_once('F22StallBang%dIn' % k, published('F22FailFlame%d' % k), 'stall_bang.wav', 14.0, k)
-        for side, name in (('L', 'Left'), ('R', 'Right')):         # the tyre's bang, at the wheel: the same blast
-            engine_once('F22TyreBang%sIn' % side, published('F22TyreBurst' + side), 'stall_bang.wav', 10.0, None,
+        # the tyre's bang, at the wheel: its own sound from real recordings (make_damage_sounds.py) - the stall bang it
+        # shared until 2026-11-21 had nothing above 1 kHz and was lost under the touchdown (user: 'almost not heard')
+        tyre = 'tyre_burst.wav' if _have_sound('tyre_burst') else 'stall_bang.wav'
+        for side, name in (('L', 'Left'), ('R', 'Right')):
+            engine_once('F22TyreBang%sIn' % side, published('F22TyreBurst' + side), tyre, 10.0, None,
                         dyn_node(name + 'WheelHull').get('R0'))
-        engine_once('F22TyreBangNIn', published('F22TyreBurstN'), 'stall_bang.wav', 10.0, None,
+        engine_once('F22TyreBangNIn', published('F22TyreBurstN'), tyre, 10.0, None,
                     dyn_node('LeftFrontWheelHull').get('R0'))
         sounds.append('stall_bang')
-    # gear legs breaking (the shear's bang too: gear_crunch) (fold / shear) and the airframe then sliding on the runway (make_cockpit_sounds.py)
+    # gear legs breaking (the shear's bang too: gear_crunch) (fold / shear) and the airframe then sliding on the runway (make_damage_sounds.py)
     if _have_sound('gear_crunch'):
         for side, hull in (('L', 'LeftWheelHull'), ('R', 'RightWheelHull'), ('N', 'LeftFrontWheelHull')):
             o('logic_or', 'F22GearBreaks' + side, Inputs=' F22Collapse%s.Output F22Shear%s.Output ' % (side, side))
@@ -696,8 +699,11 @@ def dynamics(ns):
     if _have_sound('belly_scrape'):
         o('logic_or', 'F22GearBroken', Inputs=' F22CollapseL.Output F22CollapseR.Output F22CollapseN.Output '
                                               'F22ShearL.Output F22ShearR.Output F22ShearN.Output ')
-        o('product', 'F22ScrapeLevel', Inputs=' F22GearBroken.Output OnGroundSensor.Output '
-                                              'InertialReferenceSystem.OutputGroundSpeed ')
+        o('product', 'F22ScrapeLevel0', Inputs=' F22GearBroken.Output OnGroundSensor.Output '
+                                               'InertialReferenceSystem.OutputGroundSpeed ')
+        # the slide swells in over ~1 s: at full level at once it buried the leg breaking (2026-11-21 recording: the
+        # crunch's crack lasted 0.1 s above the scrape, its weight none)
+        o('first_order_low_pass', 'F22ScrapeLevel', Input='F22ScrapeLevel0.Output', TimeConstant='0.5')
         obj(snd, 'soundinput', 'F22ScrapeIn', InputID=('uint32', published('F22ScrapeLevel')))
         obj(snd, 'soundmapping', 'F22ScrapeVolume', Input='F22ScrapeIn.Output',
             Map=' (0.0 0.0) (1.0 0.05) (5.0 0.35) (20.0 0.7) (60.0 1.0) ')

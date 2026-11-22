@@ -14,6 +14,7 @@ import burner_f22
 import failures_f22
 import breakage_f22
 import mfd_f22
+import mfd_symbols
 import cockpit_controls
 
 DONOR, PARTS, GEOM, ANIM, PIVOTS, OUT = sys.argv[1:7]
@@ -447,7 +448,14 @@ for side, s in (('Left', 1), ('Right', -1)):
         for j in range(n_ - 1):          # reversed station j starts the segment of left-wing segment n_-2-j
             rows[j]['InputFlapAngle'], rows[j]['InputSlatAngle'] = seg[n_ - 2 - j]
     set_stations(D[side + 'WingAero'], rows)
-    pick = [stab[0], stab[len(stab) // 3], stab[2 * len(stab) // 3], stab[-1]]
+    # The root row of the DCS stabilator crosses its pivot fairing: its leading edge sits 0.86 m aft of the real one
+    # (-4.39 against ~-3.53), so the inner panel came out swept FORWARD 9 deg and the whole tail 29 deg instead of the
+    # model's 42 (outer 80 %, as the wing's 41). Found 2026-11-20 looking for the pitch bob at M 0.97-1.09 with the
+    # altitude hold: a near-unswept panel gains the most near M 1. The root leading edge now continues the next rows'
+    # line; its trailing edge already did.
+    k_le = (stab[3]['le'] - stab[1]['le']) / (stab[3]['y'] - stab[1]['y'])
+    stab_root = dict(stab[0], le=stab[1]['le'] + k_le * (stab[0]['y'] - stab[1]['y']))
+    pick = [stab_root, stab[len(stab) // 3], stab[2 * len(stab) // 3], stab[-1]]
     pick.append({'y': stab[-1]['y'] + 0.2, 'le': stab[-1]['le'] - 0.15, 'te': stab[-1]['te'] + 0.2, 'z': stab[-1]['z']})
     rows = [{'Airfoil': 'AirfoilHorizontalStabilizer', 'LE': r['le'], 'TE': r['te'], 'Y': s * r['y'], 'Z': r['z'],
              'Incidence': 0.0, 'FlapFraction': 0.0} for r in pick]
@@ -460,11 +468,20 @@ for side, s in (('Left', 1), ('Right', -1)):
             for k, r in enumerate(pick)]
     set_stations(D[side + 'VerticalStabilizerAero'], rows)
 fa = D['FuselageAero']
+# The body is as wide as the model (up to 5 m over the chines and wing roots), but from 2026-11-10 the strake and
+# inner wing (y 0.6 - 2.6, breakage_f22) are aerowings of their own on the same strip: that area lifted twice - the
+# whole aircraft made ~6.4 per rad of lift slope on 62.8 m2 (telemetry 2026-11-15, tools/diag/lift_slope.py; the real
+# F-22 ~3.3-3.6 on its 78 m2, i.e. ~4.1-4.5 on ours) and 2.0 g per degree against the Hornet's 0.74, which gave the
+# Hornet's altitude hold 2-3x its gain: the pitch bob from ~645 KIAS at low level. Where the inner wing lies (its
+# chord at the strake root, x -3.81 .. 4.24, 0.3 m either side) the body counts only inside the strakes, 2 x 0.6 m;
+# nose and tail keep the model's width. Plan area 63.9 -> 31.5 m2, its centre 0.45 m behind the CG before.
+BODY_UNDER_WING = (ate[0] - 0.3, ale[0] + 0.3, 2 * STRAKE_Y)
 rows = [r for r in geo['fuselage'] if r['width'] > 0.3][::3]
 rows.sort(key=lambda r: -r['x'])
 rows.insert(0, {'x': geo['bounds'][1][0] - 0.05, 'width': 0.05, 'z_min': rows[0]['z_min'], 'z_max': rows[0]['z_min'] + 0.05})
 for k, f_ in (('StationX', lambda r: r['x']), ('StationY', lambda r: 0.0), ('StationZ', lambda r: (r['z_min'] + r['z_max']) / 2),
-              ('StationWidth', lambda r: r['width']), ('StationHeight', lambda r: r['z_max'] - r['z_min'])):
+              ('StationWidth', lambda r: min(r['width'], BODY_UNDER_WING[2]) if BODY_UNDER_WING[0] <= r['x'] <= BODY_UNDER_WING[1] else r['width']),
+              ('StationHeight', lambda r: r['z_max'] - r['z_min'])):
     setv(fa, k, arr(f_(r) for r in rows))
 setv(fa, 'StationShape', ' ' + ' '.join('0' for _ in rows) + ' ')
 
@@ -822,12 +839,20 @@ def _keep(page, keep, extra=None):
 
 for name, step in (('F22BingoUp', 45.359237), ('F22BingoDown', -45.359237)):  # 100 lb a press (user 2026-11-06: 250 kg = 551 lb was too coarse; the step is in kg)
     obj(dyn, 'event_value', name, D['F22BayMenuLabel'], Input='%.1f' % step, Events=' BingoFuel.Step ')
+# JOKER (2026-11-22, avionics block B1): the fuel to end the fight and turn for home, above BINGO - set as BINGO, by the
+# FUEL page's lower right arrows, 100 lb a press; 5000 lb at start (BINGO 3000)
+obj(dyn, 'input_default', 'F22JokerFuel', D['F22BayMenuLabel'], Message='F22.JokerFuel', Range=' 0.0 9071.8474 ',
+    Positions=('uint', '201'), Value=2267.96185)
+for name, step in (('F22JokerUp', 45.359237), ('F22JokerDown', -45.359237)):
+    obj(dyn, 'event_value', name, D['F22BayMenuLabel'], Input='%.1f' % step, Events=' F22JokerFuel.Step ')
 for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
     menu_els = {e.name: e for e in D[prefix + 'SupportMenuPage'].find('Elements').children}
     hsi, sa = menu_els['HorizontalSituationPageLink'], menu_els['SituationAwarenessPageLink']
     _keep(D[prefix + 'ADIMenuPage'], {2}, {1: hsi.clone()})
     _keep(D[prefix + 'FuelMenuPage'], {2}, {11: _menu_el('F22BingoUpButton', 'ArrowUpLarge.Output', 'F22BingoUp.Trigger'),
-                                            12: _menu_el('F22BingoDownButton', 'ArrowDownLarge.Output', 'F22BingoDown.Trigger')})
+                                            12: _menu_el('F22BingoDownButton', 'ArrowDownLarge.Output', 'F22BingoDown.Trigger'),
+                                            13: _menu_el('F22JokerUpButton', 'ArrowUpLarge.Output', 'F22JokerUp.Trigger'),
+                                            14: _menu_el('F22JokerDownButton', 'ArrowDownLarge.Output', 'F22JokerDown.Trigger')})
     _keep(D[prefix + 'FlightControlMenuPage'], {2})      # (DIR and VEC: below, with the SYS keys they came from)
     _keep(D[prefix + 'EngineMenuPage'], {2})
     _keep(D[prefix + 'HSIMenuPage'], {2, 5, 6, 13, 17}, {1: sa.clone()})
@@ -874,6 +899,32 @@ for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
                                                    11: _menu_el('F22AtUpButton', 'ArrowUpSmall.Output', 'F22AtStepUp.Trigger'),
                                                    12: _menu_el('F22AtStepButton', 'BlankLabel.Output', 'F22AtStepCycle.Trigger'),
                                                    13: _menu_el('F22AtDownButton', 'ArrowDownSmall.Output', 'F22AtStepDown.Trigger')})
+# STAT and APPR (2026-11-22, avionics block A, mfd_f22.stat_page / appr_page): the Hornet's mission initialisation
+# (page 17) and EW (page 14) pages become them, linked from the menu's left column under BAY (keys 6, 7); on their own
+# pages only MENU. AUTO (right MFD only, key 12): the right MFD follows the flight - the checklist parked on the ground,
+# APPR once the gear goes down in the air, FUEL once it comes up; off at start, boxed while on
+D['F22StatMenuLabel'] = obj(dyn, 'constant_text', 'F22StatMenuLabel', D['F22BayMenuLabel'], Input='STAT')
+D['F22ApprMenuLabel'] = obj(dyn, 'constant_text', 'F22ApprMenuLabel', D['F22BayMenuLabel'], Input='APPR')
+D['F22MfdAutoMenuLabel'] = obj(dyn, 'constant_text', 'F22MfdAutoMenuLabel', D['F22BayMenuLabel'], Input='AUTO')
+obj(dyn, 'variable', 'F22MfdAuto', D['F22BayMenuLabel'], Value='0.0')
+obj(dyn, 'logic_invert', 'F22MfdAutoOther', D['F22BayMenuLabel'], Input='F22MfdAuto.Output')
+obj(dyn, 'event_value', 'F22MfdAutoToggle', D['F22BayMenuLabel'], Input='F22MfdAutoOther.Output', Events=' F22MfdAuto.Set ')
+for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
+    for page in (D[prefix + 'TacticalMenuPage'], D[prefix + 'SupportMenuPage']):
+        els = page.find('Elements').children
+        assert els[6].name == 'Blank' and els[7].name == 'Blank' and els[12].name == 'Blank', prefix
+        els[6] = _menu_el('F22StatPageLink', 'F22StatMenuLabel.Output', 'Set%sMissionInitialization.Trigger' % prefix)
+        els[7] = _menu_el('F22ApprPageLink', 'F22ApprMenuLabel.Output', 'Set%sElectronicWarfare.Trigger' % prefix)
+        if prefix == 'RightMFD':
+            els[12] = _menu_el('F22MfdAutoButton', 'F22MfdAutoMenuLabel.Output', 'F22MfdAutoToggle.Trigger', 'F22MfdAuto.Output')
+    _keep(D[prefix + 'MissionInitializationMenuPage'], {2})
+    _keep(D[prefix + 'ElectronicWarfareMenuPage'], {2})
+for name, inputs, event in (('Appr', 'AnyGearDown.Output F22AtAirborne.Output', 'SetRightMFDElectronicWarfare'),
+                            ('Fuel', 'F22GearNotDown.Output F22AtAirborne.Output', 'SetRightMFDPageToFuel'),
+                            ('Parked', 'OnGroundSensor.Output ParkingBrakeSet.Output', 'SetRightMFDChecklist')):
+    obj(dyn, 'logic_and', 'F22MfdAuto' + name, D['F22BayMenuLabel'], Inputs=' F22MfdAuto.Output %s ' % inputs)
+    obj(dyn, 'event_edge_rising', 'F22MfdAuto%sEdge' % name, D['F22BayMenuLabel'], Input='F22MfdAuto%s.Output' % name,
+        Events=' %s.Trigger ' % event, Value=1.0, Threshold=0.5)
 # CHECKLIST (user 2026-11-04): the Hornet's checklist is a drawn display class (display_f18_checklist, its takeoff /
 # landing checks of the Hornet) - replaced by this mod's own procedures, four lists picked by the left bezel buttons
 D['F22ChecklistIndex'] = obj(dyn, 'variable', 'F22ChecklistIndex', D['F22BayMenuLabel'], Value='0.0')
@@ -1535,17 +1586,35 @@ setv(D['AirDataComputer'], 'InputEnable1', 'DCBusEssentialOn.Output')
 # from 3000 to 0 and stayed). A real one keeps turning in the airflow and its pumps give part of their output: the
 # windmill N2 here is our estimate by airspeed (none below 100 kt, ~15 % at 250 kt, ~22 % at 400 kt - typical of
 # military turbofans, no F119 figure is public); the gearbox pumps (hydraulic, the nozzles' fuel pressure) turn with
-# the larger of the two. The pumps are variable-displacement: the pressure holds down to a low speed (full from 25 %
-# N2, half at 10 % - estimate) - what fades is how much the surfaces can do.
+# the larger of the two.
+# The pumps are variable-displacement (pressure-compensated, as every fighter's): as long as the pump turns fast enough to
+# make up the leakage, the PRESSURE holds - what its speed limits is the FLOW, i.e. how fast the surfaces can move. The
+# first model (until 2026-11-21) scaled the deflection with a pressure curve (half at 10 % N2): out of fuel on finals at
+# 140-150 kt the windmill's ~7 % N2 gave 500-700 psi and 18 % of the surface travel - the stabilators trailed, the nose
+# dropped and nothing could hold it (user's test). Now: pressure full above ~5 % N2 (estimate), and each surface's rate
+# is limited by the flow, the sum of both systems' (dual tandem actuators), which grows with N2 up to rated at 60 % (idle
+# is above). Windmilling at 140 kt the surfaces reach their full travel, but at ~a fifth of their rate: the aircraft can
+# be held and flown gently, not thrown about; diving for speed brings the rate back.
 obj(dyn, 'linear_interpolation', 'F22WindmillN2', anchor, Input='AirDataComputer.OutputCalibratedAirspeed',
     Map=' (51.4 0.0) (77.2 0.09) (128.6 0.15) (205.8 0.22) (300.0 0.28) ')
 for k in (1, 2):
     obj(dyn, 'maximum', 'F22Eng%dGearboxN2' % k, anchor, Inputs=' Engine%dN2.Output F22WindmillN2.Output ' % k)
     obj(dyn, 'linear_interpolation', 'F22HydPump%d' % k, anchor, Input='F22Eng%dGearboxN2.Output' % k,
-        Map=' (0.05 0.0) (0.10 0.4) (0.16 0.8) (0.25 1.0) ')
+        Map=' (0.02 0.0) (0.04 0.85) (0.055 1.0) ')
+    obj(dyn, 'linear_interpolation', 'F22HydPumpFlow%d' % k, anchor, Input='F22Eng%dGearboxN2.Output' % k,
+        Map=' (0.0 0.0) (0.6 1.0) ')
 obj(dyn, 'maximum', 'F22HydSystem1', anchor, Inputs=' F22HydPump1.Output APUAvailable.Output ')
 obj(dyn, 'maximum', 'F22HydSystem2', anchor, Inputs=' F22HydPump2.Output ')
 obj(dyn, 'maximum', 'F22HydAuthority', anchor, Inputs=' F22HydSystem1.Output F22HydSystem2.Output ')
+# flow: each system's pump flow (the APU's emergency pump on system 1: half the rated flow - estimate) times its own
+# pressure (a leaking or burnt system delivers less, then none), the two summed and capped at rated
+obj(dyn, 'product', 'F22HydApuFlow', anchor, Inputs=' APUAvailable.Output 0.5 ')
+obj(dyn, 'maximum', 'F22HydSource1', anchor, Inputs=' F22HydPumpFlow1.Output F22HydApuFlow.Output ')
+obj(dyn, 'product', 'F22HydFlow1', anchor, Inputs=' F22HydSource1.Output F22HydSystem1.Output ')
+obj(dyn, 'product', 'F22HydFlow2', anchor, Inputs=' F22HydPumpFlow2.Output F22HydSystem2.Output ')
+obj(dyn, 'mixlinear', 'F22HydFlowSum', anchor, Input0='F22HydFlow1.Output', Input1='F22HydFlow2.Output', Weight0=1.0,
+    Weight1=1.0)
+obj(dyn, 'clamp', 'F22HydFlow', anchor, Input='F22HydFlowSum.Output', Range=' 0.0 1.0 ')
 for k in (1, 2):
     obj(dyn, 'product', 'F22HydPressure%d' % k, anchor, Inputs=' F22HydSystem%d.Output 20684280.0 ' % k)
     setv(D['NeedleHydraulicPressure%dMapping' % k], 'Input', 'F22HydPressure%d.Output' % k)
@@ -1632,11 +1701,49 @@ def bit_command(name, old):
     return 'F22BitSel%s.Output' % name
 
 
-for name in HYD_SERVOS:
+HYD_RATE_LOOP = 30.0      # 1 / s: the flow limiter's follow gain (stable at the game's physics step, ~1/60 s or finer)
+# below 90 % of rated flow the limiter flies the surfaces; above it the command goes straight to the servo as before: the
+# limiter's own follow lag (~1/30 s) must not sit in the flight laws' loops in normal flight (the pitch loop's margin
+# was hard won, 2026-11-20). Switching is smooth: the limiter tracks the command all the time.
+obj(dyn, 'logic_greater', 'F22HydFlowShort', anchor, Input0='0.9', Input1='F22HydFlow.Output')
+
+
+def hyd_gate(name):
+    """A surface's command through the hydraulics: scaled by the pressure (no pressure: it trails to neutral), then, when
+    the flow is short, its rate limited - y' = clamp(k (u - y), +-servo rate x flow), an integrator. The servo follows
+    F22Hyd<name> as it did."""
     node = dyn_node(name)
     old = bit_command(name, node.get('Input').strip())
-    obj(dyn, 'product', 'F22Hyd' + name, node, Inputs=' %s F22HydAuthority.Output ' % old)
+    rate = float(node.get('Speed') or node.get('OutputSpeed')) * 1.05      # (the air brake is a servolinear)
+    obj(dyn, 'product', 'F22HydCmd' + name, node, Inputs=' %s F22HydAuthority.Output ' % old)
+    obj(dyn, 'mixlinear', 'F22HydErr' + name, node, Input0='F22HydCmd%s.Output' % name,
+        Input1='F22HydLim%s.Output' % name, Weight0=HYD_RATE_LOOP, Weight1=-HYD_RATE_LOOP)
+    obj(dyn, 'product', 'F22HydRateMax' + name, node, Inputs=' F22HydFlow.Output %.4f ' % rate)
+    obj(dyn, 'product', 'F22HydRateMin' + name, node, Inputs=' F22HydFlow.Output %.4f ' % -rate)
+    obj(dyn, 'minimum', 'F22HydRateHi' + name, node, Inputs=' F22HydErr%s.Output F22HydRateMax%s.Output ' % (name, name))
+    obj(dyn, 'maximum', 'F22HydRate' + name, node, Inputs=' F22HydRateHi%s.Output F22HydRateMin%s.Output ' % (name, name))
+    obj(dyn, 'integral_clamped', 'F22HydLim' + name, node, Input='F22HydRate%s.Output' % name, Range=' -10.0 10.0 ',
+        Value=0.0)
+    obj(dyn, 'multiplexer', 'F22Hyd' + name, node, InputSelect='F22HydFlowShort.Output',
+        Inputs=' F22HydCmd%s.Output F22HydLim%s.Output ' % (name, name))
     node.set('Input', 'F22Hyd%s.Output' % name, 'string8')
+
+
+# rudders at high speed (2026-11-22, user's videos 22:37-08:24): 'the fins shake left and right at 500-650 kt' - frame by
+# frame the fin structure stood still (tip vs root ~1 px once the fin springs were fixed) but one edge of each fin's
+# outline - the rudder - swung +-5 px at ~1.8 Hz while the aircraft hardly moved (roll < 0.4 deg, canopy steady): the
+# Hornet's yaw / roll-coordination laws drive this airframe's rudders into a buzz at high dynamic pressure, as their
+# pitch laws did the stabilators (the 2026-11-20 bob, PITCH_Q_GAIN in tvc_f22.py). The same cure: their rudder command
+# scaled down with calibrated airspeed (m/s) above ~430 kt, to half at ~650 kt. Low and medium speed untouched.
+RUDDER_Q_GAIN = ' (220.0 1.0) (270.0 0.75) (335.0 0.5) (420.0 0.45) '
+obj(dyn, 'linear_interpolation', 'F22RudderQGain', anchor, Input='AirDataComputer.OutputCalibratedAirspeed',
+    Map=RUDDER_Q_GAIN)
+for side in ('Left', 'Right'):
+    node = dyn_node('Servo%sRudder' % side)
+    obj(dyn, 'product', 'F22RudderScaled' + side, node, Inputs=' %s F22RudderQGain.Output ' % node.get('Input').strip())
+    node.set('Input', 'F22RudderScaled%s.Output' % side, 'string8')
+for name in HYD_SERVOS:
+    hyd_gate(name)
 # the controls without a function yet (cockpit_controls.py, 2026-11-16): their states - nothing reads them so far
 import cockpit_controls
 cockpit_controls.dynamics(obj, dyn, anchor)
@@ -1738,18 +1845,16 @@ if 'Pilot' in parts:
 
 # ---------------------------------------------------------------------------------------------- exterior lights
 # Switches of the F/A-18 (left console): position lights (Controls.Lighting.Navigation, brightness knob), formation
-# lights (knob), strobe / anti-collision (switch), landing-taxi light (one switch, on only with the nose gear down and
-# locked). Positions and colours from the DCS light nodes; lens geometry (parts L_<key> / A_<nodes>__L<key>) glows
+# lights (knob), landing-taxi light (one switch, on only with the nose gear down and locked). No anti-collision /
+# strobe lights (user 2026-11-22): two red wingtip strobes on the F/A-18's strobe switch were removed - no public source
+# shows such lights on the F-22, so the switch (and the game's strobe key) does nothing. Positions and colours from the DCS light nodes; lens geometry (parts L_<key> / A_<nodes>__L<key>) glows
 # with its switch, point lights are the visible glow sprites, cone lights the light cast on the airframe / ground.
 # Brightness values as the accepted Su-35 lights (themselves sized on the stock F/A-18).
 g('graphics_input', 'GfxPositionLight', InputID=('uint32', published('PositionLightBrightness')))
 g('graphics_input', 'GfxFormationLight', InputID=('uint32', published('FormationLightBrightness')))
-g('graphics_input', 'GfxStrobeLight', InputID=('uint32', published('StrobeLight')))
 g('graphics_input', 'GfxLandingLight', InputID=('uint32', published('LandingLight')))
 g('graphics_input', 'GfxTaxiLight', InputID=('uint32', published('F22TaxiLight')))
 g('graphics_input', 'GfxLightTime', InputID=('uint32', published('UniversalTime')))
-g('graphics_flasher', 'StrobeFlasher', InputTime='GfxLightTime.Output', Function='DoublePulse', Period=2.0)
-g('graphics_product', 'StrobeSwitched', Input0='GfxStrobeLight.Output', Input1='StrobeFlasher.Output')
 g('graphics_product', 'FormationLightScaled', Input0='GfxFormationLight.Output', Input1='0.08')
 # navigation lights: five positions of the NAV knob (DCS arg 715 has 5 detents; the mod drew no lights from it):
 # OFF / DIM / MED / BRT / FLASH, from the F/A-18 position-light knob (0..1, 21 steps) - steady brightness levels and
@@ -1801,9 +1906,9 @@ g('graphics_input', 'GfxBattLampLamp', InputID=('uint32', published('F22OnBatter
 GEAR_LAMPS = {'GearNose': 'F22GearIndicatorColor', 'GearLeft': 'F22GearIndicatorColor',
               'GearRight': 'F22GearIndicatorColor', 'BattLamp': 'F22CautionIndicatorColor'}
 LAMP_SWITCH = {'Formation': 'FormationLightScaled', 'Landing': 'GfxLandingLight', 'Taxi': 'GfxTaxiLight',
-               'GearHandle': 'GfxGearHandleLight'}
+               'GearHandle': 'GfxGearHandleLight', 'NavRed': 'NavLights', 'NavGreen': 'NavLights'}
 # (GearHandle: 900, the annunciators' scale, burnt the wheel out to a pink blob - user 2026-11-17: far too bright)
-LAMP_GAIN = {'Formation': 1.0, 'Landing': 6.0, 'Taxi': 6.0, 'GearHandle': 1.5}
+LAMP_GAIN = {'Formation': 1.0, 'Landing': 6.0, 'Taxi': 6.0, 'GearHandle': 1.5, 'NavRed': 0.6, 'NavGreen': 0.6}   # (3.0 burnt the lens out to white-cyan / white-yellow, 1.2 still orange / turquoise: user 2026-11-22)
 # ('__K<body>' / '__B<body>': a lamp on a breakable part, kept on the fuselage / flying with the body - the swap is
 # breakage_f22.damage_graphics')
 lamp_keys = sorted({re.split('__[KB]', p.split('__L')[-1] if '__L' in p else p[2:])[0] for p in list(parts) + list(anim)
@@ -1872,12 +1977,12 @@ g('graphics_pointlight', 'LightAARReceptacle', **body('Fuselage'), R0=[1.307, 0.
   Color=('tmvector3d', ' 1.0 0.97 0.9 '), Brightness=2.0, Size=0.06, ConeCenter=0.0, ConeCutoff=-0.5,
   InputModulation='GfxAARLight.Output')
 # (name, switch, colour, position, direction, sprite size, sprite brightness, cone brightness, cone centre, cutoff)
+# The wingtip ones sit just over the top of the model's own nav lens (ac_f22.py LAMPS NavRed / NavGreen, top z 0.203;
+# 2026-11-22: they were at z 0.275, in the air above it), at its front. Inside the lens the opaque glass would hide them.
 RED, GREEN, HEAD = (1.0, 0.3, 0.1, 1.0), (0.1, 1.0, 0.3, 1.0), (1.0, 0.92, 0.8, 1.0)
 LIGHTS = [
-    ('NavRed', 'NavLights', RED, [-1.985, 6.223, 0.275], [0.55, 0.83, 0.0], 0.03, 6.0, 0.1, 0.72, 0.23),
-    ('NavGreen', 'NavLights', GREEN, [-1.985, -6.223, 0.275], [0.55, -0.83, 0.0], 0.03, 6.0, 0.1, 0.72, 0.23),
-    ('AntiCollisionLeft', 'StrobeSwitched', RED, [-1.985, 6.243, 0.285], [0.0, 1.0, 0.0], 0.04, 25.0, 0.3, 0.5, -0.3),
-    ('AntiCollisionRight', 'StrobeSwitched', RED, [-1.985, -6.243, 0.285], [0.0, -1.0, 0.0], 0.04, 25.0, 0.3, 0.5, -0.3),
+    ('NavRed', 'NavLights', RED, [-1.950, 6.223, 0.207], [0.55, 0.83, 0.0], 0.03, 6.0, 0.1, 0.72, 0.23),
+    ('NavGreen', 'NavLights', GREEN, [-1.950, -6.223, 0.207], [0.55, -0.83, 0.0], 0.03, 6.0, 0.1, 0.72, 0.23),
     ('Landing', 'GfxLandingLight', HEAD, [5.88, -0.105, -0.805], [0.982, 0.0, -0.19], 0.12, 1.5, 45.0, 0.999, 0.95),
     ('Taxi', 'GfxTaxiLight', HEAD, [5.90, 0.09, -0.78], [0.9998, 0.0, -0.02], 0.12, 1.5, 20.0, 0.995, 0.93),
 ]
@@ -2072,9 +2177,16 @@ window('ICPScratch', screens['DisplayICPScratch'], [
 for k in (1, 2):
     obj(dyn, 'multiplexer_text', 'F22Eng%dShortText' % k, anchor, InputSelect='F22Eng%dStageW.Output' % k,
         Inputs=' %s ' % ' '.join(ufc_label(('L ' if k == 1 else 'R ') + t) for t in ('OFF', 'MOT', 'STRT', 'RUN', 'FADC', 'WMIL')))
+    # a fire (failures_f22 F22FireWarn<k>) in the engine's own column, red, in place of its state (2026-11-22)
+    obj(dyn, 'multiplexer_text', 'F22Eng%dShortShown' % k, anchor, InputSelect='F22FireWarn%d.Output' % k,
+        Inputs=' F22Eng%dShortText.Output BlankLabel.Output ' % k)
+    obj(dyn, 'multiplexer_text', 'F22Eng%dShortFire' % k, anchor, InputSelect='F22FireWarn%d.Output' % k,
+        Inputs=' BlankLabel.Output %s ' % ufc_label(('L ' if k == 1 else 'R ') + 'FIRE'))
 ufd_l = [label('ENG', (440, 890))] + [
-    place_copy('UpFrontControllerLine0', 'F22Eng%dShortItem' % k, Input=text_out('Eng%dShort' % k, 'F22Eng%dShortText.Output' % k),
-               Position=' %d 890 ' % x, Length='6', LeftJustified='false', **UFD_FONT) for k, x in ((1, 544), (2, 649))]
+    place_copy('UpFrontControllerLine0', 'F22Eng%dShortItem' % k, Input=text_out('Eng%dShort' % k, 'F22Eng%dShortShown.Output' % k),
+               Position=' %d 890 ' % x, Length='6', LeftJustified='false', **UFD_FONT) for k, x in ((1, 544), (2, 649))] + [
+    place_copy('UpFrontControllerLine0', 'F22Eng%dFireItem' % k, Input=text_out('Eng%dFire' % k, 'F22Eng%dShortFire.Output' % k),
+               Position=' %d 890 ' % x, Length='6', LeftJustified='false', **dict(UFD_FONT, Color=' 1 0.2 0.15 1 ')) for k, x in ((1, 544), (2, 649))]
 for row, (text, src, scale) in enumerate([('RPM', 'N2', 100.0), ('EGT', 'TemperatureInCentigrade', 1.0),
                                           ('FF', 'FuelFlow', 7936.641438), ('NOZ', 'NozzlePosition', 100.0),
                                           ('OIL', 'OilPressure', 0.000145037681)]):
@@ -2145,7 +2257,7 @@ voice('F22VoiceVolumeToneIn', published('F22VoiceVolumeClick'), 'vox_tone.wav', 
 obj(dyn, 'variable', 'F22AltFloor', anchor, Value='60.96')
 obj(dyn, 'logic_greater', 'F22AltBelowFloor', anchor, Input0='F22AltFloor.Output', Input1='RadarAltimeter.Output')
 obj(dyn, 'logic_invert', 'F22VoiceNoPullUp', anchor, Input='F22PullUp.Output')
-obj(dyn, 'logic_and', 'F22AltWarning', anchor, Inputs=' F22AltBelowFloor.Output F22GcasSinking.Output NoGearDown.Output F22AtAirborne.Output F22VoiceNoPullUp.Output ')
+obj(dyn, 'logic_and', 'F22AltWarning', anchor, Inputs=' F22AltBelowFloor.Output F22GcasSinkFast.Output NoGearDown.Output F22AtAirborne.Output F22VoiceNoPullUp.Output ')
 obj(dyn, 'logic_confirm_delay', 'F22AltWarningHeld', anchor, Input='F22AltWarning.Output', TimeUp=0.1, TimeDown=5.0, Threshold=0.5)
 obj(dyn, 'product', 'F22VoiceAltitude', anchor, Inputs=' F22AltWarningHeld.Output F22VoiceOn.Output ')
 voice('F22VoiceAltitudeIn', published('F22VoiceAltitude'), 'voice_altitude.wav', 3.0)
@@ -2184,13 +2296,16 @@ obj(dyn, 'maximum', 'F22BuffetAny', anchor, Inputs=' F22BuffetAoa.Output F22Buff
 obj(dyn, 'linear_interpolation', 'F22BuffetSpeed', anchor, Input='AirDataComputer.OutputCalibratedAirspeed', Map=' (30.0 0.0) (80.0 1.0) ')
 obj(dyn, 'product', 'F22Buffet', anchor, Inputs=' F22BuffetAny.Output F22BuffetSpeed.Output ')
 obj(snd, 'soundinput', 'F22FlowCas', InputID=('uint32', 'F22SoundCas.Output'))
-obj(snd, 'soundmapping', 'F22FlowVolume', Input='F22FlowCas.Output', Map=' (0.0 0.0) (40.0 0.006) (100.0 0.025) (200.0 0.06) (350.0 0.105) (600.0 0.135) ')    # 0.3 x the first try: at 300-500 kt it was as loud as the engines (user)
+obj(snd, 'soundmapping', 'F22FlowVolume', Input='F22FlowCas.Output', Map=' (0.0 0.0) (40.0 0.0024) (100.0 0.01) (200.0 0.024) (350.0 0.042) (600.0 0.054) ')    # 0.3 x the first try: at 300-500 kt it was as loud as the engines (user); x 0.4 again 2026-11-21 (wind covered the engines in the cockpit, user: 2-3 x quieter)
 obj(snd, 'soundmapping', 'F22FlowPitch', Input='F22FlowCas.Output', Map=' (0.0 0.7) (100.0 0.8) (300.0 1.1) (600.0 1.3) ')
 cockpit_loop('F22FlowSound', 'F22FlowVolume.Output', 'F22FlowPitch.Output', 'flow_noise.wav')
 obj(snd, 'soundinput', 'F22BuffetIn', InputID=('uint32', published('F22Buffet')))
 obj(snd, 'soundmultiply', 'F22BuffetVolume', Input0='F22BuffetIn.Output', Input1='0.6')
 # pitch 2.5: the file's 22-90 Hz could not be heard in the first test (small speakers do not reach that low, not confirmed), now about 55-225 Hz
 cockpit_loop('F22BuffetSound', 'F22BuffetVolume.Output', '2.5', 'buffet.wav')
+# engine sound: the stock F-15E's recordings in place of the F/A-18's (engine_sound_f22.py)
+import engine_sound_f22
+engine_sound_f22.apply(globals())
 # Auto-GCAS (our choice, as on the F-16 and F-35; nothing is known of one on the F-22). The HUD arrow alone is too late for it: the game's cue gives one second before the point where a pilot
 # with wings level must pull (terrain_radar, game code), and a second of delay on top lost the aircraft nearly every time, inverted always (user, 2026-11-01). So it works out the room it needs:
 # from its own path (TerrainRadar.OutputDistance along the velocity, 0 = no ground within 20 s, x sine of the path = height) against the sink during the reaction and the roll to level, the sink
@@ -2213,23 +2328,51 @@ obj(dyn, 'inverse', 'F22GcasPerSpeed', anchor, Input='F22GcasSpeed.Output')
 obj(dyn, 'linear', 'F22GcasSink', anchor, Input=IRS + 'VerticalVelocity', Scaling=-1.0)
 obj(dyn, 'product', 'F22GcasPathSine', anchor, Inputs=' F22GcasSink.Output F22GcasPerSpeed.Output ')
 obj(dyn, 'product', 'F22GcasHeight', anchor, Inputs=' TerrainRadar.OutputDistance F22GcasPathSine.Output ')
-obj(dyn, 'linear_interpolation', 'F22GcasTimeToPull', anchor, Input='F22GcasBank.Output', Map=' (-3.1416 2.1) (-2.09 1.7) (-1.05 1.2) (0.0 0.8) (1.05 1.2) (2.09 1.7) (3.1416 2.1) ')
+# time until the pull is on (2026-11-20, Alps: diving off a ridge into the valley it came in half way down, where the
+# pilot would still pull in time): an automatic system has no reaction time, only the g onset - 0.5 s wings level
+# (was 0.8), the roll on top as before
+obj(dyn, 'linear_interpolation', 'F22GcasTimeToPull', anchor, Input='F22GcasBank.Output', Map=' (-3.1416 1.8) (-2.09 1.4) (-1.05 0.9) (0.0 0.5) (1.05 0.9) (2.09 1.4) (3.1416 1.8) ')
 obj(dyn, 'linear_interpolation', 'F22GcasRollSink', anchor, Input='F22GcasBank.Output', Map=' (-3.1416 30.0) (-1.57 9.0) (0.0 0.0) (1.57 9.0) (3.1416 30.0) ')
 obj(dyn, 'linear_interpolation', 'F22GcasRollDrop', anchor, Input='F22GcasBank.Output', Map=' (-3.1416 28.0) (-1.57 8.0) (0.0 0.0) (1.57 8.0) (3.1416 28.0) ')
-obj(dyn, 'product', 'F22GcasReactDrop', anchor, Inputs=' F22GcasSink.Output F22GcasTimeToPull.Output ')
+# The pilot already pulling (over 2 g): the reaction and the roll to level are done - the room is only what the
+# pull itself needs. Player test 2026-11-20 (after the first low-level fix): hopping between hills with a moderate pull
+# (under half stick, which alone does not hold GCAS off) it still took over: it counted 0.8-2 s of reaction and a roll
+# the pilot had already made
+obj(dyn, 'logic_greater', 'F22GcasPilotPulling', anchor, Input0='Accelerometer.Acceleration', Input1='%.2f' % (2.0 * 9.81))
+obj(dyn, 'linear', 'F22GcasReactShare', anchor, Input='F22GcasPilotPulling.Output', Scaling=-0.75, Offset=1.0)
+obj(dyn, 'linear', 'F22GcasRollShare', anchor, Input='F22GcasPilotPulling.Output', Scaling=-1.0, Offset=1.0)
+obj(dyn, 'product', 'F22GcasReactDrop', anchor, Inputs=' F22GcasSink.Output F22GcasTimeToPull.Output F22GcasReactShare.Output ')
 obj(dyn, 'mixlinear', 'F22GcasSinkAtPull', anchor, Input0='F22GcasSink.Output', Input1='F22GcasRollSink.Output', Weight0=1.0, Weight1=1.0)
 obj(dyn, 'product', 'F22GcasSineAtPull', anchor, Inputs=' F22GcasSinkAtPull.Output F22GcasPerSpeed.Output ')
 obj(dyn, 'linear_interpolation', 'F22GcasCosLoss', anchor, Input='F22GcasSineAtPull.Output', Map=' (0.0 0.0) (0.2 0.0202) (0.4 0.0835) (0.6 0.2) (0.8 0.4) (1.0 1.0) ')
-# V^2 / a, a = what the wing gives (1 g speed ~70 m/s) up to about 7 g on the stick
-obj(dyn, 'linear_interpolation', 'F22GcasRadius', anchor, Input='F22GcasSpeed.Output', Map=' (50.0 833.0) (70.0 980.0) (100.0 833.0) (140.0 653.0) (170.0 602.0) (200.0 667.0) (250.0 1042.0) (300.0 1500.0) (400.0 2667.0) (600.0 6000.0) (800.0 10667.0) ')
+# V^2 / a, a = what the wing gives up to about 6 g on the stick. (2026-11-20: the lift no longer counted twice under the
+# inner wing, fuselage aero above, ~0.7 of the lift at a given angle: below the corner speed a falls to 0.7, the
+# corner speed rises from ~170 to ~230 m/s; was 833 980 833 653 602 667 1042 at 50 .. 250 m/s)
+# (2026-11-20 later: the fly-up pulls 95 % of the stick, ~8.5 g, as a pilot would, so ~8 g past the corner speed, now
+# ~260 m/s; was ~6 g with 1042 1500 2667 6000 10667 at 250 .. 800 m/s)
+obj(dyn, 'linear_interpolation', 'F22GcasRadius', anchor, Input='F22GcasSpeed.Output', Map=' (50.0 1190.0) (70.0 1400.0) (100.0 1190.0) (140.0 933.0) (170.0 860.0) (200.0 860.0) (230.0 860.0) (260.0 861.0) (300.0 1146.0) (400.0 2038.0) (600.0 4586.0) (800.0 8153.0) ')
 obj(dyn, 'product', 'F22GcasPullDrop', anchor, Inputs=' F22GcasRadius.Output F22GcasCosLoss.Output ')
-obj(dyn, 'sum', 'F22GcasRoomNeeded', anchor, Inputs=' F22GcasReactDrop.Output F22GcasRollDrop.Output F22GcasPullDrop.Output 40.0 ')
+obj(dyn, 'product', 'F22GcasRollDropLeft', anchor, Inputs=' F22GcasRollDrop.Output F22GcasRollShare.Output ')
+# 25 m over the terrain (was 40): the estimate of the pull itself held the lowest point within ~10 m on the model
+obj(dyn, 'sum', 'F22GcasRoomNeeded', anchor, Inputs=' F22GcasReactDrop.Output F22GcasRollDropLeft.Output F22GcasPullDrop.Output 25.0 ')
 obj(dyn, 'logic_greater', 'F22GcasNoRoom', anchor, Input0='F22GcasRoomNeeded.Output', Input1='F22GcasHeight.Output')
 obj(dyn, 'logic_greater', 'F22GcasGroundAhead', anchor, Input0='TerrainRadar.OutputDistance', Input1='1.0')
-obj(dyn, 'logic_greater', 'F22GcasSinking', anchor, Input0='F22GcasSink.Output', Input1='3.0')
+# Low-level flying (player report 2026-11-20, Armitage: through the Mach Loop valleys GCAS kept taking over until he
+# switched it off). Both checks read the terrain straight along the velocity, so a valley wall ahead in nearly level
+# flight looked like ground under a descending path: the height estimate is then ~0 and any sink over 3 m/s, or any
+# path below the horizon with the game's PULL UP arrow up, started a fly-up away from the turn the pilot was flying.
+# Now, as the real systems aim for (in at the last moment, not in the pilot's way down low): the predicted check needs
+# a path at least 1.5 deg down (as well as 3 m/s), the arrow a path 1.5 deg down with the wings within 60 deg of level
+# - in a hard turn the line along the velocity is not where the aircraft goes. Dives, steep or banked, stay with the
+# predicted check. Level flight into a ridge is the pilot's (PULL UP voice and arrow), as before.
+obj(dyn, 'logic_greater', 'F22GcasSinkFast', anchor, Input0='F22GcasSink.Output', Input1='3.0')
+obj(dyn, 'logic_greater', 'F22GcasPathDown', anchor, Input0='F22GcasPathSine.Output', Input1='0.026')
+obj(dyn, 'logic_and', 'F22GcasSinking', anchor, Inputs=' F22GcasSinkFast.Output F22GcasPathDown.Output ')
 obj(dyn, 'logic_and', 'F22GcasPredicted', anchor, Inputs=' F22GcasNoRoom.Output F22GcasGroundAhead.Output F22GcasSinking.Output ')
-obj(dyn, 'logic_greater', 'F22GcasGoingDown', anchor, Input0='0.0', Input1=IRS + 'FlightPathAngle')
-obj(dyn, 'logic_and', 'F22GcasArrowDown', anchor, Inputs=' F22PullUp.Output F22GcasGoingDown.Output ')
+obj(dyn, 'logic_greater', 'F22GcasGoingDown', anchor, Input0='-0.026', Input1=IRS + 'FlightPathAngle')
+obj(dyn, 'linear_interpolation', 'F22GcasBankSmall', anchor, Input='F22GcasBank.Output', Map=' (-1.06 0.0) (-1.04 1.0) (1.04 1.0) (1.06 0.0) ')
+obj(dyn, 'logic_invert', 'F22GcasPilotNotPulling', anchor, Input='F22GcasPilotPulling.Output')
+obj(dyn, 'logic_and', 'F22GcasArrowDown', anchor, Inputs=' F22PullUp.Output F22GcasGoingDown.Output F22GcasBankSmall.Output F22GcasPilotNotPulling.Output ')
 obj(dyn, 'logic_or', 'F22GcasDanger', anchor, Inputs=' F22GcasPredicted.Output F22GcasArrowDown.Output ')
 obj(dyn, 'logic_and', 'F22GcasStart', anchor, Inputs=' F22GcasDanger.Output F22GcasArmed.Output F22GcasPilotNot.Output NoGearDown.Output F22AtAirborne.Output INSOn.Output ')   # (INS on AC)
 obj(dyn, 'variable', 'F22GcasActive', anchor, Value='0.0')
@@ -2243,8 +2386,9 @@ obj(dyn, 'logic_and', 'F22GcasClear', anchor, Inputs=' F22GcasDangerNot.Output F
 obj(dyn, 'logic_or', 'F22GcasEnd', anchor, Inputs=' F22GcasClear.Output F22GcasPathWellUp.Output F22GcasPilot.Output F22GcasArmedNot.Output AnyGearDown.Output OnGroundSensor.Output ')
 obj(dyn, 'event_edge_rising', 'F22GcasEnded', anchor, Input='F22GcasEnd.Output', Events=' F22GcasOff.Trigger ', Value=1.0, Threshold=0.5)
 obj(dyn, 'linear_interpolation', 'F22GcasRollCommand', anchor, Input='F22GcasBank.Output', Map=' (-1.2 1.0) (1.2 -1.0) ')
-# ~7 g on the stick's scale of 9 g. No pull until the wings are within 60 deg of level: inverted, a pull goes down
-obj(dyn, 'linear_interpolation', 'F22GcasPitchCommand', anchor, Input='F22GcasBank.Output', Map=' (-2.1 0.0) (-1.57 -0.4) (-1.05 -0.85) (1.05 -0.85) (1.57 -0.4) (2.1 0.0) ')
+# 95 % of the stick, ~8.5 g on its scale of 9 g (was 85 %, 2026-11-20: as hard as the pilot would pull, so that it
+# can wait as long as the pilot). No pull until the wings are within 60 deg of level: inverted, a pull goes down
+obj(dyn, 'linear_interpolation', 'F22GcasPitchCommand', anchor, Input='F22GcasBank.Output', Map=' (-2.1 0.0) (-1.57 -0.45) (-1.05 -0.95) (1.05 -0.95) (1.57 -0.45) (2.1 0.0) ')
 obj(dyn, 'servoclassic', 'F22GcasBlend', anchor, Input='F22GcasActive.Output', Speed=2.5, P0=0.0, P1=1.0, P2=0.0, P3=0.0, Position=0.0)
 obj(dyn, 'linear', 'F22GcasKeep', anchor, Input='F22GcasBlend.Output', Scaling=-1.0, Offset=1.0)
 for axis, stick, servo, cmd_ in (('Pitch', 'ElevatorInput', 'ServoElevatorStick', 'F22GcasPitchCommand'), ('Roll', 'AileronInput', 'ServoAileronStick', 'F22GcasRollCommand')):
@@ -2262,7 +2406,20 @@ obj(dyn, 'logic_confirm_delay', 'F22OverG', anchor, Input='F22OverAny.Output', T
 obj(dyn, 'logic_greater', 'F22AoaOver', anchor, Input0='PitotTube.AngleOfAttack', Input1='0.698')
 obj(dyn, 'logic_greater', 'F22AoaFlying', anchor, Input0='AirDataComputer.OutputCalibratedAirspeed', Input1='25.0')
 obj(dyn, 'logic_and', 'F22AoaHigh', anchor, Inputs=' F22AoaOver.Output F22AoaFlying.Output F22AtAirborne.Output ')
-ICAWS = [('FUEL LOW', 'CautionFuelLow'), ('BINGO', 'BingoFuelReached'), ('L GEN', 'Engine1GeneratorCaution'),
+# before the damage (2026-11-22, avionics block B): JOKER - the fuel under the JOKER the pilot set (yellow, steady, gone
+# once BINGO takes over); OVERSPD - faster than 780 KCAS (800 KCAS: the F-22's tested limit at sea level, as the AOA
+# X-Plane F-22's author quotes it; the COND rudder flutter starts over 800 KCAS); GEAR SPD - a gear down faster than 280 KCAS
+# (COND damages it from 300 kt held 3 s)
+obj(dyn, 'logic_greater', 'F22JokerBelow', anchor, Input0='F22JokerFuel.Output', Input1='TotalFuel.Output')
+obj(dyn, 'logic_invert', 'F22BingoNotReached', anchor, Input='BingoFuelReached.Output')
+obj(dyn, 'logic_and', 'F22JokerReached', anchor, Inputs=' F22JokerBelow.Output F22BingoNotReached.Output ')
+obj(dyn, 'logic_greater', 'F22OverspeedRaw', anchor, Input0='AirDataComputer.OutputCalibratedAirspeed', Input1='%.2f' % (780 * 0.514444))
+obj(dyn, 'logic_confirm_delay', 'F22Overspeed', anchor, Input='F22OverspeedRaw.Output', TimeUp=0.5, TimeDown=1.0, Threshold=0.5)
+obj(dyn, 'logic_greater', 'F22GearFast', anchor, Input0='AirDataComputer.OutputCalibratedAirspeed', Input1='%.2f' % (280 * 0.514444))
+obj(dyn, 'logic_and', 'F22GearSpeedRaw', anchor, Inputs=' AnyGearDown.Output F22GearFast.Output ')
+obj(dyn, 'logic_confirm_delay', 'F22GearSpeed', anchor, Input='F22GearSpeedRaw.Output', TimeUp=1.0, TimeDown=1.0, Threshold=0.5)
+ICAWS = [('FUEL LOW', 'CautionFuelLow'), ('BINGO', 'BingoFuelReached'), ('JOKER', 'F22JokerReached'),
+         ('OVERSPD', 'F22Overspeed'), ('GEAR SPD', 'F22GearSpeed'), ('L GEN', 'Engine1GeneratorCaution'),
          ('R GEN', 'Engine2GeneratorCaution'), ('PARK BRK', 'ParkingBrakeSet'), ('CANOPY', 'CanopyOpen'),
          ('SPD BRK', 'F22SpeedBrakeOut'), ('FLAPS', 'F22FlapsAlt'), ('AP OFF', 'CautionAutopilot'),
          ('ANTISKID', 'AntiSkidOff'), ('BAY OPEN', 'F22BayOpen'),
@@ -2277,7 +2434,7 @@ ICAWS += failures_f22.ICAWS
 # CAS.MasterCaution); the advisories (speed brake, flaps, parking brake) stay steady. The generators join the CAS
 # cautions (the Hornet's CAS had no GEN message: switching a generator off raised nothing)
 ADVISORIES = ('F22SpeedBrakeOut', 'F22FlapsAlt', 'ParkingBrakeSet', 'F22BayOpen', 'F22PullUp', 'F22AoaHigh', 'F22GcasActive', 'F22AtActive',
-              'F22BitRunning', 'F22BitPassShow')
+              'F22BitRunning', 'F22BitPassShow', 'F22JokerReached')
 # BIT PASS on the ground only (in the air it stayed lit the whole flight, user 2026-11-06: clutter); FCS: the Hornet's
 # aileron-off caution or the direct mode (tvc_f22: the laws are bypassed)
 # ... and until the ICAWS reset (left button under the left UFD, as a caution's acknowledge; user 2026-11-07: it stayed
@@ -2314,9 +2471,9 @@ g('graphics_animation_render_list', 'F22Nothing', RenderList='  ')
 # flashes in its place (the list does not jump). 16 at a stride of 14: any message can land in the third column (8
 # letters at 15.3 ran out of the screen). The packing was checked offline on 20000 random sets.
 UFD_RED = (1.0, 0.2, 0.15, 1.0)
-ICAWS_WARN = ('F22PullUp', 'F22OverG', 'F22HydLow', 'F22FcsIcaws') + failures_f22.ICAWS_WARN
+ICAWS_WARN = ('F22PullUp', 'F22OverG', 'F22Overspeed', 'F22HydLow', 'F22FcsIcaws') + failures_f22.ICAWS_WARN
 ICAWS_STATE = ('ParkingBrakeSet', 'F22SpeedBrakeOut', 'F22FlapsAlt', 'F22BayOpen', 'F22GcasActive', 'F22AtActive',
-               'F22BitRunning', 'F22BitPassShow')
+               'F22BitRunning', 'F22BitPassShow', 'F22JokerReached')
 icaws_text = dict((c, t) for t, c in ICAWS)
 icaws_order = list(ICAWS_WARN) + [c for _, c in ICAWS if c not in ICAWS_WARN and c not in ICAWS_STATE] + list(ICAWS_STATE)
 assert sorted(icaws_order) == sorted(c for _, c in ICAWS)
@@ -2379,7 +2536,8 @@ def ufd_text(key, src, pos, n, font=UFD_FONT):
 
 
 obj(dyn, 'variable', 'F22UfdRPage', anchor, Value='0.0')
-obj(dyn, 'logic_invert', 'F22UfdRPageOther', anchor, Input='F22UfdRPage.Output')
+# three pages since 2026-11-22 (NAV added, avionics block A6): SFI -> TIME -> NAV -> SFI
+obj(dyn, 'linear_interpolation', 'F22UfdRPageOther', anchor, Input='F22UfdRPage.Output', Map=' (0.0 1.0) (1.0 2.0) (1.5 2.0) (1.5001 0.0) (2.0 0.0) ')
 obj(dyn, 'event_value', 'F22UfdRPageNext', anchor, Input='F22UfdRPageOther.Output', Events=' F22UfdRPage.Set ')
 # the lower middle key, with the next page's name over it (user 2026-11-17: the key above the screen sits over the
 # ADI's corner boxes, no room for its legend; the next page of a longer list would come the same way). The top key
@@ -2391,7 +2549,7 @@ obj(dyn, 'logic_or', 'F22StandbyNeeded', anchor, Inputs=' F22OnBattery.Output F2
 obj(dyn, 'event_value', 'F22UfdRToSfiSet', anchor, Input='0.0', Events=' F22UfdRPage.Set ')
 obj(dyn, 'event_edge_rising', 'F22UfdRToSfi', anchor, Input='F22StandbyNeeded.Output', Events=' F22UfdRToSfiSet.Trigger ',
     Value=1.0, Threshold=0.5)
-g('graphics_animation_render_switch', 'F22UfdAdiSwitch', Input='GfxF22UfdRPage.Output', RenderList=' ADIPage F22Nothing ')
+g('graphics_animation_render_switch', 'F22UfdAdiSwitch', Input='GfxF22UfdRPage.Output', RenderList=' ADIPage F22Nothing F22Nothing ')
 window('UFDRightADI', screens['DisplayRightUFD'], ['F22UfdAdiSwitch'], pos=(432, 345), size=(255, 255))
 clock_src, _, _ = dyn_value('LocalTime')
 obj(dyn, 'time_to_text', 'UFDClockText', anchor, Input=clock_src, Hours=('bool', 'true'), Seconds=('bool', 'true'))
@@ -2400,7 +2558,31 @@ obj(dyn, 'time_to_text', 'UFDClockText', anchor, Input=clock_src, Hours=('bool',
 # FPAS page's own figures (F22PerfTime / F22PerfRange), held at 999 min / 9999 NM with the engines off
 obj(dyn, 'clamp', 'F22UfdFuelTime', anchor, Input='F22PerfTime.Output', Range=('tmvector2d', ' 0.0 59940.0 '))
 obj(dyn, 'clamp', 'F22UfdFuelRange', anchor, Input='F22PerfRange.Output', Range=('tmvector2d', ' 0.0 18518000.0 '))
-ufd_r = [label('FUEL', (694, 575), 15.0), number('TotalFuel', 'FuelTotal', (694, 549), 2.204622621849, 6, font=UFD_NARROW),
+# the fuel's colour (2026-11-22, avionics block A7): 0 green above JOKER, 1 amber under JOKER, 2 red under BINGO -
+# the total on this UFD and on the FPAS page
+obj(dyn, 'mixlinear', 'F22FuelBingoTwo', anchor, Input0='BingoFuelReached.Output', Input1='1.0', Weight0=2.0, Weight1=0.0)
+obj(dyn, 'maximum', 'F22FuelState', anchor, Inputs=' F22JokerBelow.Output F22FuelBingoTwo.Output ')
+FUEL_COLOURS = (mfd_f22.GREEN, AMBER, UFD_RED)
+
+
+def fuel_number(src, key, pos, scale, n, font):
+    """A number in the fuel's colour (F22FuelState): three copies, one of them non-blank."""
+    obj(dyn, 'mixlinear', 'UFDValue' + key, anchor, Input0=src, Input1='1.0', Weight0=scale, Weight1=0.0)
+    obj(dyn, 'int_to_text', 'UFDNumber' + key, anchor, Input='UFDValue%s.Output' % key)
+    out = []
+    for i, rgba in enumerate(FUEL_COLOURS):
+        pick = ['BlankLabel.Output'] * 3
+        pick[i] = 'UFDNumber%s.Output' % key
+        obj(dyn, 'multiplexer_text', 'UFDNumber%sC%d' % (key, i), anchor, InputSelect='F22FuelState.Output',
+            Inputs=' %s ' % ' '.join(pick))
+        out.append(place_copy('UpFrontControllerLine0', 'UFDNumber%sC%d' % (key, i),
+                              Input=text_out('%sC%d' % (key, i), 'UFDNumber%sC%d.Output' % (key, i)),
+                              Position=' %d %d ' % pos, Length=str(n), LeftJustified='false', **dict(font, Color=' %g %g %g %g ' % rgba)))
+    return out
+
+
+fuel_src, fuel_k, _ = dyn_value('TotalFuel')
+ufd_r = [label('FUEL', (694, 575), 15.0)] + fuel_number(fuel_src, 'FuelTotal', (694, 549), fuel_k * 2.204622621849, 6, UFD_NARROW) + [
          label('T', (694, 515), 15.0), number_of('F22UfdFuelTime.Output', 'UfdFuelTime', (720, 515), 1 / 60.0, n=4, font=UFD_NARROW),
          label('R', (694, 490), 15.0), number_of('F22UfdFuelRange.Output', 'UfdFuelRange', (720, 490), 1 / 1852.0, n=4, font=UFD_NARROW),
          place_copy('UpFrontControllerLine0', 'UFDClock', Input=text_out('Clock', 'UFDClockText.Output'),
@@ -2437,8 +2619,8 @@ obj(dyn, 'variable', 'F22StopwatchRunning', anchor, Value='0.0')
 obj(dyn, 'logic_invert', 'F22StopwatchOther', anchor, Input='F22StopwatchRunning.Output')
 obj(dyn, 'event_value', 'F22StopwatchToggle', anchor, Input='F22StopwatchOther.Output', Events=' F22StopwatchRunning.Set ')
 obj(dyn, 'integral', 'F22Stopwatch', anchor, Input='F22StopwatchRunning.Output')
-obj(dyn, 'event_demultiplexer', 'F22UfdR1Event', anchor, InputSelect='F22UfdRPage.Output', Events=' DEV0.Trigger F22StopwatchToggle.Trigger ')
-obj(dyn, 'event_demultiplexer', 'F22UfdR3Event', anchor, InputSelect='F22UfdRPage.Output', Events=' DEV0.Trigger F22Stopwatch.Reset ')
+obj(dyn, 'event_demultiplexer', 'F22UfdR1Event', anchor, InputSelect='F22UfdRPage.Output', Events=' DEV0.Trigger F22StopwatchToggle.Trigger DEV0.Trigger ')
+obj(dyn, 'event_demultiplexer', 'F22UfdR3Event', anchor, InputSelect='F22UfdRPage.Output', Events=' DEV0.Trigger F22Stopwatch.Reset DEV0.Trigger ')
 ufd_button('F22UfdR1Button', 'UFD.RightKey1', 'F22UfdR1Event.Trigger')
 ufd_button('F22UfdR3Button', 'UFD.RightKey3', 'F22UfdR3Event.Trigger')
 for n_, src in (('F22FlightTimeText', 'F22FlightTime.Output'), ('F22StopwatchText', 'F22Stopwatch.Output')):
@@ -2449,7 +2631,7 @@ time_page = [label('TIME', (585, 585), 17.0),
              label('FLIGHT', (445, 500)), ufd_text('TimeFlight', 'F22FlightTimeText.Output', (590, 500), 8),
              label('TIMER', (445, 455)), ufd_text('TimeState', 'F22StopwatchState.Output', (590, 455), 4),
              ufd_text('TimeWatch', 'F22StopwatchText.Output', (470, 400), 8, dict(UFD_FONT, FontSize=34.0, Stride=28.0)),
-             label('ST/SP', (522, 328), 15.0), label('SFI', (627 - int(1.5 * 13.5), 328), 15.0), label('RST', (678, 328), 15.0)]
+             label('ST/SP', (522, 328), 15.0), label('NAV', (627 - int(1.5 * 13.5), 328), 15.0), label('RST', (678, 328), 15.0)]
 # (2026-11-07, user) the stopwatch also on the SFI page, under the clock - once started (running, or stopped with a
 # time on it); the flight time stays on TIME only
 obj(dyn, 'logic_greater', 'F22StopwatchUsed', anchor, Input0='F22Stopwatch.Output', Input1='0.5')
@@ -2462,7 +2644,33 @@ ufd_r.append('F22UfdSfiWatch')
 ufd_r.append(label('TIME', (627 - int(2 * 13.5), 328), 15.0))
 g('graphics_animation_render_list', 'F22UfdSfiList', RenderList=' %s ' % ' '.join(ufd_r))
 g('graphics_animation_render_list', 'F22UfdTimeList', RenderList=' %s ' % ' '.join(time_page))
-g('graphics_animation_render_switch', 'F22UfdRPages', Input='GfxF22UfdRPage.Output', RenderList=' F22UfdSfiList F22UfdTimeList ')
+# NAV (2026-11-22, avionics block A6, after the AOA F-22's CNI display): the next waypoint of the game's route (name,
+# distance, time), the selected course and heading, and which receivers are on. No radio channels: the Hornet's
+# COM1 / COM2 carry no frequency (they were taken off this UFD on 2026-11-06 as meaningless)
+# time to the next waypoint = distance / ground speed (the game's OutputNextWaypointTime is the arrival as a time of
+# day - the HUD's ETA; read as a duration it showed 983 min for 1 NM, in-game 2026-11-22). Held at 0 .. 99 h
+obj(dyn, 'maximum', 'F22NavGroundSpeed', anchor, Inputs=' InertialReferenceSystem.OutputGroundSpeed 1.0 ')
+obj(dyn, 'inverse', 'F22NavPerSpeed', anchor, Input='F22NavGroundSpeed.Output')
+obj(dyn, 'product', 'F22NavEteRaw', anchor, Inputs=' GPSNavigationSystem.OutputNextWaypointDistance F22NavPerSpeed.Output ')
+obj(dyn, 'clamp', 'F22NavEte', anchor, Input='F22NavEteRaw.Output', Range=('tmvector2d', ' 0.0 356400.0 '))
+for n_, src in (('F22UfdNavIls', 'F22CNIILSOn.Output'), ('F22UfdNavTcn', 'F22CNITACANOn.Output')):
+    obj(dyn, 'binary_to_text', n_, anchor, Input=src, Text0='OFF', Text1='ON')
+# (the local time top left, as on the SFI page: user 2026-11-22 - ETE says how long to the point, the clock how long
+# it has been)
+nav_page = [label('NAV', (600, 585), 17.0), ufd_text('NavClock', 'UFDClockText.Output', (445, 585), 8, UFD_NARROW),
+            label('STPT', (445, 545)), ufd_text('NavStpt', 'GPSNavigationSystem.OutputNextWaypointIdentifier', (560, 545), 8),
+            label('DIST', (445, 507)), number_of('GPSNavigationSystem.OutputNextWaypointDistance', 'NavDist', (620, 507), 1 / 1852.0, n=5),
+            label('ETE', (445, 469)), number_of('F22NavEte.Output', 'NavEte', (620, 469), 1 / 60.0, n=5),
+            label('CRS', (445, 431)), number_of('SelectedCourse.Output', 'NavCrs', (620, 431), 180.0 / math.pi, n=5),
+            label('HSEL', (445, 393)), number_of('SelectedHeading.Output', 'NavHsel', (620, 393), 180.0 / math.pi, n=5),
+            # RCV: the receivers' power (ICP NAV -> ILS / TCN -> UNDO), not the HSI's boxed TCN / ILS, which only pick
+            # what the HSI shows (user 2026-11-22: 'ILS OFF' with ILS boxed on the HSI read as a fault)
+            label('RCV', (445, 355), 15.0),
+            label('ILS', (495, 355), 15.0), ufd_text('NavIls', 'F22UfdNavIls.Output', (540, 355), 3, UFD_NARROW),
+            label('TCN', (600, 355), 15.0), ufd_text('NavTcn', 'F22UfdNavTcn.Output', (645, 355), 3, UFD_NARROW),
+            label('SFI', (627 - int(1.5 * 13.5), 328), 15.0)]
+g('graphics_animation_render_list', 'F22UfdNavList', RenderList=' %s ' % ' '.join(nav_page))
+g('graphics_animation_render_switch', 'F22UfdRPages', Input='GfxF22UfdRPage.Output', RenderList=' F22UfdSfiList F22UfdTimeList F22UfdNavList ')
 window('UFDRight', screens['DisplayRightUFD'], ['F22UfdRPages'])
 # BAY page (stage 6) on the MFDs in place of the Hornet's stores page (page 10): the left buttons L BAY / C BAY /
 # R BAY / ALL (boxed = commanded open), centre: each bay's load and door state, the ferry tanks. DDI page units
@@ -2504,6 +2712,20 @@ for row, (bay, short) in enumerate((('Left', 'LFT'), ('Center', 'CTR'), ('Right'
 bay_items += [label('TANKS', (110, 640), BAY_FONT),
               place_copy('UpFrontControllerLine0', 'F22BayPageTanks', Input=text_out('Tanks', 'F22TanksText.Output'),
                          Position=' 330 640 ', Length='11', **bay_font)]
+# the aircraft from above under the table (block G, 2026-11-22, after the AOA F-22's stores page; mfd_symbols): the
+# outline, each bay with its doors (closed / moving / open: solid, dashed, doors folded out) and its missiles, the
+# ferry tanks on their pylons - sprites from the display2 atlas, drawn before the text
+SIL_POS = (300, 80)
+BAY_SPRITES = mfd_f22.PAGE_SPRITES.setdefault(10, [])
+BAY_SPRITES.append(('BaySilhouette', 'Silhouette', SIL_POS, None, None))
+for bay in BAYS:
+    obj(dyn, 'mixlinear', 'F22SprBay%sIndex' % bay, anchor, Input0='F22Bay%sState.Output' % bay, Input1='F22CombatLoad.Output',
+        Weight0=1.0, Weight1=3.0)
+    at = mfd_symbols.layout()['Bay' + bay]['at']
+    BAY_SPRITES.append(('Bay' + bay, 'Bay' + bay, (SIL_POS[0] + at[0], SIL_POS[1] + at[1]), 'F22SprBay%sIndex' % bay, None))
+for side, full in (('L', 'Left'), ('R', 'Right')):
+    at = mfd_symbols.layout()['Tank' + full]['at']
+    BAY_SPRITES.append(('Tank' + full, 'Tank' + full, (SIL_POS[0] + at[0], SIL_POS[1] + at[1]), 'F22FuelExt%sShown' % side, None))
 g('graphics_animation_render_list', 'F22BayPage', RenderList=' %s ' % ' '.join(bay_items))
 n_bay = 0
 for o in G:
@@ -2534,6 +2756,16 @@ for side, x in (('L', 110), ('R', 790)):
                    place_copy('UpFrontControllerLine0', 'F22FuelPageExt%sValue' % side,
                               Input=text_out('FuelExt%sValue' % side, 'F22FuelExt%sValue.Output' % side),
                               Position=' %d 415 ' % x, Length='5', LeftJustified='false', **bay_font)]
+# JOKER (2026-11-22) beside its arrows, the right column's lower two keys (BINGO: the two above, the Hornet's own figure).
+# In the size of the Hornet's BINGO (in-game: at 30 the word and the figure read smaller than BINGO 3000), between the
+# two arrows, right edges lined up short of them
+# (second pass, measured on the user's screenshot: at 34 / 45 the glyphs stood 44 / 60 px against BINGO's 37 / 51 -
+# now 29 / 38; and in the Hornet page's own yellowish green, 0.33 1 0.02, not our pure green)
+JOKER_LBL, JOKER_NUM, JOKER_RIGHT = 29.0, 38.0, 895
+HORNET_GREEN = (0.33, 1.0, 0.02, 1.0)
+fuel_items += [label('JOKER', (JOKER_RIGHT - int(5 * JOKER_LBL * 0.9), 190), JOKER_LBL, HORNET_GREEN),
+               number_of('F22JokerFuel.Output', 'FuelJoker', (JOKER_RIGHT - int(5 * JOKER_NUM * 0.9), 145), 2.204622621849, n=5,
+                         font=dict(UFD_FONT, FontSize=JOKER_NUM, Stride=JOKER_NUM * 0.9, Color=' %g %g %g %g ' % HORNET_GREEN))]
 g('graphics_animation_render_list', 'F22FuelPage', RenderList=' FuelPage %s ' % ' '.join(fuel_items))
 n_fuel = 0
 for o in G:
@@ -2553,22 +2785,34 @@ obj(dyn, 'maximum', 'F22PerfMargin', anchor, Inputs=' F22PerfMarginRaw.Output 0.
 obj(dyn, 'product', 'F22PerfTime', anchor, Inputs=' F22PerfMargin.Output F22PerfPerFlow.Output ')
 obj(dyn, 'product', 'F22PerfRange', anchor, Inputs=' F22PerfTime.Output InertialReferenceSystem.OutputGroundSpeed ')
 obj(dyn, 'product', 'F22PerfSpecific', anchor, Inputs=' InertialReferenceSystem.OutputGroundSpeed F22PerfPerFlow.Output ')
-obj(dyn, 'product', 'F22PerfFuelToWaypoint', anchor, Inputs=' F22PerfFlow.Output GPSNavigationSystem.OutputNextWaypointTime ')
+obj(dyn, 'product', 'F22PerfFuelToWaypoint', anchor, Inputs=' F22PerfFlow.Output F22NavEte.Output ')
 obj(dyn, 'mixlinear', 'F22PerfFuelAtWaypointRaw', anchor, Input0='TotalFuel.Output', Input1='F22PerfFuelToWaypoint.Output', Weight0=1.0, Weight1=-1.0)
 obj(dyn, 'maximum', 'F22PerfFuelAtWaypoint', anchor, Inputs=' F22PerfFuelAtWaypointRaw.Output 0.0 ')
 perf_font = dict(UFD_FONT, FontSize=BAY_FONT, Stride=BAY_FONT * 0.9)
+# the aircraft as a whole, for the ENG page (2026-11-22): gross weight = the donor's bookkeeping (empty + counted fuel)
+# + our combat load (6 x 157 + 2 x 85 kg, stores_f22); both engines' thrust; thrust / weight
+obj(dyn, 'mixlinear', 'F22GrossWeight', anchor, Input0='GrossMass.Output', Input1='F22CombatLoad.Output', Weight0=1.0,
+    Weight1=6 * 157.0 + 2 * 85.0)
+obj(dyn, 'sum', 'F22ThrustTotal', anchor, Inputs=' Engine1.OutputThrust Engine2.OutputThrust ')
+obj(dyn, 'inverse', 'F22GrossWeightInv', anchor, Input='F22GrossWeight.Output')
+obj(dyn, 'product', 'F22ThrustToWeight', anchor, Inputs=' F22ThrustTotal.Output F22GrossWeightInv.Output %.6f ' % (1 / 9.80665))
 perf_items = [page_title('FUEL PERFORMANCE')]
-perf_rows = [('FUEL LB', 'TotalFuel.Output', LB), ('BINGO LB', 'BingoFuel.Output', LB), ('TO BINGO LB', 'F22PerfMargin.Output', LB),
+perf_rows = [('FUEL LB', 'TotalFuel.Output', LB), ('JOKER LB', 'F22JokerFuel.Output', LB), ('BINGO LB', 'BingoFuel.Output', LB),
+             ('TO BINGO LB', 'F22PerfMargin.Output', LB),
              ('FLOW PPH', 'F22PerfFlow.Output', LB * 3600.0), ('TIME MIN', 'F22PerfTime.Output', 1 / 60.0), ('RANGE NM', 'F22PerfRange.Output', NM),
              ('NM/1000 LB', 'F22PerfSpecific.Output', NM * 1000 / LB)]
 for row, (text, src, k) in enumerate(perf_rows):
     y = 840 - 50 * row
-    perf_items += [label(text, (110, y), BAY_FONT), number_of(src, 'Perf%d' % row, (600, y), k, n=7, font=perf_font)]
+    perf_items.append(label(text, (110, y), BAY_FONT))
+    if row == 0:
+        perf_items += fuel_number(src, 'Perf0', (600, y), k, 7, perf_font)
+    else:
+        perf_items.append(number_of(src, 'Perf%d' % row, (600, y), k, n=7, font=perf_font))
 perf_items += [label('NEXT', (110, 440), BAY_FONT, mfd_f22.WHITE),
                place_copy('UpFrontControllerLine0', 'F22PerfNext', Input=text_out('PerfNext', 'GPSNavigationSystem.OutputNextWaypointIdentifier'),
                           Position=' 600 440 ', Length='7', LeftJustified='false', **perf_font)]
 for row, (text, src, k) in enumerate([('DIST NM', 'GPSNavigationSystem.OutputNextWaypointDistance', NM),
-                                      ('TIME MIN', 'GPSNavigationSystem.OutputNextWaypointTime', 1 / 60.0),
+                                      ('TIME MIN', 'F22NavEte.Output', 1 / 60.0),
                                       ('FUEL THERE LB', 'F22PerfFuelAtWaypoint.Output', LB)]):
     y = 390 - 50 * row
     perf_items += [label(text, (137, y), BAY_FONT), number_of(src, 'PerfNext%d' % row, (600, y), k, n=7, font=perf_font)]
@@ -2595,7 +2839,7 @@ CHECKLISTS = [
                     'BATT LIGHT ........ OUT', 'APU ............... OFF', 'FLCS BIT ....... START', '  40 S, BIT PASS -> STOP',
                     'LAMP TEST ...... CHECK']),
     ('BEFORE TAKEOFF', ['CANOPY ......... CLOSED', 'BIT PASS ...... ON ICAWS', 'MASTER ARM ....... SAFE', 'ALT FLAPS ........ NORM',
-                        'FLAPS ...... T/O (AUTO)', 'TRIM ............. ZERO', 'LDG/TAXI LIGHT .... LDG', 'NAV / FORM LIGHTS .. ON',
+                        'FLAPS ...... T/O (AUTO)', 'TRIM ............. AUTO', 'LDG/TAXI LIGHT .... LDG', 'NAV / FORM LIGHTS .. ON',
                         'PARK BRAKE .... RELEASE', 'ICAWS ........... CLEAR', '', 'GEAR UP NEEDS AIRBORNE', 'OR DN LOCK OVERRIDE']),
     ('LANDING', ['SPEED ....... BELOW 250', 'GEAR ............. DOWN', '3 GREEN ...... NOSE L R', 'FLAPS ...... LDG (AUTO)',
                  'ALT FLAPS ........ NORM', '  (EXTEN: FLAPS GEAR UP)', 'A/T ... AOA 8.5 IF WANT', 'LDG LIGHT .......... ON',
@@ -2604,6 +2848,73 @@ CHECKLISTS = [
                   '  (LEFT ENGINE STOPS)', 'FADEC ............. R', '  (RIGHT ENGINE STOPS)', 'FADEC ............ NORM',
                   'LIGHTS ............ OFF', 'CNI / ACP .......... OFF', 'BATT .............. OFF', 'CANOPY ........... OPEN', '']),
 ]
+# live lines (2026-11-22, avionics block A3): a line whose switch can be read turns from white to green once done -
+# the cockpit's own state, not a tick box. Lines with nothing to read (notes, checks by eye) stay white.
+for n_, type_, f_ in (
+        ('F22ChkCanopyShut', 'logic_invert', dict(Input='CanopyOpen.Output')),
+        ('F22ChkApuReady', 'logic_or', dict(Inputs=' APUAvailable.Output F22ChkBothRunning.Output ')),
+        ('F22ChkBothRunning', 'logic_and', dict(Inputs=' Engine1Running.Output Engine2Running.Output ')),
+        ('F22ChkFadecNorm', 'logic_and', dict(Inputs=' F22Fadec1On.Output F22Fadec2On.Output ')),
+        ('F22ChkGen1', 'logic_greater', dict(Input0='Engine1GeneratorContactor.Output', Input1='0.5')),
+        ('F22ChkGen2', 'logic_greater', dict(Input0='Engine2GeneratorContactor.Output', Input1='0.5')),
+        ('F22ChkGens', 'logic_and', dict(Inputs=' F22ChkGen1.Output F22ChkGen2.Output ')),
+        ('F22ChkBattOut', 'logic_invert', dict(Input='F22OnBattery.Output')),
+        ('F22ChkBattLightOut', 'logic_and', dict(Inputs=' F22ChkBattOut.Output F22ChkGens.Output ')),
+        ('F22ChkApuStopped', 'logic_invert', dict(Input='F22ApuTurning.Output')),
+        ('F22ChkApuOff', 'logic_and', dict(Inputs=' F22ChkApuStopped.Output F22ChkBothRunning.Output ')),
+        ('F22ChkBitStarted', 'logic_or', dict(Inputs=' F22BitRunning.Output F22BitPass.Output ')),
+        ('F22ChkArmSafe', 'logic_invert', dict(Input='F22DirectMode.Output')),
+        ('F22ChkLdgLight', 'logic_greater', dict(Input0='LandingLight.Output', Input1='0.5')),
+        ('F22ChkTaxiLight', 'logic_greater', dict(Input0='F22TaxiLight.Output', Input1='0.5')),
+        ('F22ChkNavLights', 'logic_greater', dict(Input0='PositionLightBrightnessKnob.Output', Input1='0.04')),
+        ('F22ChkBrakeOff', 'logic_invert', dict(Input='ParkingBrakeSet.Output')),
+        ('F22ChkSlow', 'logic_greater', dict(Input0='%.2f' % (250 * 0.514444), Input1='AirDataComputer.OutputCalibratedAirspeed')),
+        ('F22ChkLightsOn', 'logic_or', dict(Inputs=' F22ChkNavLights.Output F22ChkLdgLight.Output F22ChkTaxiLight.Output ')),
+        ('F22ChkLightsOff', 'logic_invert', dict(Input='F22ChkLightsOn.Output')),
+        # (2026-11-22, in-game: CNI / ACP, MODES and LAMP TEST stayed white whatever the switches - every line that has
+        # a switch now reads it)
+        ('F22ChkCni', 'logic_greater', dict(Input0='F22CNISwitch.Output', Input1='0.5')),
+        ('F22ChkAcp', 'logic_greater', dict(Input0='F22ACPSwitch.Output', Input1='0.5')),
+        ('F22ChkCniAcp', 'logic_and', dict(Inputs=' F22ChkCni.Output F22ChkAcp.Output ')),
+        ('F22ChkCniAcpAny', 'logic_or', dict(Inputs=' F22ChkCni.Output F22ChkAcp.Output ')),
+        ('F22ChkCniAcpOff', 'logic_invert', dict(Input='F22ChkCniAcpAny.Output')),
+        ('F22ChkHudSym', 'logic_greater', dict(Input0='HUDBrightnessKnob.Output', Input1='0.02')),
+        ('F22ChkAltFlapsNorm', 'logic_invert', dict(Input='F22AltFlapsSwitch.Output')),
+        ('F22ChkIdle1', 'logic_greater', dict(Input0='0.70', Input1='Engine1N2.Output')),
+        ('F22ChkIdle2', 'logic_greater', dict(Input0='0.70', Input1='Engine2N2.Output')),
+        ('F22ChkIdle', 'logic_and', dict(Inputs=' F22ChkIdle1.Output F22ChkIdle2.Output ')),
+        # LAMP TEST: done once the light test switch has been at TEST in this flight
+        ('F22ChkLampTesting', 'logic_greater', dict(Input0='LightTestSwitch.Output', Input1='0.5')),
+        ('F22ChkLampTested', 'variable', dict(Value='0.0')),
+        ('F22ChkLampSet', 'event_value', dict(Input='1.0', Events=' F22ChkLampTested.Set ')),
+        ('F22ChkLampEdge', 'event_edge_rising', dict(Input='F22ChkLampTesting.Output', Events=' F22ChkLampSet.Trigger ',
+                                                     Value=1.0, Threshold=0.5))):
+    obj(dyn, type_, n_, anchor, **f_)
+# MODES DAY / HUD SYM UP: every display's mode knob off OFF (NIGHT counts: at night it is the right one) and the HUD on
+mode_ok = []
+for scr in ('LeftMfd', 'RightMfd', 'LowerMfd', 'Pmfd', 'LeftUfd', 'RightUfd'):
+    obj(dyn, 'logic_greater', 'F22Chk%sOn' % scr, anchor, Input0='F22%sModeLevel.Output' % scr, Input1='0.1')
+    mode_ok.append('F22Chk%sOn.Output' % scr)
+obj(dyn, 'logic_and', 'F22ChkModes', anchor, Inputs=' %s F22ChkHudSym.Output ' % ' '.join(mode_ok))
+# ICAWS CLEAR: no warning or caution lit (the state advisories - PARK BRK, A/T... - do not count)
+obj(dyn, 'sum', 'F22ChkIcawsCount', anchor, Inputs=' %s ' % ' '.join(c + '.Output' for _, c in ICAWS if c not in ICAWS_STATE))
+obj(dyn, 'logic_greater', 'F22ChkIcawsClear', anchor, Input0='0.5', Input1='F22ChkIcawsCount.Output')
+# per line: a condition (white until done, then green), NOTE (a note or heading, grey), ON (automatic, always green)
+CHECKLIST_DONE = [
+    ['BatterySwitchOn', 'F22ChkApuReady', 'F22ChkCanopyShut', 'F22ChkCniAcp', 'F22ChkModes', 'F22ChkFadecNorm', 'F22ChkBothRunning',
+     'F22ChkGens', 'F22ChkBattLightOut', 'F22ChkApuOff', 'F22ChkBitStarted', 'F22BitPass', 'F22ChkLampTested'],
+    ['F22ChkCanopyShut', 'F22BitPass', 'F22ChkArmSafe', 'F22ChkAltFlapsNorm', 'F22FlapsDown', 'ON', 'F22ChkLdgLight',
+     'F22ChkNavLights', 'F22ChkBrakeOff', 'F22ChkIcawsClear', 'NOTE', 'NOTE', 'NOTE'],
+    ['F22ChkSlow', 'AllGearDown', 'AllGearDown', 'F22FlapsDown', 'F22ChkAltFlapsNorm', 'NOTE', 'F22AtActive', 'F22ChkLdgLight',
+     'NOTE', 'NOTE', 'NOTE', 'F22ChkTaxiLight', 'NOTE'],
+    ['ParkingBrakeSet', 'F22ChkIdle', 'F22ChkApuStopped', 'Engine1NotRunning', 'NOTE', 'Engine2NotRunning', 'NOTE', 'F22ChkFadecNorm',
+     'F22ChkLightsOff', 'F22ChkCniAcpOff', 'BatterySwitchOff', 'CanopyOpen', 'NOTE']]
+assert [len(x) for x in CHECKLIST_DONE] == [13] * 4
+CHK_NOTE = (0.55, 0.68, 0.55, 1.0)
+
+
+def chk_state(c):
+    return {'NOTE': '2.0', 'ON': '1.0'}.get(c, c + '.Output')
 chk_items = []
 obj(dyn, 'multiplexer_text', 'F22ChecklistTitle', anchor, InputSelect='F22ChecklistIndex.Output',
     Inputs=' %s ' % ' '.join(ufc_label(t) for t, _ in CHECKLISTS))
@@ -2613,9 +2924,18 @@ for row in range(13):
     texts = [lines[row] if row < len(lines) and lines[row] else ' ' for _, lines in CHECKLISTS]
     obj(dyn, 'multiplexer_text', 'F22ChecklistLine%d' % row, anchor, InputSelect='F22ChecklistIndex.Output',
         Inputs=' %s ' % ' '.join(ufc_label(t) if t.strip() else 'BlankLabel.Output' for t in texts))
-    chk_items.append(place_copy('UpFrontControllerLine0', 'F22ChecklistLine%dText' % row,
-                                Input=text_out('ChecklistLine%d' % row, 'F22ChecklistLine%d.Output' % row),
-                                Position=' 140 %d ' % (840 - 50 * row), Length='26', **dict(UFD_FONT, FontSize=BAY_FONT, Stride=BAY_FONT * 0.9)))
+    obj(dyn, 'multiplexer', 'F22ChecklistDone%d' % row, anchor, InputSelect='F22ChecklistIndex.Output',
+        Inputs=' %s ' % ' '.join(chk_state(done[row]) for done in CHECKLIST_DONE))
+    line, blank = 'F22ChecklistLine%d.Output' % row, 'BlankLabel.Output'
+    for colour, rgba, inputs in (('W', mfd_f22.WHITE, ' %s %s %s ' % (line, blank, blank)),
+                                 ('G', mfd_f22.GREEN, ' %s %s %s ' % (blank, line, blank)),
+                                 ('N', CHK_NOTE, ' %s %s %s ' % (blank, blank, line))):
+        obj(dyn, 'multiplexer_text', 'F22ChecklistLine%d%s' % (row, colour), anchor, InputSelect='F22ChecklistDone%d.Output' % row,
+            Inputs=inputs)
+        chk_items.append(place_copy('UpFrontControllerLine0', 'F22ChecklistLine%d%sText' % (row, colour),
+                                    Input=text_out('ChecklistLine%d%s' % (row, colour), 'F22ChecklistLine%d%s.Output' % (row, colour)),
+                                    Position=' 140 %d ' % (840 - 50 * row), Length='26',
+                                    **dict(UFD_FONT, FontSize=BAY_FONT, Stride=BAY_FONT * 0.9, Color=' %g %g %g %g ' % rgba)))
 g('graphics_animation_render_list', 'F22ChecklistPage', RenderList=' %s ' % ' '.join(chk_items))
 n_chk = 0
 for o in G:
@@ -2700,6 +3020,29 @@ if H:
 failures_f22.graphics(globals())           # FAIL page in place of the Hornet's UFC BU page
 breakage_f22.fcs_status(globals())         # surface states (OK / DEGD / HYD / LOST / JAM) for the FCS page
 mfd_f22.pages(globals())                   # our ENG, FCS and SYS pages in place of the Hornet's (2026-11-17)
+# the DDI page background in a colour the compressed sprite texture keeps exactly (mfd_symbols.BG; was 0.035 0.082 0.039)
+next(o for o in G if o.name == 'GreenBackgroundColor').set('Color', ' %.6f %.6f %.6f ' % mfd_symbols.BG, 'tmvector3d')
+# the pages' picture sprites (block G): per screen, last in its list, in its atlas coordinates (mfd_f22.PAGE_SPRITES) -
+# a switch on that screen's page shows the ENG / BAY ones only while it shows that page
+for screen, render, page_var, wpos, wsize in (('L', 'RenderLeftDDIWithMenu', 'LeftMFDPage', (18, 614), 390),
+                                              ('R', 'RenderRightDDIWithMenu', 'RightMFDPage', (420, 614), 390),
+                                              ('P', 'RenderMPCDPageWithMenu', 'MPCDPage', (365, 100), 432),
+                                              ('D', 'RenderLowerDDIWithMenu', 'LowerMFDPage', (18, 614), 390)):
+    rl = next(o for o in G if o.name == render and o.type == 'graphics_animation_render_list')
+    # (the window's own position and size, read back - the table above is what the F/A-18 has)
+    win = next(o for o in G if o.type == 'graphics_animation_display' and o.get('RenderList').split() == [render])
+    assert [float(v) for v in win.get('TargetPosition').split()] == list(wpos), (screen, win.get('TargetPosition'))
+    assert float(win.get('TargetSize').split()[0]) == wsize, screen
+    lists = []
+    for page in range(18):
+        items = mfd_f22.screen_sprites(globals(), screen, wpos, wsize, page)
+        if items:
+            g('graphics_animation_render_list', 'F22Spr%sPage%d' % (screen, page), RenderList=' %s ' % ' '.join(items))
+            lists.append('F22Spr%sPage%d' % (screen, page))
+        else:
+            lists.append('F22Nothing')
+    g('graphics_animation_render_switch', 'F22Spr%sSwitch' % screen, Input='%s.Output' % page_var, RenderList=' %s ' % ' '.join(lists))
+    rl.set('RenderList', rl.get('RenderList').rstrip() + ' F22Spr%sSwitch ' % screen)
 breakage_f22.damage_graphics(globals())    # torn consoles / fins fly away on their bodies, stubs on the fuselage
 failures_f22.gear_graphics(globals())      # the gear legs drawn where their joints are (folds, jams), not the handle
 # No traffic on any cockpit screen: the Hornet's SA and radar pages and the C90's MFD hand their tmtraffic_display to an empty function in this build of the game (game code, arm64), and the
@@ -3067,10 +3410,7 @@ tvc_f22.apply(dyn)
 # Hornet's taileron outputs, which tvc_f22 no longer feeds to the servos - the stabilators kept moving with no hydraulic
 # pressure, found 2026-11-05 tracing the data flow)
 for name in ('ServoLeftStabilator', 'ServoRightStabilator'):
-    node = dyn_node(name)
-    old = bit_command(name, node.get('Input').strip())
-    obj(dyn, 'product', 'F22Hyd' + name, node, Inputs=' %s F22HydAuthority.Output ' % old)
-    node.set('Input', 'F22Hyd%s.Output' % name, 'string8')
+    hyd_gate(name)
 nz = next(o for o in dyn.children if o.name == 'NozzleAngle')      # nozzles: fuel-actuated, F22NozzleActuation
 obj(dyn, 'product', 'F22NozzleCommandPowered', nz, Inputs=' %s F22NozzleActuation.Output ' % nz.get('Input').strip())
 nz.set('Input', 'F22NozzleCommandPowered.Output', 'string8')

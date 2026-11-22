@@ -48,8 +48,19 @@ FIN_TORQUE_MAX = 250000.0           # was 100 kN m: in-game 2026-11-10 a right f
 # lift (its aerodynamic centre ~0.9 m ahead of the joint: ~0.4e6 N m / rad of negative stiffness at 550 kt, ~1e6 near
 # 800) - the loads grew by half and more, it shook from ~760 kt and lost a fin at 551 kt in a rolling pull. 3e6 keeps
 # three times that margin; 30 % of critical damping
-FIN_KT, FIN_DT = 3.0e6, 2.2e4
-FIN_KF, FIN_DF = 2.0e6, 1.3e4
+# 2026-11-21: the fins shook side to side at 500-650 kt (user's video, 22:37: the tip at 13.7-14 Hz, steady, both fins) -
+# the fin's sideways mode on the force springs (245 kg on 2e6 N/m: 14.4 Hz) with 30 % damping, rung by the airflow.
+# Stiffer is out (1e7 rang itself apart at the spawn). The force damping went up to ~55 % of critical (24 000: c / m ~100
+# 1/s, inside the explicit step's limit for 245 kg). NOT the torque damping: raised to 4.8e4 with it, both fins tore off
+# at the spawn (in-game 2026-11-21) - about the fin's span axis its inertia is small (~80-110 kg m2, not the ~600 about
+# the root), so 4.8e4 was far past the step's limit there; it stays 2.2e4
+# Still shaking with it (video 22:49: ~15 Hz, the same amplitude): not under-damping but the step itself - about its span
+# axis the fin's inertia is ~70-130 kg m2, so 3e6 puts that twist at ~24-30 Hz, at the edge of the game's explicit
+# step, and it rings on its own (the video's 60 fps shows it aliased at 14-15 Hz). Torque springs now 1.5e6 (that twist
+# ~17-21 Hz). Divergence margin against the fin's own lift (~0.4e6 N m / rad at 550 kt, ~1e6 near 800): ~3.7x at 550,
+# 1.5x at 800 - where the flutter is anyway (1.1e6 twisted under load, 2026-11-10)
+FIN_KT, FIN_DT = 1.5e6, 2.2e4
+FIN_KF, FIN_DF = 2.0e6, 2.4e4
 # flutter (COND on, failures_f22.py): over the speed limit - 800 KCAS, the F-15's and F-16's (the F-22's is not
 # public; 750 at first, 2026-11-10: the user flies the mod at 900-1000 kt low, so the onset moved up to the real
 # fighters' limit) - the rudders start to buzz, 6 Hz, growing over ~2.5 s, past what the actuators hold (straight
@@ -851,11 +862,10 @@ def damage_graphics(ns):
             n.set('OrientationID', '%s.Q' % body, 'uint32')
             n.set('InputHide', gfx_input('F22HideFlying' + key))
         n_body[(tag, body)] = n_body.get((tag, body), 0) + 1
-    # the wingtip lights (nav and anti-collision, point and cone lights on the fuselage body at y +-6.2) go dark when
+    # the wingtip nav lights (point and cone lights on the fuselage body at y +-6.2) go dark when
     # their console separates - the wiring is torn (they hung blinking in the air, in-game 2026-11-13); the formation
-    # strips on a flying console / fin are dark too
-    tip_lights = {'Left': ('LightNavRed', 'LightNavRedCone', 'LightAntiCollisionLeft', 'LightAntiCollisionLeftCone'),
-                  'Right': ('LightNavGreen', 'LightNavGreenCone', 'LightAntiCollisionRight', 'LightAntiCollisionRightCone')}
+    # strips and the nav lenses on a flying console / fin are dark too
+    tip_lights = {'Left': ('LightNavRed', 'LightNavRedCone'), 'Right': ('LightNavGreen', 'LightNavGreenCone')}
     for side, names in tip_lights.items():
         for name in names:
             n = next(x for x in G if x.name == name)
@@ -868,7 +878,7 @@ def damage_graphics(ns):
             g('graphics_product', 'F22Wired' + name, Input0=mod, Input1=gfx_input('F22HoldsWing' + side))
             n.set('InputModulation', 'F22Wired%s.Output' % name, 'string8')
     for n in G:
-        if n.type == 'rigidbodygraphics' and n.name.startswith('L_Formation__B'):
+        if n.type == 'rigidbodygraphics' and n.name.startswith(('L_Formation__B', 'L_NavRed__B', 'L_NavGreen__B')):
             n.children = [c for c in n.children if c.name != 'InputLuminance']
     for side in ('Left', 'Right'):
         for part in ('Wing', 'Fin'):
