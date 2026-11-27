@@ -27,17 +27,17 @@ EXCLUDE_NAME = re.compile(r'WeaponPylon|^F-22A_Cockpit_ACES_II|^HUD GLASS$|^hud 
                           r'^CP_ON_(NOSE|LEFT|RIGHT)_GEAR$|^CP_ON_BATTERY$', re.I)
 # (CP_ON_*_GEAR: the lit copies of the gear position plates - DCS shows one of the two; the CP_OFF_* plates carry
 # both looks here as lamps, LAMPS below)
-# removed on the user's request (2026-10-22, a clear glareshield): the two swivelling map lights on the UFD hoods
+# removed (2026-10-22, a clear glareshield): the two swivelling map lights on the UFD hoods
 # (cockpit arguments 716 / 717, stowed and unused since stage 5) with their brackets and cables (merged into a larger
 # F22_ACC object: faces in the box), and beside each UFD the unit with eight dark-blue 6 x 8 mm lenses (static in the
 # DCS mod, no argument, no label): lenses (F22_SCREEN), their slanted plate and housing and the wire bundle behind it
 # (F22_ACC, a triangle soup - no connected pieces to pick): a box along the lens plane (plane fitted to the 16 lens
 # faces; u along the plate, v across towards the UFD, n towards the pilot), 10 cm deep to take the wires - renders:
 # the frame behind and the UFD housing stay whole. The first build removed the lenses only: the panel showed the empty
-# cells and the background through them (user, 2026-10-22)
+# cells and the background through them (2026-10-22)
 EXCLUDE_ARGS = (10716, 10717)
 # (the box went down from z 1.125 to 1.112 on 2026-11-21: 127 small faces of the map light's cable, up to 2.7 cm, hung just
-# under it and showed through the dark UFD picture as a dark curve - user; found by a ray pick in f22.tgi. The hood's
+# under it and showed through the dark UFD picture as a dark curve; found by a ray pick in f22.tgi. The hood's
 # long faces, up to 19 cm, still stay: a face goes only when all its vertices are inside)
 REMOVE_FACES = [dict(material=r'^F22_ACC$', box=((7.63, 0.10, 1.112), (7.735, 0.175, 1.18)), mirror_y=True,
                      note='map light brackets'),
@@ -45,7 +45,7 @@ REMOVE_FACES = [dict(material=r'^F22_ACC$', box=((7.63, 0.10, 1.112), (7.735, 0.
                      axes=((-0.4336, 0.269, -0.86), (0.3782, -0.8119, -0.4447), (-0.8179, -0.518, 0.2503)),
                      ranges=((-0.045, 0.045), (-0.03, 0.05), (-0.10, 0.015)), mirror_y=True, note='lens units')]
 GLASS_KIND = re.compile(r'glass', re.I)
-# exterior canopy gold (user, 2026-10-22): tried GLASS_OUTSIDE = dict(tint=(0.85, 0.58, 0.08) - the mod's F22_GLASS
+# exterior canopy gold (2026-10-22): tried GLASS_OUTSIDE = dict(tint=(0.85, 0.58, 0.08) - the mod's F22_GLASS
 # colour - opacity=0.22, specular=(0.46, 0.32, 0.05)): in the game the canopy came out bright pale blue and stood out
 # from the airframe. The exterior glass shader's use of the colour is not known (absorption? the denser layer only
 # showed more sky) - back to the stock grey until a stock tinted canopy shows how it is set
@@ -97,13 +97,13 @@ FLOOD_GAMMA = 0.5                 # flood map ** gamma: softer pools (linear, ha
 INTERIOR_AMBIENT = 0.75           # interior textures without a baked AO (about the baked panels' median)
 # Flood light (FLOOD knob) as the F/A-18's: lamps under the canopy rails shining down on the side consoles - soft pools
 # of light with the knobs' shadows, baked per texel (red channel of the lighting map). The centre panel needs none at
-# night (user, 2026-10-22: its displays light it). Knobs and switches share small textures with overlapping UVs: they
+# night (2026-10-22: its displays light it). Knobs and switches share small textures with overlapping UVs: they
 # take the plain FLOOD_ILLUMINATION level (FLOOD_TEXTURE)
 BAKE_FLOOD = dict(materials=['F22_PANEL_LEFT', 'F22_PANEL_RIGHT', 'F22_PANEL_FRONT', 'F22_THROTTLE', 'F22_STICK'],
                   reference=['F22_PANEL_LEFT', 'F22_PANEL_RIGHT'],
                   # over the controls (x 7.15 .. 7.62, the rear plates are blank), z 0.84: from z >= 0.90 a ray test
                   # saw 0 - 25 % of the panel (something lies across above the consoles) - the first lamps lit the
-                  # blank rear plates through gaps (user); from here 80 - 87 %
+                  # blank rear plates through gaps; from here 80 - 87 %
                   lamps=[((x, s * 0.44, 0.84), (x + 0.02, s * 0.40, 0.62), 0.04, 120.0, 5.0)
                          for x in (7.22, 7.38, 7.52) for s in (1, -1)])
 LABEL_ILLUMINATION = [(re.compile(r'^F22_PANEL_(LEFT|RIGHT)$', re.I), 1),
@@ -223,7 +223,7 @@ DRIVERS.update({COCKPIT_ARG_BASE + a: d for a, d in COCKPIT_DRIVERS.items()})
 # exterior lights (positions and colours of the DCS light nodes; make_f22.py adds the sources and the switches of the
 # F/A-18): the landing / taxi lamp lenses on the nose gear glow (lit '_ON' twins are hidden DCS variants). The wingtip
 # nav lights: the model's own teardrop lens on top of each tip ('_1' left, '_1.006' right: 13 x 6 x 13 cm at x -2.05
-# .. -1.92, y +-6.19 .. 6.26, z 0.075 .. 0.203, painted red / green in the skin atlas) glows itself (user 2026-11-22:
+# .. -1.92, y +-6.19 .. 6.26, z 0.075 .. 0.203, painted red / green in the skin atlas) glows itself (2026-11-22:
 # the point lights alone hung ~7 cm above it in the air); the point lights sit on its top (make_f22.py LIGHTS). The
 # F22A_BANO objects are glow cards of the DCS renderer (excluded). The lenses are on the wing consoles: they bend with
 # them and fly off with them, dark (breakage_f22.py).
@@ -237,14 +237,14 @@ LAMPS = [
     dict(key='Taxi', name=r'^ARG_TAXI_604$'),
     dict(key='NavRed', name=r'^_1$'),
     dict(key='NavGreen', name=r'^_1\.006$'),
-    # gear position lights on the landing gear panel (user 2026-11-04): the mod's NOSE / LEFT / RIGHT plates beside the
+    # gear position lights on the landing gear panel (2026-11-04): the mod's NOSE / LEFT / RIGHT plates beside the
     # gear handle (DCS arguments 723 / 724 / 725, 'N_GEAR_LIGHT'); green when that gear is down and locked (make_f22.py)
     dict(key='GearNose', name=r'^CP_OFF_NOSE_GEAR$'),
     dict(key='GearLeft', name=r'^CP_OFF_LEFT_GEAR$'),
     dict(key='GearRight', name=r'^CP_OFF_RIGHT_GEAR$'),
     # their amber twins while the gear moves (2026-11-06): copies of the same plates (EXTRA_OBJECTS _gear_amber_plates)
     # - one geometry drawn by two graphics objects stops the model from loading
-    # the gear handle's wheel lit red while the gear is in transit, as the F/A-18's (user 2026-11-16): a copy of the
+    # the gear handle's wheel lit red while the gear is in transit, as the F/A-18's (2026-11-16): a copy of the
     # wheel riding the handle (EXTRA_OBJECTS _gear_handle_light), hidden while dark
     dict(key='GearHandle', name=r'^CP_GEAR_HANDLE_LIGHT$'),
     dict(key='GearNoseAmber', name=r'^CP_AMBER_NOSE_GEAR$'),
@@ -274,12 +274,12 @@ MEASURE = dict(
 
 
 def _formation_light():
-    """Lit formation strip as on the stock F/A-18 (user's night screenshots, 2026-10-30): three segments, brightest down the middle
+    """Lit formation strip as on the stock F/A-18 (night screenshots, 2026-10-30): three segments, brightest down the middle
     with soft edges, not a flat bright slab. Array rows = v (across the panel), columns = u (along it, PANEL_SEGMENTS quads)."""
     import numpy as np
     n = 256
     v, u = np.mgrid[0:n, 0:n] / float(n - 1)
-    # lit over the panel's width: a thin core read as a much narrower strip at night than the panel the daylight shows (user)
+    # lit over the panel's width: a thin core read as a much narrower strip at night than the panel the daylight shows
     across = np.clip((0.5 - np.abs(v - 0.5)) / 0.10, 0.0, 1.0) * (0.72 + 0.28 * np.exp(-((v - 0.5) / 0.28) ** 2))
     along = np.clip(np.minimum(u, 1.0 - u) / 0.03, 0.0, 1.0)
     edge = np.abs(((u * 3.0) % 1.0) - 0.5)
@@ -290,14 +290,14 @@ def _formation_light():
 
 def _gear_label_light():
     """The words of the mod's label atlas (F22_LABLES_GREEN alpha: BATT, NOSE, RIGHT, LEFT) on a lit lens: each plate is
-    one quad over its window (23 x 9 mm, UVs around its word), so the whole window glows (user 2026-11-05: only the
+    one quad over its window (23 x 9 mm, UVs around its word), so the whole window glows (2026-11-05: only the
     letters lit read as a console screen, not a lamp) - a dim lens (0.08), the letters full with a little halo of light
     spread in the lens. Unlit the plate shows the words a little lighter than the black (write_lamp_textures)."""
     import numpy as np
     import aerofly_tex as X
     a = np.clip(X.load_image(X.find_texture(TEXTURES, 'F22_LABLES_GREEN'))[..., 3], 0, 1).astype(np.float64)
     halo = _blur(a, 4.0 * a.shape[0] / 512.0)
-    # (2026-11-06, user: the lens at 0.30 glowed as a lit panel - a dim lens behind bright letters, as a lamp)
+    # (2026-11-06: the lens at 0.30 glowed as a lit panel - a dim lens behind bright letters, as a lamp)
     i = np.clip(0.08 + 0.92 * a + 0.30 * halo, 0, 1)
     return np.repeat(i[..., None], 3, axis=2).astype(np.float32)
 
@@ -348,31 +348,49 @@ def TEXTURE_HOOK(out, name, X):
         return
     if name != 'f_22a_default':
         return
-    import numpy as np
     path = os.path.join(out, name + '_color.png')
     c = X.load_image(path)
     rgb = c[..., :3].copy()
-    for box, _, _ in FORMATION_STRIPS:
+    paint_out_strips(rgb)
+    _paint_out_decor(rgb)
+    X.save_png(path, rgb, limit=c.shape[1])
+
+
+def paint_out_strips(rgb):
+    """The formation strips of a skin on the mod's layout (f-22a_default) painted over with the skin around them - also
+    for the community liveries (liveries_f22.py), whose own decor stays."""
+    import numpy as np
+    skipped = []
+    for i, (box, _, _) in enumerate(FORMATION_STRIPS):
         (x0, y0), m = _strip_mask(rgb, box)
         for _ in range(2):
             m = m | np.roll(m, 1, 0) | np.roll(m, -1, 0) | np.roll(m, 1, 1) | np.roll(m, -1, 1)
         ring = m.copy()
         for _ in range(4):
             ring = ring | np.roll(ring, 1, 0) | np.roll(ring, -1, 0) | np.roll(ring, 1, 1) | np.roll(ring, -1, 1)
+        # a skin painted yellow / black around the strip (a livery's own colours) fills the whole box: no skin around
+        # it to take the tone from - the strip stays as painted (the lit panel lies over it anyway)
+        if not m.any():                          # (a skin without the painted strips: nothing to do)
+            continue
+        if m.mean() > MAX_STRIP_FILL or not (ring & ~m).any():
+            skipped.append((i, round(float(m.mean()), 2)))
+            continue
         region = rgb[y0:y0 + m.shape[0], x0:x0 + m.shape[1]]
         region[m] = np.median(region[ring & ~m], axis=0)
-    _paint_out_decor(rgb)
-    X.save_png(path, rgb, limit=c.shape[1])
+    return skipped
+
+
+MAX_STRIP_FILL = 0.6
 
 
 
-# Cockpit wear (user 2026-11-04: the DCS cockpit textures are nearly flat - the tub one tone, the normal maps empty - and
+# Cockpit wear (2026-11-04: the DCS cockpit textures are nearly flat - the tub one tone, the normal maps empty - and
 # read lifeless next to the stock F/A-18 and our Su-35). Painted from the cockpit's own geometry, nothing invented:
 # work/bake/<material>_wear.png (tools/bake_cockpit_light.py BAKE_ONLY=wear) R = convex edges (4 mm bevel x short AO:
 # plate edges, the Dzus fastener heads, knob rims, sill and glareshield edges), G/B = coarse (~17 cm) / fine (~2 cm) 3D
 # noise in metres (seamless across UV islands); <material>_pos/_nrm.png = where each texel is and which way it faces;
 # the accepted AO bake (<material>_ao.png: crevices = where it is darker than around).
-# Second version (user: the first put the same noise and wear on every surface - read as a stylised material): wear by
+# Second version (the first put the same noise and wear on every surface - read as a stylised material): wear by
 # ZONES where the pilot touches the cockpit - boots on the floor in front of the seat and on the pedals, elbows on the
 # sill tops, hands at the throttle and stick and on the consoles' inner lips, legs on the consoles' inner walls, fingers
 # on the ICP keys and MFD bezel buttons; far plates, the instrument panel face and the glareshield keep only a trace on
@@ -380,7 +398,7 @@ def TEXTURE_HOOK(out, name, X):
 # Colour = base x grime in the crevices + coarse tone + paint rubbed lighter on the edges (edge x zone, broken up by
 # the noise) + scuffs on flat surfaces inside the contact zones; worn texels a little glossier. The panel lettering
 # (alpha masks, LABEL_ILLUMINATION) is left untouched: it is already at the converter's white limit (0.82).
-# Third version (user 2026-11-05: v2 read low resolution and without detail - its masks were 2048 bakes stretched on the
+# Third version (2026-11-05: v2 read low resolution and without detail - its masks were 2048 bakes stretched on the
 # 4096 maps and its rubbed patches and their gloss were soft blotches, cloudy in the game's reflections): detail at
 # the colour map's own resolution from a 3D noise of each texel's position (16-bit position bake <material>_pos16.npz,
 # 0.06 mm; the 8-bit one stepped 16 mm), nothing soft and large left:
@@ -606,7 +624,7 @@ def _scratches(P, N, seed, along=0.15, across=0.004, density=0.25):
     return out
 
 
-# Decor of the mod's skin that the real aircraft (06-4123, 525 FS, AK) does not carry (agreed with the user 2026-11-04):
+# Decor of the mod's skin that the real aircraft (06-4123, 525 FS, AK) does not carry (agreed 2026-11-04):
 #  - the light-blue band with bulldog paw prints along the fin and rudder tips: only the 525 FS flagship 10-4195 wore
 #    paw prints (May 2012, PACAF/JBER captions); a regular 525 FS jet in 2009 (Commons "525th Fighter Squadron - F-22 -
 #    Elmendorf.jpg") has plain fin tips
@@ -812,7 +830,7 @@ def _guided_fill(b, m, known, G, blur, grow, skin):
 
 
 def _paint_out_decor(rgb, pad=96):
-    """Second version (user 2026-11-05: the first, a smoothed fill, blurred the straight panel edges and broke the paint
+    """Second version (2026-11-05: the first, a smoothed fill, blurred the straight panel edges and broke the paint
     boundaries): the mod's own F-22A_Default_RoughMet (same UVs; its R channel carries every panel and line of the skin and
     none of the decor - checked on all eight boxes) guides the fill: the tone spreads only between texels of like
     roughness (one panel, edges kept straight), the panel lines and grain come from its high-pass (_guided_fill)."""
@@ -1010,8 +1028,8 @@ def _flcs_bushing(objs, mesh_object):
     """FLCS BIT switch base: the ALT FLAPS toggle's own nut (washer, ring, dome: the F22_SWITCH faces of the static panel
     within 7 mm of its axis, below its bat) copied under the BIT bat, with its UVs (the same light grey), scaled down to
     fit under the closed guard: radius to 4.3 mm, height from the slot floor 1.6 mm up to 4.9 mm (the closed lid comes
-    down to 5.1 mm over the bat's foot, scratchpad base_probe2.py). User 2026-11-07: under the lifted guard the bat stood
-    on black rails, "not a full switch" next to its neighbours with their grey round bases; the first base (2026-11-06)
+    down to 5.1 mm over the bat's foot, measured offline). 2026-11-07: under the lifted guard the bat stood
+    on black rails, not a full switch next to its neighbours with their grey round bases; the first base (2026-11-06)
     was a bare 12-sided bushing in the rails' black."""
     import numpy as np
     k = next(x for x in SWITCH_PARTS if x['part'] == 'K_FlcsBit')
@@ -1352,6 +1370,16 @@ def _store_objects(X, tex_dir):
         if d['part'].startswith('Stores_Tank'):
             objs.append(make(d['name'] + 'K', d['verts'], d['faces'], d['uvs'], d['smooth'], 'store:' + d['material'],
                              'Stores_TankK' + d['part'][-1], d['nodes'], d['args']))
+        # the missiles twice as well (weapons_f22, 0.9.2): held on the fuselage / on the trapeze, and a copy on the
+        # missile's own body from its release on - the AIM-9X copy where the trapeze holds it fully swung out
+        if d['part'].startswith('Stores_AIM120_'):
+            objs.append(make(d['name'] + 'F', d['verts'], d['faces'], d['uvs'], d['smooth'], 'store:' + d['material'],
+                             'Stores_AIM120F_' + d['part'][len('Stores_AIM120_'):]))
+        if d['name'].startswith('StoreAim9'):
+            import weapons_f22
+            side = d['name'][-1]
+            objs.append(make(d['name'] + 'F', [weapons_f22.aim9_extended(tuple(p), side) for p in d['verts']],
+                             d['faces'], d['uvs'], d['smooth'], 'store:' + d['material'], 'Stores_AIM9F_' + side))
     for side, y in (('L', S.CONN['Pylon2'][1]), ('R', S.CONN['Pylon10'][1])):
         v, f = S.tank_hull(y)
         objs.append(make('ColStoreTank' + side, v, f, [tuple((0.5, 0.5) for _ in q) for q in f], [False] * len(f),
@@ -1360,9 +1388,9 @@ def _store_objects(X, tex_dir):
     return objs
 
 
-# selection previews of the load repaints (render_preview2.py): the stores seen from above-front-left; the missiles of
-# "combat" sit in the shut bays, so its preview is the plain aircraft
-PREVIEW_PARTS = {'ferry': ('Stores_TankL', 'Stores_TankR')}
+# selection previews (render_preview2.py): every livery shows the clean aircraft - the load is picked in the cockpit
+# (0.9.2, loads_f22); the stores' meshes for a preview by repaint name, none now
+PREVIEW_PARTS = {}
 
 
 def PREVIEW_OBJECTS(repaint):
@@ -1411,16 +1439,16 @@ DISPLAYS = {
     'DisplayRightMFD': dict(quad=('RIGHT-MFD-CENTER', 'RIGHT-MFD-DOWN', 'RIGHT-MFD-RIGHT'),
                             region=(840, 1228, 780, 780), donor='DDIRight', brightness='DDIRightBrightness'),
     # MPCD: its menu row reaches above the 864 px square (cut at the top in the first test)
-    # (user 2026-11-06: not filling its screen) the DCS quad is 182 mm square, the glass (F22_SCREEN faces in the pose,
+    # (2026-11-06: not filling its screen) the DCS quad is 182 mm square, the glass (F22_SCREEN faces in the pose,
     # flat in the connectors' plane) 196 x 192 mm: the picture spans the glass, 2 % wider than tall
-    # (user 2026-11-07: filling the glass, the menu labels stood off their keys - the F/A-18 menu draws them at fixed
+    # (2026-11-07: filling the glass, the menu labels stood off their keys - the F/A-18 menu draws them at fixed
     # places in the image) warped. The MPCD draws 864 px square (graphics_animation_display MPCD: TargetPosition 365 100,
     # TargetSize 432 x 2) inside the 884 px region: the picture ends at t_x = +-0.977, t_y = -1 .. +0.955 (the gaps the
-    # user saw: "empty margins, make it full screen") - those edges go to the glass opening (bezel inner edge = quad,
-    # +-97.5 x +-95.5 mm, scratchpad pmfd_hole2.py). Labels in the image (pmfd_fit.py, a homography on the 20 keys of the
-    # user's screenshot): top / bottom slots t_x = -0.654 + 0.315 k, side slots t_y = 0.537 - 0.327 k; keys (connectors
+    # empty margins were seen around the picture) - those edges go to the glass opening (bezel inner edge = quad,
+    # +-97.5 x +-95.5 mm, measured offline). Labels in the image (a homography on the 20 keys of the
+    # a screenshot): top / bottom slots t_x = -0.654 + 0.315 k, side slots t_y = 0.537 - 0.327 k; keys (connectors
     # PMFD_n_PNT) u = -0.0574 + 0.0287 k, v = 0.0502 - 0.0287 k. Uniform over the glass the outer labels miss by up to
-    # 8 mm, exactly on the keys the picture's middle shrinks 6.5 / 8 % (the user: "why smaller?"). The user's choice, half
+    # 8 mm, exactly on the keys the picture's middle shrinks 6.5 / 8 % (it read smaller). The choice, half
     # way: the outer label slots set 2.7 / 2.5 mm off their keys (the inner ones closer), linear between them, the strips
     # beyond them stretched to the glass edges (x 1.21 / 1.05, y 1.12 / 1.35 of the middle's scale).
     'DisplayPMFD': dict(quad=('PMFD-CENTER', 'PMFD-DOWN', 'PMFD-RIGHT'), region=(720, 200, 884, 884),
@@ -1451,7 +1479,7 @@ for i_, z_ in enumerate(ICP_ROWS):
     DISPLAYS['DisplayICP%d' % (i_ + 1)] = dict(rect=([ICP_X, -0.0335, z_], [0.0, -ICP_HW, 0.0], [0.0, 0.0, ICP_HH]),
                                                region=(40, 488 - 112 * i_, 430, 80), texture='display2',
                                                donor='ICPLines', brightness='ICPBrightness')
-# worn screen glass (user 2026-11-17, after the stock F/A-18's DDIs): fingerprints by the keys, dust at the bezel, wipe
+# worn screen glass (2026-11-17, after the stock F/A-18's DDIs): fingerprints by the keys, dust at the bezel, wipe
 # marks, a few scratches - in each screen's own colour map, no reflection (tools/aerofly_tex.py screen_wear_map, our
 # own procedural map; a separate glass with the instrument shader reflected the spawn point's scenery). Value: how the
 # one map is turned on that screen (1 mirror u, 2 mirror v, 4 swap) so the screens differ
@@ -1582,6 +1610,7 @@ CLICK_ICP += [([7.6346, -0.0966, 1.1256], 'LeftMFDBrightnessKnob', 'HUD.Brightne
 # 20 mm wheel cylinder hovered 30-40 mm tall - so the volumes are about half the parts)
 # rocker at the lower right of the ICP (DCS ICP_KNEXT / ICP_KPREV): map range of the SA / HSI pages, up = larger. Our
 # choice - on the F-22 it most likely steps the steerpoints, which Aerofly's route sequences by itself
+# (2026-11-27: on the ICP A/T page with the A/T on it steps the target held by 1 kt / M0.01 instead, make_f22.py)
 CLICK_ICP += [('ICP_KNEXT_PNT', ICP_KEY, 'ICP.MapRangeUp', 1.0, 'event', 0.005, 0.005),
               ('ICP_KPREV_PNT', ICP_KEY, 'ICP.MapRangeDown', 1.0, 'event', 0.005, 0.005)]
 ICP_KEY_SIZE = 0.015     # key face (the F/A-18 UFC keys 17-18 mm)
@@ -1595,7 +1624,7 @@ PRESS_PARTS_ICP = [dict(part='P_' + p[:-4], point=p, message=m, value=(v if m in
 # model, merged into larger F22_ACC2 objects; arg 918 of the DCS clicks drives nothing). Faces in the box become a
 # part of their own (tools/export_parts.py extract_knobs, pivot fitted to the wheel rim). The DCS wheel is a 270 deg
 # arc only (-134 .. +134 deg from aft, the 90 deg facing into the panel left open): turned 4 rad over the range (first
-# build) the open side came out - part of the wheel missing and a hole beside it (user). The wheel turns within one
+# build) the open side came out - part of the wheel missing and a hole beside it. The wheel turns within one
 # ridge pitch instead (7.7 deg, measured on the rim vertices): each of the 21 detents a quarter pitch on, so the
 # ridges roll while the arc stays in place. (x from 7.631: three faces of the ICP housing, CP__4.001, sat in the box)
 # OPEN (2026-10-23): a see-through band on the ICP plate beside the first option window, OTHR / DVR and A/P in the
@@ -1609,7 +1638,7 @@ PRESS_PARTS_ICP = [dict(part='P_' + p[:-4], point=p, message=m, value=(v if m in
 FAN_PARTS = [dict(part='K_Fan' + side, material=r'^F22A_FUSE$', box=((-0.14, min(y - 0.34, y + 0.34), -0.26), (0.012, max(y - 0.34, y + 0.34), 0.43)),
                   radius=((y, z), 0.333), axis=(1.0, 0.0, 0.0), pivot=(-0.07, y, z), spin=True)
              for side, y, z in (('Left', 0.6441, 0.0824), ('Right', -0.6458, 0.0807))]
-# the ball and rods behind the nozzle turn with the turbine wheel (user, 2026-11-01: fixed ones in front of a turning wheel looked wrong, though
+# the ball and rods behind the nozzle turn with the turbine wheel (2026-11-01: fixed ones in front of a turning wheel looked wrong, though
 # on the real engine such struts stand still). Centres from the ball's tip; all of the DCS object at this depth is ball and rods
 TURBINE_AXES = {'Left': (0.6647, 0.2728), 'Right': (-0.6647, 0.274)}
 TURBINE_HUBS = [dict(part='Turbine_' + side, material=r'^F22A_FUSE$', box=((-3.76, min(y - 0.43, y + 0.43), z - 0.43), (-3.395, max(y - 0.43, y + 0.43), z + 0.43)),
@@ -1618,10 +1647,10 @@ KNOB_PARTS = FAN_PARTS + TURBINE_HUBS + [dict(part='K_WheelUFD', material=r'^F22
                    axis=(0.0, 1.0, 0.0), source='UFDBrightnessWheel', pitch=7.7, phases=4, positions=21),
               dict(part='K_WheelHUD', material=r'^F22_ACC2$', box=((7.631, -0.106, 1.103), (7.664, -0.090, 1.152)),
                    axis=(0.0, 1.0, 0.0), source='HUDBrightnessKnob', pitch=7.7, phases=4, positions=21)]
-# Static console controls made working parts (user 2026-11-04: "real logic in the physics and the behaviour, not
-# empty switching"). In the DCS model they are all one F22_SWITCH object (CP__3.005, 13.5 k faces, no arguments): each
+# Static console controls made working parts (2026-11-04: real logic in the physics and the behaviour, not
+# empty switching). In the DCS model they are all one F22_SWITCH object (CP__3.005, 13.5 k faces, no arguments): each
 # control's faces are cut out by a box around it and the height their top vertex reaches above the panel (above: the
-# nut and the red guards stay), and turned about a pivot fitted to the geometry (scratchpad fit2.py, 2026-11-04: the stem's lowest faces ->
+# nut and the red guards stay), and turned about a pivot fitted to the geometry (measured offline, 2026-11-04: the stem's lowest faces ->
 # the ball's centre gives the bat; every toggle stands in its aft position in the model, the rotaries centred). Map:
 # (value, degrees about the axis); toggles turn about the panel's lateral axis (+ = top forward) or, LAMP TEST, its
 # fore-aft axis (+ = top to the right); rotaries about the panel normal (+ = anticlockwise from above).
@@ -1647,7 +1676,7 @@ FLCS_FRAME_ORIGIN = (7.17904, 0.37914, 0.6113)
 
 def _guard_part():
     """FLCS BIT guard: the red lid over the switch's forward positions (the toggle stands aft of it, at STOP) lifts about
-    its hinge pins at the lid's forward end. Geometry (scratchpad guard.py, 2026-11-05), in the switch's frame (origin
+    its hinge pins at the lid's forward end. Geometry (measured offline, 2026-11-05), in the switch's frame (origin
     the bat's pivot, fwd = lateral x normal, h above the panel): frame walls |lat| 8.5-8.9 mm and the base plate h 1.7 mm
     stay, the slot rails |lat| 2-4 mm stay; the lid is |lat| <= 6.3 mm, fwd -4.4 .. +20 mm, up to h 6.1 mm, its rolled
     hinge end at fwd 18-20 mm; the frame's hinge pins at fwd 16 mm, h 3.8 mm."""
@@ -1655,7 +1684,7 @@ def _guard_part():
     n, base, _ = k['above']
     lat = _LAT_L
     fwd = (lat[1] * n[2] - lat[2] * n[1], lat[2] * n[0] - lat[0] * n[2], lat[0] * n[1] - lat[1] * n[0])
-    piv = FLCS_FRAME_ORIGIN       # the frame's measures (guard.py) are from the bat's first pivot
+    piv = FLCS_FRAME_ORIGIN       # the frame's measures (offline fit) are from the bat's first pivot
     hp = _dot(piv, n) - base
 
     def local(v):
@@ -1680,9 +1709,9 @@ _NL, _NR = (-0.0752, -0.1742, 0.9818), (-0.0760, 0.1855, 0.9797)        # left /
 _LAT_L, _LAT_R = (0.0, 0.98460, 0.17480), (0.0, 0.98254, -0.18606)      # their lateral axes (n x forward)
 SWITCH_PARTS = [
     # FLCS BIT: STOP (aft, as modelled) / OFF / START; the red guard is its own part (K_FlcsGuard). The bat turns about
-    # its base between the slot's rails (user 2026-11-06: about a point 6 mm up the stem its foot swung, and under the
+    # its base between the slot's rails (2026-11-06: about a point 6 mm up the stem its foot swung, and under the
     # lifted guard it rose bare out of the panel - a bushing added, _flcs_bushing): bat axis measured on the geometry
-    # (scratchpad bat_axis.py) 22.0 deg aft of the panel normal, its foot centred between the rails; pivot on the axis
+    # (measured offline) 22.0 deg aft of the panel normal, its foot centred between the rails; pivot on the axis
     # at 3 mm (half the rails' height)
     _switch('K_FlcsBit', ((7.1703, 0.3738, 0.6049), (7.18386, 0.38246, 0.62509)), _NL, -0.01181, 0.0075,
             (7.18064, 0.37971, 0.60839), _LAT_L, 'F22FlcsBitSwitch', [(-1.0, 0.0), (0.0, 22.0), (1.0, 44.0)], _BAT),
@@ -1694,7 +1723,7 @@ SWITCH_PARTS = [
             (7.25063, -0.30707, 0.60122), _LAT_R, 'F22CNISwitch', [(0.0, 0.0), (1.0, 39.4)], _BAT),
     _switch('K_ACP', ((7.24006, -0.34426, 0.60442), (7.253, -0.3354, 0.62482)), _NR, -0.01892, 0.0072,
             (7.24959, -0.34143, 0.60777), _LAT_R, 'F22ACPSwitch', [(0.0, 0.0), (1.0, 39.6)], _BAT),
-    # LAMP TEST / (off, upright as modelled) / NVG: the labels stand forward and aft of it (user 2026-11-05: the first
+    # LAMP TEST / (off, upright as modelled) / NVG: the labels stand forward and aft of it (2026-11-05: the first
     # turned it to the right); forward = the F/A-18 annunciator test, aft = NVG (annunciators dimmed for goggles)
     _switch('K_LampTest', ((7.31038, 0.43093, 0.62706), (7.31751, 0.43957, 0.64852)), _NL, -0.00767, 0.0072,
             (7.31464, 0.43674, 0.63105), _LAT_L, 'LightTestSwitch', [(-1.0, -22.0), (0.0, 0.0), (1.0, 22.0)], _BAT),
@@ -1705,7 +1734,7 @@ SWITCH_PARTS = [
     _switch('K_Fadec', ((7.2819, 0.37463, 0.6127), (7.29487, 0.38655, 0.63605)), _NL, -0.00911, -1.0,
             (7.28866, 0.38012, 0.61755), _NL, 'F22FadecSelector', [(-1.0, 35.0), (0.0, 0.0), (1.0, -35.0)]),
     # RADIO VOL, VOX: the voice warnings' volume (F22VoiceVolume 0 .. 1, 20 clicks): OFF pointing left, loudest right, clockwise
-    # over the top (user 2026-11-07). The pointer as modelled looks 45 deg below outboard (scratchpad vox_dir.py: its white
+    # over the top (2026-11-07). The pointer as modelled looks 45 deg below outboard (measured offline: its white
     # faces, 0 = outboard, 90 = forward), + = anticlockwise: angle = direction + 45. (Guessed tables before: 135 .. -135 put
     # OFF up, 45 .. -225 put the loudest up)
     _switch('K_VoxVolume', ((7.45989, -0.44449, 0.63606), (7.48303, -0.42009, 0.66069)), _NR, -0.04987, -1.0,
@@ -1774,7 +1803,7 @@ CLICK_UFD = [('L_SMFD_2_PNT', 'MenuKeyAP', 'Warnings.MasterCautionPilot', 1.0, '
 # forward into the ICP, or the three connectors of the screen the key belongs to - pushed along the screen's normal)
 PRESS_DEPTH = 0.0015
 # the lettering of the ICP keys: flat objects of their own just over the key faces - they go with their keys
-# (export_parts.attach_legends; user 2026-11-17: the lettering stayed in the air while the key went in)
+# (export_parts.attach_legends; 2026-11-17: the lettering stayed in the air while the key went in)
 LEGEND_MATERIAL = r'^F22_SCREEN$'
 _QUADS = {'L_MFD_': ('LEFT-MFD-CENTER', 'LEFT-MFD-DOWN', 'LEFT-MFD-RIGHT'), 'R_MFD_': ('RIGHT-MFD-CENTER', 'RIGHT-MFD-DOWN', 'RIGHT-MFD-RIGHT'),
           'PMFD_': ('PMFD-CENTER', 'PMFD-DOWN', 'PMFD-RIGHT'), 'B_MFD_': ('MFD-CENTER', 'MFD-DOWN', 'MFD-RIGHT'),
@@ -1825,14 +1854,14 @@ CLICK_BUTTONS = [
 CLICK_FOLLOW = {
     'Throttle1Lever': ('Engine1ThrustLeverPosition', (768, 767)),
     'Throttle2Lever': ('Engine2ThrustLeverPosition', (766, 765)),
-    # the gear handle swings 50 deg about its pivot behind the panel (user 2026-11-05: the click zone stood still, half
+    # the gear handle swings 50 deg about its pivot behind the panel (2026-11-05: the click zone stood still, half
     # off the handle once it was up); GearLever 0 up .. 1 down, read from its published output (a control_input reads
     # dynamics outputs, as the throttles' Engine<n>ThrustLeverPosition)
     'GearLever': ('GfxOutGearLever', (83,), (0.0, 1.0)),
 }
 # lever click volumes on the grip instead of the middle of the whole part: (centre at the part's rest pose, (radius,
 # length along the cylinder)). The gear handle's wheel: the vertices 2-3 cm in from the far end of its part (CP__7.003,
-# rest = handle down), 30 mm across, 16 mm wide (scratchpad gear_knob.py, 2026-11-05) - the first volume sat 2 cm
+# rest = handle down), 30 mm across, 16 mm wide (measured offline, 2026-11-05) - the first volume sat 2 cm
 # towards the pivot, at the middle of pivot and wheel
 CLICK_GRIPS = {'GearLever': ((7.611, 0.3075, 0.7013), (0.017, 0.020))}
 # click volumes without an animated part: (F/A-18 control, connector or connectors (midpoint), cylinder axis, drag

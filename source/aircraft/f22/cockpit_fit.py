@@ -1,4 +1,4 @@
-"""Measured on the DCS cockpit geometry (work/controls/fit.py, 2026-11-16): pivots, boxes and transforms of the
+"""Measured on the DCS cockpit geometry (offline, 2026-11-16): pivots, boxes and transforms of the
 controls cut out of the static objects. Keys: the numbers of the controls inventory (cockpit_controls.py)."""
 FIT = {8: {'R': [[-0.9846, 0.00993, -0.17452], [0.05034, -0.93997, -0.33751], [-0.1674, -0.3411, 0.925]],
      'box': [[7.55792, 0.32448, 0.62463], [7.5849, 0.34371, 0.64888]],

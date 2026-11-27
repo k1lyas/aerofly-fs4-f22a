@@ -4910,7 +4910,84 @@
     -1
    ]
   },
-  "Stores_AIM120": {
+  "Stores_AIM120_Pylon3": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Stores_AIM120F_Pylon3": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Stores_AIM120_Pylon4": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Stores_AIM120F_Pylon4": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Stores_AIM120_Pylon5": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Stores_AIM120F_Pylon5": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Stores_AIM120_Pylon7": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Stores_AIM120F_Pylon7": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Stores_AIM120_Pylon8": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Stores_AIM120F_Pylon8": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Stores_AIM120_Pylon9": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Stores_AIM120F_Pylon9": {
    "nodes": "",
    "args": [],
    "parent_nodes": [
@@ -4938,6 +5015,13 @@
     ]
    ]
   },
+  "Stores_AIM9F_L": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
   "A_36_35__S": {
    "nodes": "36,35",
    "args": [
@@ -4957,6 +5041,13 @@
      -1.2277,
      -0.0267
     ]
+   ]
+  },
+  "Stores_AIM9F_R": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
    ]
   },
   "Stores_TankL": {
@@ -5008,7 +5099,63 @@
     -1
    ]
   },
+  "Burner_Left_C1": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Burner_Left_C2": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Burner_Left_C3": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Burner_Left_C4": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
   "Burner_Right_C": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Burner_Right_C1": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Burner_Right_C2": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Burner_Right_C3": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Burner_Right_C4": {
    "nodes": "",
    "args": [],
    "parent_nodes": [
@@ -7387,13 +7534,53 @@
   ],
   "Burner_Left_C": [
    2,
-   462,
-   162
+   74,
+   26
+  ],
+  "Burner_Left_C1": [
+   1,
+   57,
+   19
+  ],
+  "Burner_Left_C2": [
+   1,
+   135,
+   45
+  ],
+  "Burner_Left_C3": [
+   1,
+   54,
+   18
+  ],
+  "Burner_Left_C4": [
+   1,
+   162,
+   54
   ],
   "Burner_Right_C": [
    2,
-   464,
-   162
+   72,
+   26
+  ],
+  "Burner_Right_C1": [
+   1,
+   57,
+   19
+  ],
+  "Burner_Right_C2": [
+   1,
+   135,
+   45
+  ],
+  "Burner_Right_C3": [
+   1,
+   54,
+   18
+  ],
+  "Burner_Right_C4": [
+   1,
+   162,
+   54
   ],
   "CapDisplayICP1": [
    1,
@@ -8670,10 +8857,75 @@
    12710,
    17799
   ],
-  "Stores_AIM120": [
-   6,
-   15774,
-   17040
+  "Stores_AIM120F_Pylon3": [
+   1,
+   2629,
+   2840
+  ],
+  "Stores_AIM120F_Pylon4": [
+   1,
+   2629,
+   2840
+  ],
+  "Stores_AIM120F_Pylon5": [
+   1,
+   2629,
+   2840
+  ],
+  "Stores_AIM120F_Pylon7": [
+   1,
+   2629,
+   2840
+  ],
+  "Stores_AIM120F_Pylon8": [
+   1,
+   2629,
+   2840
+  ],
+  "Stores_AIM120F_Pylon9": [
+   1,
+   2629,
+   2840
+  ],
+  "Stores_AIM120_Pylon3": [
+   1,
+   2629,
+   2840
+  ],
+  "Stores_AIM120_Pylon4": [
+   1,
+   2629,
+   2840
+  ],
+  "Stores_AIM120_Pylon5": [
+   1,
+   2629,
+   2840
+  ],
+  "Stores_AIM120_Pylon7": [
+   1,
+   2629,
+   2840
+  ],
+  "Stores_AIM120_Pylon8": [
+   1,
+   2629,
+   2840
+  ],
+  "Stores_AIM120_Pylon9": [
+   1,
+   2629,
+   2840
+  ],
+  "Stores_AIM9F_L": [
+   1,
+   2247,
+   2048
+  ],
+  "Stores_AIM9F_R": [
+   1,
+   2247,
+   2048
   ],
   "Stores_TankKL": [
    2,

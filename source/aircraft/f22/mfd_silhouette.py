@@ -1,5 +1,5 @@
 """Top views of our own model for the BAY page's picture (mfd_symbols.py, 2026-11-22: the first outline was drawn by
-eye from published figures and did not look like the F-22 - user). Renders masks of the exported model straight from
+eye from published figures and did not look like the F-22). Renders masks of the exported model straight from
 above (orthographic, flat white on black, Workbench): the airframe (every F22A_FUSE mesh), the canopy glass and the
 fins, at the sprite's size x mfd_symbols.SS, framed by mfd_symbols.FRAME (metres: x forward, y left).
 

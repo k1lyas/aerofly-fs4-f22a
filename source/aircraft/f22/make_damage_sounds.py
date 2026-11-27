@@ -3,11 +3,11 @@ the .tsb): the gear leg breaking, the airframe sliding on the runway, the engine
 the tyre bursting, the compressor stall / flameout.
 
 They replace the synthesised versions of make_cockpit_sounds.py (filtered noise at 22.05 kHz), heard in the game as
-'sand in the ears, a rustling plastic bag, not metal' (user, 2026-11-21). Every layer is a real recording; the work is
+sand or a rustling plastic bag, not metal (2026-11-21). Every layer is a real recording; the work is
 the sound designer's: the recordings cleaned (their noise floor and the handling noise between events taken out), cut,
 pitched down by resampling for the mass of an airframe, layered into a full event (impact, sub-boom, tearing metal,
 debris, the airframe's rumble on concrete), then EQ, compression and the short reflection of the runway around it.
-The first plain cut was 'weak, an amateur recording with the noise of his movements' (user, 2026-11-21).
+The first plain cut sounded weak, as an amateur recording with handling noise (2026-11-21).
 
 Sources (Freesound, all CC0; work/damage_sources, not in the repository, authors in release/CREDITS.md):
   346299  PauliusI      'Car Crash_EXT.wav' - a real Peugeot 406 hitting a Ford Ka, boom mic, 48 kHz
@@ -122,7 +122,7 @@ def room(x, mix=0.12, t60=0.55):
 
 # Inside the aircraft. The game plays these sounds dry (a position and a distance, no filtering, no reverb: failures_f22
 # engine_once / cockpit_loop), and only in the cockpit - so the cockpit has to be in the file. The first full scenes were
-# outside sounds 'put in headphones, not tied to the aircraft' (user, 2026-11-21): the event reaches the pilot through
+# outside sounds as if put in headphones, not tied to the aircraft (2026-11-21): the event reaches the pilot through
 # the structure - the highs are lost (the F/A-18's cockpit in the game: -18 dB at 1 kHz, -29 at 2 kHz, -40 at 8 kHz
 # under 63 Hz, 2026-11-21 recording), and the airframe rings with it: its panels and frames are struck, and their low
 # modes (60-900 Hz, damped in tenths of a second) carry the hit. The same airframe for all layers: it glues them.
@@ -256,7 +256,7 @@ def gear_crunch():
 def tyre_burst():
     """A tyre bursting under the aircraft: a real shotgun's report for the crack of ~300 psi letting go (the closest real
     sound to a burst), the pyrotechnic blast's low punch under it for the volume of air, the airframe kicked by it, a
-    few loose bits. In the first build (the crash's first instant) it was 'not a tyre' (user, 2026-11-21)."""
+    few loose bits. In the first build (the crash's first instant) it was 'not a tyre' (2026-11-21)."""
     n = int(1.6 * SR)
     crack = band(fade(cut(159710, 0.065, 0.75, 0.92), 0.0005, 0.35), lo=90)
     punch = band(fade(cut(251759, 0.085, 0.75, 0.8), 0.001, 0.3), hi=300, order=4)
@@ -269,7 +269,7 @@ def stall_bang():
     """A compressor stall / flameout: the engine's surge is a blast in its intake and nozzle - the pyrotechnic explosion
     (its punch and natural rolling decay), the shotgun's report a little lower for the sharp edge, through the airframe
     from behind the pilot (more of the top lost than the tyre: the engine is in the fuselage, not under the floor).
-    Replaces the synthetic noise blast of make_cockpit_sounds (user, 2026-11-21: 'make a proper flameout sound')."""
+    Replaces the synthetic noise blast of make_cockpit_sounds (2026-11-21)."""
     n = int(2.2 * SR)
     blast = band(fade(cut(251759, 0.07, 2.2, 0.85), 0.0005, 0.9), lo=30)
     edge = band(fade(cut(159710, 0.07, 0.6, 0.8), 0.0005, 0.3), lo=150)

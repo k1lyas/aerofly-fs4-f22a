@@ -2,7 +2,7 @@
 
     Blender --background --factory-startup --python make_cockpit_sounds.py        (needs numpy; voices need macOS `say`)
 
-Voices: since 2026-11-16 make_voices_kokoro.py writes voice_*.wav (Kokoro-82M, Apache 2.0, voice af_heart chosen by ear by the user) - this
+Voices: since 2026-11-16 make_voices_kokoro.py writes voice_*.wav (Kokoro-82M, Apache 2.0, voice af_heart chosen by ear) - this
 script leaves them alone. The old way, macOS Samantha through the same intercom band (personal, non-commercial use only, never for a published
 package), still runs with F22_MACOS_VOICES=1. The rest is synthesised here, ours:
   flow_noise - air along the canopy, broadband and soft: quiet in a pressurised cockpit, no whistle

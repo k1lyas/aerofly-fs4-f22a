@@ -5,23 +5,22 @@
 [![Licence: GPL-3](https://img.shields.io/badge/licence-GPL--3-blue)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-buy%20me%20a%20Monster-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ukraf)
 
-![F-22A over the hills](media/exterior.jpg)
+![F-22A releasing an AIM-120 from its main bay](media/launch.jpg)
 
-A free, open-source add-on aircraft for the desktop version of Aerofly FS 4 (Windows, macOS) - version 0.9.1.
+A free, open-source add-on aircraft for the desktop version of Aerofly FS 4 (Windows, macOS) - version 0.9.2.
 Not affiliated with or endorsed by IPACS, Lockheed Martin, Eagle Dynamics or Grinnelli Designs.
 
 **[Download the latest release](https://github.com/k1lyas/aerofly-fs4-f22a/releases/latest)** - unzip, run the installer, fly. How to fly it:
 **GUIDE.md**. News, questions and bug reports: [the forum thread](https://www.aerofly.com/community/forum/index.php?thread/30495-f-22a-raptor-for-aerofly-fs4-work-in-progress-videos-updates-feedback-welcome/).
 
-> **Public beta.** Flown on macOS; the installer was tested on Windows 11 too, but not yet with the Windows version
-> of the game. If you install it on Windows, please tell us in the forum thread whether it worked - with
-> `f22_install.log` from your Aerofly user folder if it did not.
+> **Public beta.** Developed and flown on macOS; players fly it on Windows 11 too. If something does not work, please
+> tell us in the forum thread - with `f22_install.log` from your Aerofly user folder if the installer failed.
 
-![The cockpit in flight](media/cockpit.jpg)
+![The cockpit in flight: SMS, map and engine pages](media/cockpit.jpg)
 
 | | |
 |---|---|
-| ![Side consoles](media/consoles.jpg) | ![Afterburner take-off at dusk](media/afterburner.jpg) |
+| ![Ferry tanks on the wing pylons](media/tanks.jpg) | ![Afterburner at dusk](media/afterburner.jpg) |
 
 ## What you get
 
@@ -29,13 +28,15 @@ Not affiliated with or endorsed by IPACS, Lockheed Martin, Eagle Dynamics or Gri
   key, thumbwheel and rocker moves and clicks
 - **Displays**: HUD, moving map / HSI, engine (round N2 gauges), fuel, FPAS, flight control, systems, status,
   approach and weapon bay pages (the aircraft from above with its doors, missiles and tanks); live checklists; UFDs
-  with ICAWS warnings, a standby attitude indicator, timer and NAV pages; ICP with radio, navigation and autopilot
-  pages, HDG / CRS thumbwheels; screen modes OFF / NIGHT / DAY
+  with ICAWS warnings, a standby attitude indicator, timer and NAV pages; ICP with radio, navigation, autopilot,
+  autothrottle and load pages, HDG / CRS thumbwheels; screen modes OFF / NIGHT / DAY
 - **Systems**: cold start with APU, engine start from the throttles, electrical and hydraulic systems
 - **Flight**: thrust vectoring nozzles driven by the flight control laws, autothrottle, Auto-GCAS
-- **Fuel and lights**: fuel burn with tank sequencing, afterburner flame, night lighting, formation lights
-- **Stores**: weapon bays with AIM-120C / AIM-9X (combat livery), 600 gal ferry tanks that can be jettisoned (ferry
-  livery)
+- **Fuel and lights**: fuel burn with tank sequencing, afterburner flame and a flickering glow inside the nozzles,
+  night lighting, formation lights
+- **Stores**: weapon bays with AIM-120C / AIM-9X that can be released for the pictures from the SMS page (each one
+  ejected or rail-launched, flying on its own glowing motor; no targets), 600 gal ferry tanks that can be jettisoned,
+  also from a key; the load (clean, combat, ferry or both) picked in the cockpit, in the air too
 - **Failures and damage**: engine, electrical, hydraulic and gear failures by hand, at random or caused by how you
   fly; wings and fins that can be torn off, burst tyres, collapsing gear
 - **Voice warnings**: PULL UP, ALTITUDE, BINGO, OVER G, ENGINE / FIRE
@@ -143,8 +144,9 @@ Tested with: Aerofly FS 4 Steam build 26705403, macOS. Reports from other system
 ## Known limits of this version
 
 - Engine sound is the stock F-15E's (F100 engines, not the F-22's F119).
-- The SA page shows no other aircraft; no arresting hook; air refuelling is visual only.
-- Aerofly does not change the aircraft mass with internal fuel burn; radios and IFF pages do nothing in the game.
+- The SA page shows no other aircraft; missiles fly for the pictures only (no targets, no guidance); air refuelling
+  is visual only.
+- Aerofly does not change the aircraft mass with internal fuel burn; radio and IFF settings change almost nothing in the game.
 - Items marked *(untested)* in GUIDE.md follow the F/A-18's logic and were not checked in the F-22 yet.
 
 ## Planned
@@ -153,13 +155,13 @@ Tested with: Aerofly FS 4 Steam build 26705403, macOS. Reports from other system
 
 ## Want to help?
 
-Many cockpit controls already move and click but have no function yet (ECS, oxygen, AUX COMM, two ICP
-thumbwheels, four UFD keys and more). **COCKPIT_CONTROLS.md** lists each of them with the name of its state: a function can be added in
+Many cockpit controls already move and click but have no function yet (ECS, oxygen, AUX COMM, the ICP's
+STPT and DVR keys, four UFD keys and more). **COCKPIT_CONTROLS.md** lists each of them with the name of its state: a function can be added in
 the Python scripts of the folder `generator/` alone - no 3D work and no IPACS converter; run the installer again
 to rebuild the aircraft with your change. Ideas and patches: https://www.aerofly.com/community/forum/index.php?thread/30495-f-22a-raptor-for-aerofly-fs4-work-in-progress-videos-updates-feedback-welcome/ or https://github.com/k1lyas/aerofly-fs4-f22a.
 
 The add-on is free and stays free. If you enjoy it and want to say thanks, you can buy me a Monster on Ko-fi:
-https://ko-fi.com/ukraf - it pays for the AI assistant this aircraft is built with.
+https://ko-fi.com/ukraf.
 
 ## Licence
 

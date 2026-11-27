@@ -1,5 +1,51 @@
 # Changelog
 
+## v0.9.2
+
+Stores
+- SMS page (was BAY): select AIM-120 or AIM-9X and release them one by one with REL or the key assigned to Strobe -
+  for the pictures, no targets: the bay opens by itself, the AIM-120C is ejected down and lights its motor, the AIM-9X
+  leaves its rail; each missile flies on its own thrust and its motor glows. MASTER ARM now works (ARM / SAFE) and brings the SMS page up on the left MFD (SAFE: back to ENG)
+- The load is chosen in the cockpit, not in the menu: CLEAN, COMBAT (6 AIM-120C + 2 AIM-9X), FERRY (two 600 gal
+  tanks) or FULL - at once and anywhere from the ICP (OTHR → LOAD), or round on the SMS page's LOAD key on the ground
+  with the parking brake set. The aircraft starts clean; fired or jettisoned stores come back with the livery chosen
+  again
+- Missiles and tanks weigh what the real ones do and move the centre of gravity; the gross weight on the ENG page
+  counts them and drops as missiles go and ferry fuel burns
+- Launch sound from a real recording: outside it goes away with the missile, in the cockpit it is muffled and grows
+  with the engines' noise, so it is heard at full afterburner too
+- Tanks can be jettisoned from the SMS page (S-J) and from the key assigned to Hook (the gliders' tow release), so
+  you can watch them go from outside
+- Six community liveries from DCS World painters (Texac, AsilTurq, Danksley, _BillyTheKid_; names in CREDITS.md): USAF
+  ED 005, OT mirror coating test, AK 193; fictional TuAF KAAN, Crimson Squadron, ISAF Mobius One - one menu entry
+  each, any load
+- The BEFORE TAKEOFF checklist checks the weapon bays are shut; its MASTER ARM line reads the switch itself
+- The silhouette on the SMS page shows each missile while it is aboard
+
+Afterburner
+- New flame from the 2D nozzles: violet at the exit, through magenta and pink to orange-red, a flat column with four
+  shock diamonds - best seen at night; in daylight it is faint, as the real one
+- The inside of the nozzles at afterburner: dark red at the exit to yellow-white at the flame holder, brighter, with a
+  slow flicker running aft along the duct; the flame starts a little behind the exit so its glow no longer veils it
+
+Displays and controls
+- ICP: OTHR holds LOAD, A/T and ADF2. The A/T page shows MACH and KCAS with their targets (the speed of the moment
+  while it is off), the one held marked; a line press holds it, digits set it, SYNC catches the speed, and the lower
+  right rocker steps it by 1 kt / M 0.01 on that page
+- ICP clean-up: the radio lines that did nothing are gone (COM: a :FREQ hint), IFF is one XPDR on / off line, TACAN
+  lost its A/A line (it was T/R again), STPT no longer opens an empty page; option lines take 10 characters
+- The failure codes (9900 FAIL, 9999 COND) work on the OTHR page too, digits and MRK
+- MFD menu in groups: navigation along the top, the aircraft's systems on the right, the mission on the left
+- Every screen on the same black background (the side screens had the F/A-18's green)
+
+Flight
+- Top speed low down as the real F-22: about M1.21 / 800 kt at sea level on full afterburner (it reached ~1030 kt at
+  4000 ft); above 30000 ft unchanged
+
+Cold start
+- Parked as on the ramp: every weapon bay open, the nozzles wide open until the engine reaches idle (on the ground
+  only)
+
 ## v0.9.1
 
 Displays and controls

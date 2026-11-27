@@ -5,7 +5,7 @@
 
 Kokoro-82M (hexgrad/Kokoro-82M on Hugging Face), model weights under Apache 2.0 - unlike the macOS system voices of
 make_cockpit_sounds.py (personal, non-commercial use only), its output can go into the GPL-3 package. `samples` writes
-one phrase per candidate voice, clean and through the intercom band, into work/voice_samples_kokoro/ for the user to
+one phrase per candidate voice, clean and through the intercom band, into work/voice_samples_kokoro/ to
 choose by ear; `final` writes the eight phrases into sounds/cockpit/voice_*.wav (22.05 kHz mono 16 bit, as the other
 cockpit sounds; ./build.sh convert makes the .tsb). The intercom chain is make_cockpit_sounds.voice()'s own.
 """
@@ -14,7 +14,7 @@ import numpy as np
 
 SR = 22050
 HERE = os.path.dirname(os.path.abspath(__file__))
-# (PULL UP with its phonemes spelled out and 'up' fully stressed: 'Pull up.' read the 'up' unstressed, user 2026-11-17)
+# (PULL UP with its phonemes spelled out and 'up' fully stressed: 'Pull up.' read the 'up' unstressed, 2026-11-17)
 PHRASES = [('voice_pullup', '[Pull](/pˈʊl/) [up](/ˈʌp/)!'), ('voice_altitude', 'Altitude.'), ('voice_bingo', 'Bingo fuel.'),
            ('voice_overg', 'Over G.'), ('voice_fire_left', 'Engine fire, left.'), ('voice_fire_right', 'Engine fire, right.'),
            ('voice_engine_left', 'Engine out, left.'), ('voice_engine_right', 'Engine out, right.')]
@@ -83,9 +83,9 @@ def final_stop(x):
 
 
 def harden(x):
-    """A final p / t unreleased (user 2026-11-17: 'PULL UP' ended in a soft 'py', 'LEFT' in 'ty' - Kokoro releases a
-    final stop with ~70 ms of hiss above 3 kHz, the English aspiration a Russian ear hears as softness; of three
-    versions - no release, a 15 ms release, a 15 ms release low-passed - the user took the one without): the phrase
+    """A final p / t unreleased (2026-11-17: 'PULL UP' ended in a soft 'py', 'LEFT' in 'ty' - Kokoro releases a
+    final stop with ~70 ms of hiss above 3 kHz, the English aspiration heard as softness; of three
+    versions - no release, a 15 ms release, a 15 ms release low-passed - the one without was taken): the phrase
     ends 20 ms into the closure."""
     st = final_stop(x)
     if st is None:

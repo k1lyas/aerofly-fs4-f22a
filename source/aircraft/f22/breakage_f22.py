@@ -16,6 +16,7 @@ the game then paused on a crash during the tumble (PEAK G 4.2). 13.5 g -> 675 kN
 Mechanics tests, one per game launch, switched on by the environment for one build, off by the next normal build:
 
     F22_TEST=wingbreak ./build.sh configs      # test build into the game
+    F22_TEST=stores ./build.sh configs         # jettisoned tanks pushed forward, graphics_quad (_stores_test)
     ./build.sh configs                          # back to normal
 """
 import math
@@ -48,7 +49,7 @@ FIN_TORQUE_MAX = 250000.0           # was 100 kN m: in-game 2026-11-10 a right f
 # lift (its aerodynamic centre ~0.9 m ahead of the joint: ~0.4e6 N m / rad of negative stiffness at 550 kt, ~1e6 near
 # 800) - the loads grew by half and more, it shook from ~760 kt and lost a fin at 551 kt in a rolling pull. 3e6 keeps
 # three times that margin; 30 % of critical damping
-# 2026-11-21: the fins shook side to side at 500-650 kt (user's video, 22:37: the tip at 13.7-14 Hz, steady, both fins) -
+# 2026-11-21: the fins shook side to side at 500-650 kt (test video: the tip at 13.7-14 Hz, steady, both fins) -
 # the fin's sideways mode on the force springs (245 kg on 2e6 N/m: 14.4 Hz) with 30 % damping, rung by the airflow.
 # Stiffer is out (1e7 rang itself apart at the spawn). The force damping went up to ~55 % of critical (24 000: c / m ~100
 # 1/s, inside the explicit step's limit for 245 kg). NOT the torque damping: raised to 4.8e4 with it, both fins tore off
@@ -62,7 +63,7 @@ FIN_TORQUE_MAX = 250000.0           # was 100 kN m: in-game 2026-11-10 a right f
 FIN_KT, FIN_DT = 1.5e6, 2.2e4
 FIN_KF, FIN_DF = 2.0e6, 2.4e4
 # flutter (COND on, failures_f22.py): over the speed limit - 800 KCAS, the F-15's and F-16's (the F-22's is not
-# public; 750 at first, 2026-11-10: the user flies the mod at 900-1000 kt low, so the onset moved up to the real
+# public; 750 at first, 2026-11-10: the mod is flown at 900-1000 kt low, so the onset moved up to the real
 # fighters' limit) - the rudders start to buzz, 6 Hz, growing over ~2.5 s, past what the actuators hold (straight
 # into the fins' aerodynamics, not through the servos), heard and felt as the buffet; held, the load tears a fin off.
 # It builds above ~820 kt and dies out below
@@ -153,8 +154,8 @@ def apply(ns):
     gear_shear(ns, joint)
     tank_release(ns, joint)
     fuel_wing_loss(ns, joint)
-    if TEST not in ('', 'wingbreak', 'consolebreak', 'nosplit', 'finbreak', 'fins', 'flutter'):
-        raise SystemExit('F22_TEST=%s: no such test (wingbreak, consolebreak, nosplit, finbreak, fins, flutter)' % TEST)
+    if TEST not in ('', 'wingbreak', 'consolebreak', 'nosplit', 'finbreak', 'fins', 'flutter', 'stores', 'glow'):
+        raise SystemExit('F22_TEST=%s: no such test (wingbreak, consolebreak, nosplit, finbreak, fins, flutter, stores, glow)' % TEST)
 
 
 # burst tyres sit down on their rims (block 3, 2026-11-11). The game's wheel has no input for its pressure or radius,
@@ -287,7 +288,7 @@ def gear_shear(ns, joint):
     print('gear shear: debris %s on joint chains (slides, yaw, pitch), wheel locked, free at the shear' % ', '.join(sorted(SHEAR_GEAR)))
 
 
-# ferry tank jettison (2026-11-13, user: "check dropping the tanks - there is another way now, as with the surfaces").
+# ferry tank jettison (2026-11-13: redone the way the surfaces break off).
 # In October an unlocked tank slid along its joint and pulled the aircraft over: a joint never lets a body go, and a
 # body's mass and drag cannot be switched off. A broken jointlinear does let go - a torn console falls on by itself
 # with its mass and aerodynamics, through the ground without a hull, and the aircraft flies on (in-game 2026-11-10).
@@ -302,7 +303,7 @@ def gear_shear(ns, joint):
 # The release: EMER JETT (the cockpit button, Controls.EmergencyJettision), airborne and with DC essential power; also
 # when the console under the pylon tears off. Latched - a jettisoned tank stays gone (as a torn console: a new flight
 # from the menu brings it back; the game does not mend a broken joint)
-# The fall (2026-11-13, user: the tanks dropped straight down, both alike - "as it must be by the laws of physics").
+# The fall (2026-11-13: the tanks dropped straight down, both alike - not as physics would have it).
 # What a dropped finless tank does: the ejector's stronger forward piston pitches it nose down (it must not pitch up
 # into the wing); a body of revolution without fins is unstable in pitch and yaw (the Munk moment: the nose's
 # cross-flow lift is ahead of the centre of gravity) - it turns away from the flow, goes broadside and tumbles end
@@ -321,6 +322,7 @@ def gear_shear(ns, joint):
 #  - ripple: the right tank 0.1 s after the left (fighters fire their stations in a sequence: one jolt at a time;
 #    the F-22's interval is not public) and its cartridge 10 % weaker (cartridges spread): no mirror-image twins
 TANK_SHELL = 236.0 - 10.0            # kg: the tank and pylon, empty, less the rack and the hull body (they stay)
+TANK_CDA = 0.07                      # m2: a hanging tank's drag - its profile (0.57 m2 x Cdx 0.05) and pylon (0.04)
 TANK_SLUGS = 4
 TANK_LUG_AHEAD = 0.6                 # m
 # cross-flow lift of the nose (aerofuselage over the nose stations, to the full diameter): slender-body theory gives a
@@ -379,6 +381,11 @@ def tank_release(ns, joint):
     btn = D['EmergencyJettisionButton']
     assert btn.type == 'input_button', btn.type
     btn.set('Events', ' %s F22JettPress.Trigger ' % btn.get('Events').strip(), 'string8')
+    # the same from a key (2026-11-25, MDIvey #54: jettison while watching from outside). Controls.EmergencyJettision
+    # is not in the game's list of assignable commands (docs/reference/ENGINE_CATALOG.md); the gliders' tow release
+    # Controls.HookRelease is, and the F-22 has no other use for it. Received as the ASK 21 / ASG 29 receive it
+    o('input_discrete_momentary', 'F22JettKey', Message='Controls.HookRelease', Range=('tmvector2d', ' 0.0 1.0 '),
+      EventsUp=' ButtonSoundCenterPanel.Trigger F22JettPress.Trigger ')
     o('logic_confirm_delay', 'F22JettRight', Input='F22JettReq.Output', TimeUp=JETT_RIPPLE_S, TimeDown=0.0001,
       Threshold=0.5)
     for side, req in (('Left', 'F22JettReq.Output'), ('Right', 'F22JettRight.Output')):
@@ -402,9 +409,8 @@ def tank_release(ns, joint):
         krate = o('product', 'F22TankKickRate' + side, Inputs=' %s 50.0 ' % req)
         kheld = o('integral_clamped', 'F22TankKickHeld' + side, Input=krate, Range=' 0.0 1.0 ', Value=0.0)
         o('logic_greater', 'F22TankKick' + side, Input0=kheld, Input1='0.5')
-    print('ferry tanks: EMER JETT kicks each off its rack on the console (%.2f m at %.0f m/s, then a snap; the joint gives at %.0f kN), '
-          'right %.2f s after left; fuel in %d slugs a tank' % (EJECT_STROKE, EJECT_SPEED, TANK_FORCE_MAX / 1e3,
-                                                                JETT_RIPPLE_S, TANK_SLUGS))
+    print('ferry tanks: EMER JETT kicks each off its rack on the console (%.2f m at %.0f m/s, then a snap), right %.2f s '
+          'after left; light shells, mass in station tanks (loads_f22)' % (EJECT_STROKE, EJECT_SPEED, JETT_RIPPLE_S))
 
 
 def eject_stroke(o, name, signal, speed, apart=None):
@@ -431,8 +437,9 @@ def eject_stroke(o, name, signal, speed, apart=None):
     return nodes, name + 'Pos.Output'
 
 
-def _kicked(o, name, base, body, r0, pos, kf, df, kt, dt, fmax, tmax, rack_mass):
-    """A kinematic rack (locked slide on base, follows pos) and a breakable jointlinear from it to body."""
+def _kicked(o, name, base, body, r0, pos, kf, df, kt, dt, fmax, tmax, rack_mass, axis=(0.0, 0.0, 1.0)):
+    """A kinematic rack (locked slide on base along axis, follows pos: negative = along -axis) and a breakable
+    jointlinear from it to body."""
     vec = lambda v: ('tmvector3d', ' %.4f %.4f %.4f ' % tuple(v))
     rack = name + 'Rack'
     kt = kt if isinstance(kt, dict) else {a: kt for a in 'xyz'}
@@ -440,7 +447,7 @@ def _kicked(o, name, base, body, r0, pos, kf, df, kt, dt, fmax, tmax, rack_mass)
     return rack, [
         o('rigidbody', rack, Mass=rack_mass, InertiaLength=vec([0.3, 0.3, 0.3]), R0=vec(r0),
           B0=('tmmatrix3d', ' 1.0 0.0 0.0  0.0 1.0 0.0  0.0 0.0 1.0 ')),
-        o('multibody_joint', 'Joint' + rack, Body0=base, Body1=rack, R0=vec(r0), X0=vec([0.0, 0.0, 1.0]), Kp=0.0,
+        o('multibody_joint', 'Joint' + rack, Body0=base, Body1=rack, R0=vec(r0), X0=vec(axis), Kp=0.0,
           Kd=0.0, InputPosition=pos, InputLock='1.0', Type=('uint32', '1')),
         o('jointlinear', 'Joint' + name, Body0=rack, Body1=body, R0=vec(r0),
           Kfx=kf, Kfy=kf, Kfz=kf, Dfx=df, Dfy=df, Dfz=df, Ktx=kt['x'], Kty=kt['y'], Ktz=kt['z'],
@@ -449,7 +456,7 @@ def _kicked(o, name, base, body, r0, pos, kf, df, kt, dt, fmax, tmax, rack_mass)
 
 def tank_addon(obj, holder, side, body, cg, fuel, x_span, zc, hull_geometry):
     """The ferry add-on's part of one tank (make_f22.py, stage 6): the shell's ejector rack (on its console) and
-    breakable joint at the forward lug, the fuel slugs on their own racks, the lifting hull body, the separation check (IRS of the tank
+    breakable joint at the forward lug, its station tank (loads_f22), the lifting hull body, the separation check (IRS of the tank
     against its rack) and the graphics swap - drawn on the fuselage while it holds (a sprung body moves centimetres
     against the wing: gaps, as the consoles), on its own body once off. Returns (dynamics, graphics)."""
     full = {'L': 'Left', 'R': 'Right'}[side]
@@ -465,33 +472,25 @@ def tank_addon(obj, holder, side, body, cg, fuel, x_span, zc, hull_geometry):
     stroke = lambda name, signal, apart=None: eject_stroke(o, name, signal, speed, apart)
 
     dyn, pos = stroke('F22EjectStroke' + side, 'F22TankKick%s.Output' % full, 'F22TankApart%s.Output' % side)
-    rack, nodes = _kicked(o, 'F22Tank' + side, full + 'Wing', body, lug, pos, TANK_KF, TANK_DF, TANK_KT, TANK_DT,
-                          TANK_FORCE_MAX, TANK_TORQUE_MAX, RACK_MASS)
+    # 0.9.2 (loads_f22): the shell a light body - its mount's stiffness and strength scaled as its mass, so it hangs
+    # and leaves as before; the rest of it and its fuel in a station tank on the console, kept at the shell less the
+    # light body plus the side's ferry fuel as counted (F22FerryFuel*: falls as it burns, 0 once gone or not loaded).
+    # The station tank replaces the fuel slugs (bodies kicked off as the fuel burnt down: the mass followed the fuel in
+    # steps of 453 kg). The hanging tank's drag (its profile and pylon, ~0.07 m2 CdA) on the console while it holds:
+    # the light shell's own aerodynamics are scaled down with it
+    import loads_f22
+    rt = loads_f22.ratio('shell', TANK_SHELL)
+    sc = lambda v: {a: x * rt for a, x in v.items()} if isinstance(v, dict) else v * rt
+    rack, nodes = _kicked(o, 'F22Tank' + side, full + 'Wing', body, lug, pos, sc(TANK_KF), sc(TANK_DF), sc(TANK_KT),
+                          sc(TANK_DT), sc(TANK_FORCE_MAX), sc(TANK_TORQUE_MAX), RACK_MASS)
     dyn += nodes
-    # the fuel slugs, nose to tail inside the tank; slug k holds the k-th share from the bottom, goes when it is burnt
-    share = fuel / TANK_SLUGS
-    x0, x1 = x_span
-    for k in range(TANK_SLUGS):
-        name = 'F22TankSlug%s%d' % (side, k)
-        r0 = [x0 + (x1 - x0) * (k + 0.5) / TANK_SLUGS, y, zc]
-        dyn += [o('logic_greater', name + 'Burnt', Input0='%.1f' % (k * share + 1.0),
-                  Input1='F22FerryFuel%s.Output' % full),
-                o('logic_confirm_delay', name + 'Due', Input=name + 'Burnt.Output', TimeUp=SLUG_DUE_S, TimeDown=0.0001,
-                  Threshold=0.5),
-                o('logic_or', name + 'Go', Inputs=' %s.Output %s ' % (name + 'Due', gone))]
-        nodes, spos = stroke(name + 'Stroke', name + 'Go.Output')
-        dyn += nodes
-        dyn += [o('rigidbody', name, Mass=share - SLUG_RACK_MASS, InertiaLength=vec([6.7 / TANK_SLUGS, 0.8, 0.8]),
-                  R0=vec(r0), B0=eye),
-                # (no drag, a slug would fall faster without end: ~150 m/s, as a falling lump)
-                o('aerofuselage', name + 'Aero', Body=name, StationX=('float64', '[ %.4f %.4f ]' % (r0[0] + 0.4, r0[0] - 0.4)),
-                  StationY=('float64', '[ %.4f %.4f ]' % (y, y)), StationZ=('float64', '[ %.4f %.4f ]' % (zc, zc)),
-                  StationWidth=('float64', '[ 0.6 0.6 ]'), StationHeight=('float64', '[ 0.6 0.6 ]'),
-                  StationShape=('uint32', '[ 0 0 ]'), Cdx=1.0, Cdy=1.0, Cdz=1.0, Cly=0.0, Clz=0.0, Cm=0.0)]
-        _, nodes = _kicked(o, name, 'Fuselage', name, r0, spos, SLUG_KF, SLUG_DF, SLUG_KT, SLUG_DT, SLUG_FORCE_MAX,
-                           SLUG_TORQUE_MAX, SLUG_RACK_MASS)
-        # (the slug body itself comes before its joint: rigidbody first, as the donor lists them)
-        dyn += nodes
+    shell_rest = TANK_SHELL * (1.0 - rt)
+    dyn += [o('product', 'F22MassTank%sShell' % side, Inputs=' F22FerryTanks.Output F22TankOn%s.Output %.1f ' % (full, shell_rest)),
+            o('sum', 'F22MassTank%sWant' % side, Inputs=' F22MassTank%sShell.Output F22FerryFuel%s.Output ' % (side, full))]
+    dyn += loads_f22.station_tank(obj, holder, 'Tank' + side, full + 'Wing', cg, 'F22MassTank%sWant.Output' % side)
+    dyn += [o('product', 'F22TankDragOn' + side, Inputs=' F22FerryTanks.Output F22TankHolds%s.Output ' % side),
+            o('airbrake', 'F22TankDrag' + side, Body=full + 'Wing', R0=vec(cg), X0=vec([1.0, 0.0, 0.0]), Area=TANK_CDA,
+              Cd=1.0, Control='F22TankDragOn%s.Output' % side)]
     dyn += [
         o('servoclassic', 'F22TankHullUp' + side, Input=gone, Speed=TANK_HULL_RATE / TANK_HULL_LIFT, P1=1.0),
         o('mixlinear', 'F22TankHullPos' + side, Input0='F22TankHullUp%s.Output' % side, Input1='F22TankHullUp%s.Output' % side,
@@ -518,8 +517,12 @@ def tank_addon(obj, holder, side, body, cg, fuel, x_span, zc, hull_geometry):
             # (with the console: its own separation, as the console's drawing swaps - the tank rides it)
             o('logic_or', 'F22TankOff' + side, Inputs=' %s F22TankApart%s.Output F22SepWing%s.Output ' % (gone, side, full)),
             o('logic_greater', 'F22TankHolds' + side, Input0='0.5', Input1='F22TankOff%s.Output' % side),
-            o('output', 'GfxOutF22TankOff' + side, Input='F22TankOff%s.Output' % side),
-            o('output', 'GfxOutF22TankHolds' + side, Input='F22TankHolds%s.Output' % side)]
+            # (0.9.2: not loaded - neither the hanging tank nor the light body's copy is drawn)
+            o('logic_invert', 'F22TankNotLoaded' + side, Input='F22FerryTanks.Output'),
+            o('logic_or', 'F22TankHideHung' + side, Inputs=' F22TankOff%s.Output F22TankNotLoaded%s.Output ' % (side, side)),
+            o('logic_or', 'F22TankHideFree' + side, Inputs=' F22TankHolds%s.Output F22TankNotLoaded%s.Output ' % (side, side)),
+            o('output', 'GfxOutF22TankOff' + side, Input='F22TankHideHung%s.Output' % side),
+            o('output', 'GfxOutF22TankHolds' + side, Input='F22TankHideFree%s.Output' % side)]
     gfx = [o('graphics_input', 'GfxF22TankOff' + side, InputID=('uint32', 'GfxOutF22TankOff%s.Output' % side)),
            o('graphics_input', 'GfxF22TankHolds' + side, InputID=('uint32', 'GfxOutF22TankHolds%s.Output' % side)),
            o('bendingbodygraphics', 'Stores_TankK' + side, PositionID=('uint32', full + 'Wing.R'),
@@ -532,10 +535,63 @@ def tank_addon(obj, holder, side, body, cg, fuel, x_span, zc, hull_geometry):
              InputHide='GfxF22TankHolds%s.Output' % side),
            o('rigidbodygraphics', 'HullF22Tank' + side, PositionID=('uint32', hull + '.R'),
              OrientationID=('uint32', hull + '.Q'), GeometryList=' %s ' % hull_geometry, InputHide='1.0')]
+    if TEST == 'stores':
+        t_dyn, t_gfx = _stores_test(o, side, body, cg)
+        dyn += t_dyn
+        gfx += t_gfx
     return dyn, gfx
 
 
-# fuel with a lost wing (2026-11-11, user: "less fuel - is there a system that shuts the tanks, or should it leak beyond
+# F22_TEST=stores (2026-11-25, before the missile launch of 0.9.2): can a free body be pushed along? A jettisoned tank
+# shell is the test body. Half a second after it is off, STORES_TEST_FORCE for STORES_TEST_S along the shell's nose:
+# left by `force` (MaxForce, Control), right by `spaceship` (its child: + InputThrottle) - both from the engine's class
+# registry, no stock config uses them, so the names of their position / direction fields are guesses (R0 and X0, as
+# the stock `hook` and `joint_force`). Expected if it works: the shell leaves forward and overtakes the aircraft
+# (~4 g on its 226 kg; the spaceship's own strength is unknown). And a `graphics_quad` (the carrier's wake foam) on the left
+# shell: is it drawn, where, how large, and does the canopy glass texture (it has a colour alpha) show through.
+STORES_TEST_FORCE = 10000.0         # N
+STORES_TEST_S = 5.0
+STORES_TEST_KICK = 60000.0         # N, third try
+STORES_TEST_KICK_S = 1.0
+
+
+def _stores_test(o, side, body, cg):
+    full = {'L': 'Left', 'R': 'Right'}[side]
+    vec = lambda v: ('tmvector3d', ' %.4f %.4f %.4f ' % tuple(v))
+    n = 'F22TestThrust' + side
+    dyn = [o('integral_clamped', n + 'Age', Input='F22TankOff%s.Output' % side, Range=' 0.0 %.1f ' % (STORES_TEST_S + 2.0),
+             Value=0.0),
+           o('logic_greater', n + 'Started', Input0=n + 'Age.Output', Input1='0.5'),
+           o('logic_greater', n + 'Running', Input0='%.1f' % (STORES_TEST_S + 0.5), Input1=n + 'Age.Output'),
+           o('logic_and', n, Inputs=' %s.Output %s.Output ' % (n + 'Started', n + 'Running'))]
+    # (first try 2026-11-25: the game takes Body, R0, X0, MaxForce, Control on `force`; `spaceship` has none of the four
+    # - only Body and InputThrottle were accepted - and graphics_quad has no R0 / Size. An unknown field stops the
+    # whole aircraft (STOP sign, tm.log 'property not found'), add-on or not)
+    # (second try, same day, video: with Control 0..1 both shells fell as before, the left perhaps a little ahead -
+    # Control is taken as the force itself, in N, MaxForce only its limit; the spaceship did nothing to be seen. Now
+    # `force` on both, Control in newtons: left the full STORES_TEST_FORCE, right a fifth of it - if the left leaves
+    # five times as hard, Control is newtons. The graphics_quad showed: a huge dark disc fading out at its edges,
+    # flat in the shell's plane (transparent, but no size or offset to set) - left out)
+    # (third try: the second video was not clear either - the shells tip nose down at once and fall, a push of
+    # ~4 g hid in that. Now one unmistakable kick on the left only: STORES_TEST_KICK (~27 g on 226 kg) for
+    # STORES_TEST_KICK_S from 1 s after separation, Control both as newtons and as a share would give the full kick
+    # (MaxForce = the kick). The right shell has no force: it falls as the reference. Expected if `force` works: the
+    # left shell leaves along its nose at ~260 m/s more than the right)
+    gfx = []
+    if side != 'L':
+        print('TEST stores: Right tank without force (reference)')
+        return dyn, gfx
+    dyn[1].set('Input1', '1.0')
+    dyn[2].set('Input0', '%.1f' % (1.0 + STORES_TEST_KICK_S))
+    dyn += [o('product', n + 'Newtons', Inputs=' %s.Output %.1f ' % (n, STORES_TEST_KICK)),
+            o('force', 'F22TestForce' + side, Body=body, R0=vec(cg), X0=vec([1.0, 0.0, 0.0]),
+              MaxForce=STORES_TEST_KICK, Control=n + 'Newtons.Output')]
+    print('TEST stores: %s tank kicked by force, %.0f N for %.1f s from 1 s after separation' % (
+        full, STORES_TEST_KICK, STORES_TEST_KICK_S))
+    return dyn, gfx
+
+
+# fuel with a lost wing (2026-11-11: "less fuel - is there a system that shuts the tanks, or should it leak beyond
 # the burn?"). The wing tank spans root (y 1.1, 0.189 m2 section) to console (y 4.0, 0.048 m2): split at the break
 # (y 2.6) about a third of it goes with the console at once; the root part is torn open along the break - no valve
 # closes a ruptured tank, it drains (WING_LEAK, estimate: ~20 s for a full root part). The fuselage tanks lose
@@ -675,12 +731,12 @@ def fins(ns, joint):
                                                   '; flutter over %.0f KCAS (COND)' % FLUTTER_KCAS[0] if flutter else ''))
 
 
-# FCS page status (2026-11-10, the user: "full freedom, easy to read"): the donor's FCS page (display_f18_flight_controls)
+# FCS page status (2026-11-10: our own layout, easy to read): the donor's FCS page (display_f18_flight_controls)
 # takes only surface positions, angle of attack and the g limit - its SV / channel grids are always empty. Beside it, in
 # the free space under G-LIM, our table: each surface L / R - OK, DEGD (one hydraulic system out: one servo valve of
 # each actuator), HYD (no pressure: the surfaces trail), LOST (torn off with its wing console or fin), JAM (a
 # stabilator's actuator stuck, the STAB failure); and the two
-# hydraulic systems. Page units as the FAIL page (0..1000 across the screen); placed from the user's straight shot of
+# hydraulic systems. Page units as the FAIL page (0..1000 across the screen); placed from a straight shot of
 # the centre MFD
 PARTS_LOST = {'Wing': 'Wing', 'Fin': 'VerticalStabilizer'}
 REF_MASS = {'Wing': 5.0, 'Fin': 5.0}       # kg of the reference bodies, taken from the part (50 / 25 kg changed nothing:
@@ -768,7 +824,7 @@ def fcs_status(ns):
                 o('product', 'F22FcsJam4' + key, Inputs=' F22FailStab%d.Output 4.0 ' % k)
                 o('maximum', 'F22FcsState' + key, Inputs=' F22HydOutCount.Output F22FcsJam4%s.Output ' % key)
     # (the first-loss snapshot under the grid - what went first, KT / G / AOA / sideslip - was a test aid of block 2,
-    # out with the Hornet page 2026-11-17: user, "telemetry left over from the tests")
+    # out with the Hornet page 2026-11-17: telemetry left over from the tests)
     # ICAWS FCS DEGD (failures_f22.ICAWS): a surface lost or a stabilator jammed
     o('logic_or', 'F22FcsDegd', Inputs=' %s F22FailStab1.Output F22FailStab2.Output ' % ' '.join(sorted(set(lost_any))))
 
@@ -780,7 +836,7 @@ def fcs_status(ns):
 # intact fin bases hide. A torn part has no collision hull (any hard ground contact of any body ends the flight,
 # 2026-11-10), so it would sink through the ground: it hides when its own radar altimeter reads under 2 m (latched until
 # the part is back, RST / new flight) and in any case 30 s after the separation
-# the console bends (user 2026-11-15): drawn on the fuselage while it holds (the K copies), each vertex now follows a
+# the console bends (2026-11-15): drawn on the fuselage while it holds (the K copies), each vertex now follows a
 # blend of the fuselage and the console body by its span - the fuselage's at the joint (SPLIT_Y), the console's at the
 # tip (WING_TIP_Y), smoothly between: the root stays put (no gap at the fuselage - rigid on the sprung body it opened
 # one, 2026-11-11), the console bends as its body flexes on the jointlinear (~2 deg at 9 g, K_TORQUE x: the tip ~15 cm

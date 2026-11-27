@@ -8,13 +8,13 @@ The flat sheets of 2026-10-30 here hid all of that, which is why they read as a 
     duct        objects _26, _52, _73 forward of the flaps' rear end
     turbine     a real wheel behind the rods, which turns with the engine as the stock B737's and LJ45's fans (the integral of the spool speed)
                 and itself lights up at afterburner: its map is even around the wheel, so turning shows no moving picture. A separate disc of
-                flame in front of it changed the whole picture at light-up (user, 2026-11-01)
-    hub         ball and rods, on the turbine: they turn with it, by the user's wish
+                flame in front of it changed the whole picture at light-up (2026-11-01)
+    hub         ball and rods, on the turbine: they turn with it
     flaps       the inner faces of the DCS flaps, in the flaps' own parts: they open, close and vector with them
     walls       a plate on each fixed side wall behind the throat
     seals       no fire on the seal pieces outside the flaps, and an underlay closing the open seams beside them
 The pictures are made here (no stock texture in the package); the way of building is the stock aircraft's, the colours are from photos of
-the real F-22 at afterburner (user, 2026-11-01). burner_f22.py wires
+the real F-22 at afterburner (2026-11-01). burner_f22.py wires
 the luminance, set in the .tmd, so it can be tuned with no conversion. Luminous surfaces have no shading: the hub's map is indexed by
 the surface normal, so that it still reads as round.
 """
@@ -32,6 +32,10 @@ SEAL_X = -4.70              # the DCS seal pieces in front of the flaps end forw
 SEAL_INSET, SEAL_REACH = 0.025, 0.06     # the forward end rises 2.1 cm at 20 deg of the plate inwards: it stays under the fuselage skin
 FLAP_Z = -0.09, 0.64
 SKIN_OFFSET = 0.0015
+# the duct's lit liner in ZONES bands along it, a part each (Burner_<side>_C aft, then _C1 .. forward): burner_f22.py
+# pulses their light out of step, a wave running aft (2026-11-27: the fire to look alive; a texture swap or a
+# translucent layer cannot be drawn - the luminous shader has no alpha)
+ZONES = 5
 
 
 class _Mesh:
@@ -143,13 +147,15 @@ def _skins(objs, y0, z0):
                 # around the duct, the seam below, behind the lower flap
                 th = [(np.arctan2(p[2] - z0, p[1] - y0) + np.pi / 2) / (2 * np.pi) % 1.0 for p in co]
                 th = [t + 1.0 if max(th) - t > 0.5 else t for t in th]
-                add(None, 'f22_fire_liner', pts, [(t, (p[0] - X_DUCT) / (X_HOLDER - X_DUCT)) for t, p in zip(th, co)], n)
+                zone = min(int((c[0] - X_DUCT) / (X_HOLDER - X_DUCT) * ZONES), ZONES - 1)
+                add(None if zone <= 0 else 'Z%d' % zone, 'f22_fire_liner', pts,
+                    [(t, (p[0] - X_DUCT) / (X_HOLDER - X_DUCT)) for t, p in zip(th, co)], n)
     return out
 
 
 def _seal_underlays(objs):
     """The DCS nozzle has open seams either side of the seal pieces (fuselage to seal, seal to flap), through which the inside of the engine shows, lit or dark; none on the real
-    aircraft (user's photos, 2026-11-01). The outer faces of each seal again, in the same skin and the seal's own part, under it and reaching further fore and aft. The plate turns about
+    aircraft (photos, 2026-11-01). The outer faces of each seal again, in the same skin and the seal's own part, under it and reaching further fore and aft. The plate turns about
     the seal's forward edge (ac_f22.py NOZZLE_PLATES), so nothing moves between seal, flap and underlay."""
     import bmesh
     from mathutils import Vector
@@ -196,7 +202,8 @@ def objects(objs, mesh_object, axes):
         skins = _skins(objs, y0, z0)
         fixed = skins.pop(None, {})
         fixed['f22_fire_flap'] = _side_walls(y0, z0)
-        groups = [(fire, fixed)] + sorted(skins.items())
+        zones = [(fire + key[1:], skins.pop(key)) for key in sorted(k for k in skins if k.startswith('Z'))]
+        groups = [(fire, fixed)] + zones + sorted(skins.items())
         res.append(_object(mesh_object, 'Turbine' + side, _turbine(*axes[side]), 'f22_fire_turbine', 'Turbine_' + side))
         for k, (part, mats) in enumerate(groups):
             for material, mesh in sorted(mats.items()):
@@ -238,23 +245,27 @@ def _noise(u, v, seed, kx=(1, 2, 3, 5, 8, 13), ky=(1, 2, 3, 5, 8), periodic_u=Tr
 
 def _liner_map(n=1024):
     v, u = np.mgrid[0:n, 0:n] / float(n - 1)
-    # v 0 at the rear of the duct .. 1 at the flame holder: red, orange, a broad yellow front. Tongues of flame licking aft
+    # v 0 at the rear of the duct .. 1 at the flame holder. 2026-11-27 (dull, no contrast - the old map was orange from
+    # end to end, 0.34 at the rear, so it read flat at any brightness): the heat now spans the whole palette - dark red
+    # cooled panels at the rear, red and orange along the duct, yellow only near the holder, the holder's front yellow-white;
+    # the tongues of flame stay, stronger towards the front
     tongues = _noise(u, v, 3, kx=(3, 5, 8, 13), ky=(1, 2))
     streaks = _noise(u, v, 7, kx=(11, 17, 24, 31), ky=(1,))
-    heat = 0.34 + 0.56 * v ** 1.3 + 0.30 * (tongues - 0.5) * (0.5 + v) + 0.10 * (streaks - 0.5)
+    heat = 0.15 + 0.72 * v ** 1.8 + 0.30 * (tongues - 0.5) * (0.35 + v) + 0.08 * (streaks - 0.5)
     # bright lip of the inner liner, as the stock arc around the holder
-    heat += 0.20 * np.exp(-((v - 0.86) / 0.02) ** 2)
+    heat += 0.22 * np.exp(-((v - 0.86) / 0.02) ** 2)
     heat = np.where(v > 0.86, np.maximum(heat, 0.92 + 0.08 * (v - 0.86) / 0.14), heat)
-    # panels: thin dark seams with a hot edge on one side, and a small round cooling hole in each
+    # panels: dark seams with a hot edge on one side, and a small round cooling hole in each - deeper than before, so the
+    # cooled liner reads as plates
     columns, rows = 24, 5
     pu, pv = u * columns, v * rows / 0.86
     fu, fv = pu - np.floor(pu), pv - np.floor(pv)
     aft = v < 0.85
     seam = np.exp(-(np.minimum(fu, 1 - fu) / 0.018) ** 2) + np.exp(-(np.minimum(fv, 1 - fv) / 0.014) ** 2)
-    hot = np.exp(-((fu - 0.06) / 0.03) ** 2) * 0.08
+    hot = np.exp(-((fu - 0.06) / 0.03) ** 2) * 0.10
     d = np.hypot(fu - 0.5, (fv - 0.5) * 0.7)
     holes = np.clip((0.085 - d) / 0.03, 0.0, 1.0)
-    heat = np.where(aft, heat + hot - 0.34 * np.clip(seam, 0, 1) - 0.55 * holes, heat)
+    heat = np.where(aft, heat + hot - 0.45 * np.clip(seam, 0, 1) * (0.5 + heat) - 0.6 * holes * heat, heat)
     rgb = _palette(heat)
     return np.dstack((rgb, np.ones((n, n)))).astype(np.float32)
 
@@ -268,23 +279,24 @@ def _hub_map(n=256):
 
 
 def _flap_map(n=1024):
-    """Photos: the flaps glow copper over their whole width, red-orange towards the exit, with a thin yellow-white line at the throat."""
+    """Photos: copper over the flaps' whole width, dark red at the exit, orange towards the throat and a thin yellow-white
+    line at the throat. 2026-11-27: from dark red (0.2) to orange (0.65) along the flap, not 0.42 - 0.76 as before (flat)."""
     v, u = np.mgrid[0:n, 0:n] / float(n - 1)
     flame = _noise(u, v, 19, kx=(2, 3, 5, 8), ky=(1, 2), periodic_u=False)
     streak = _noise(u, v, 23, kx=(9, 14, 20), ky=(1,), periodic_u=False)
-    heat = (0.42 + 0.34 * v) * (0.86 + 0.28 * flame) + 0.07 * (streak - 0.5)
+    heat = (0.20 + 0.46 * v ** 1.5) * (0.80 + 0.40 * flame) + 0.07 * (streak - 0.5)
     plates = 8
     fu = (u * plates) % 1.0
     seam = np.exp(-(np.minimum(fu, 1 - fu) / 0.016) ** 2)
     rows = np.exp(-(((v * 5) % 1.0 - 0.5) / 0.010) ** 2)
-    heat = heat * (1.0 - 0.28 * np.clip(seam + rows, 0, 1))
+    heat = heat * (1.0 - 0.40 * np.clip(seam + rows, 0, 1))
     heat = np.maximum(heat, 0.98 * np.clip((v - 0.70) / 0.14, 0.0, 1.0))      # the throat line, at the flaps' forward end
     return np.dstack((_palette(heat), np.ones((n, n)))).astype(np.float32)
 
 
 def _turbine_map(n=512):
     """Lit: across a blade (u) dark at the tooth's root, bright at its edge; along it (v, root to tip) dark to yellow: from behind, a dark centre in a
-    ring of fire, as in the user's photo of the real F-22, with no feature that would show as a turning picture."""
+    ring of fire, as in a photo of the real F-22, with no feature that would show as a turning picture."""
     v, u = np.mgrid[0:n, 0:n] / float(n - 1)
     heat = (0.12 + 0.88 * v ** 1.4) * (0.72 + 0.28 * u ** 1.3)
     heat = heat * (1.0 - 0.7 * np.exp(-(u / 0.04) ** 2))
@@ -308,7 +320,7 @@ def _cold_liner(n=1024):
 
 
 def _cold_flap(n=1024):
-    """Unlit: the grey of the real flaps (user's photos), with soot towards the throat."""
+    """Unlit: the grey of the real flaps (photos), with soot towards the throat."""
     v, u, fu, _ = _panels(n, 8, 5)
     seam = np.clip(np.exp(-(np.minimum(fu, 1 - fu) / 0.016) ** 2) + np.exp(-(((v * 5) % 1.0 - 0.5) / 0.010) ** 2), 0, 1)
     stain = _noise(u, v, 29, kx=(2, 3, 5, 8), ky=(1, 2, 3), periodic_u=False)

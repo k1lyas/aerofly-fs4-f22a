@@ -633,7 +633,7 @@ def aircraft_stores():
         y0 = CONN[st][1]
         cx, shift, za = MAIN_BAY[st]
         v, f, u, sm, mp, L = placed('aim120', (cx + 3.657 / 2, y0 + shift * (1 if y0 > 0 else -1), za))
-        add('StoreAim120' + st, 'Stores_AIM120', 'store_aim120', (v, f, u, sm), mp)
+        add('StoreAim120' + st, 'Stores_AIM120_' + st, 'store_aim120', (v, f, u, sm), mp)     # each its own (weapons_f22)
     for st, side in (('Pylon1', 'L'), ('Pylon11', 'R')):
         nodes, args = AIM9_RAIL[st]
         X, Y = (np.array(a) / np.linalg.norm(a) for a in AIM9_FRAME[st])

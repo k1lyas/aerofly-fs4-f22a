@@ -16,6 +16,7 @@ import breakage_f22
 import mfd_f22
 import mfd_symbols
 import cockpit_controls
+import loads_f22
 
 DONOR, PARTS, GEOM, ANIM, PIVOTS, OUT = sys.argv[1:7]
 NAME = 'f22'
@@ -495,24 +496,27 @@ for e, s in (('Engine1', 1), ('Engine2', -1)):   # Engine1 = left (+y), as on th
 # does), so with the Hornet's wave drag (CdA 4 m2 x 0.29 at M1.2 .. 0.51 at M1.8) the F-22 held M1.21 on dry thrust
 # at 34000 ft and reached M2.1 with afterburner. F-22 wave drag as CdA (m2) at 34000 ft: low through the transonic
 # rise and supercruise (dry thrust ~74 kN there balances M1.5), a wall above M2.0 for the M2.25 limit; scaled up
-# towards the ground like the stock F-15E (static pressure stands in for altitude), where it keeps the Hornet's ~M1.6.
-# The airbrake control stays within 0..1 as on the stock jets: both maps are normalised (Mach map / 10, altitude
-# factor / 5) and the scale goes into Area x Cd = 50 m2.
+# towards the ground like the stock F-15E (static pressure stands in for altitude). Low down it first kept the
+# Hornet's ~M1.6 - 1027 kt level at 4000 ft (2026-11-26, COND off); the real F-22 tops out at M1.21 at sea level
+# (~800 kt): the factor below 20000 ft now holds ~800 KCAS on full afterburner (estimate from that measured point:
+# base CdA ~2.1 m2, T = AB x sigma x (1 + 0.54 M) - SL M1.21, 4000 ft M1.29, 10000 ft M1.44, 20000 ft M1.69; above
+# 30000 ft unchanged). The airbrake control stays within 0..1 as on the stock jets: both maps are normalised (Mach
+# map / 10, altitude factor / 10) and the scale goes into Area x Cd = 100 m2.
 WAVE_CDA = [(0.80, 0.00), (0.90, 0.05), (1.00, 0.25), (1.10, 0.35), (1.20, 0.33), (1.50, 0.22), (1.70, 0.35),
             (1.90, 0.75), (2.10, 1.40), (2.25, 2.10), (2.50, 4.00), (4.00, 10.0)]
 # above 34000 ft the afterburner gains with altitude (60000 ft reached M2.72 with the factor falling there): rising
 # again holds ~M2.25 up to 65000 ft (estimate with T = AB x sigma x (1 + 0.54 M + 1.07e-4 h), dry thrust ~M1.5)
-WAVE_ALT = [(5000, 1.65), (7170, 1.52), (11600, 1.33), (18750, 1.17), (24540, 1.0), (30090, 1.5), (46560, 3.0),
-            (69680, 4.5), (101325, 5.0)]
+WAVE_ALT = [(5000, 1.65), (7170, 1.52), (11600, 1.33), (18750, 1.17), (24540, 1.0), (30090, 1.5), (46560, 3.9),
+            (69680, 8.1), (101325, 8.8)]
 wave = D['MachDragIncrease']
 wave.name = 'MachDragIncreaseMach'
 setv(wave, 'Map', ' ' + ' '.join('(%.2f %.3f)' % (m, c / 10.0) for m, c in WAVE_CDA) + ' ')
 obj(dyn, 'linear_interpolation', 'MachDragAltitudeFactor', D['WaveDrag'], Input='PitotTube.StaticPressure',
-    Map=' ' + ' '.join('(%d %.2f)' % (p_, f_ / 5.0) for p_, f_ in WAVE_ALT) + ' ')
+    Map=' ' + ' '.join('(%d %.3f)' % (p_, f_ / 10.0) for p_, f_ in WAVE_ALT) + ' ')
 obj(dyn, 'product', 'MachDragIncrease', D['WaveDrag'],
     Inputs=' MachDragIncreaseMach.Output MachDragAltitudeFactor.Output ')
 setv(D['WaveDrag'], 'Area', 25.0)
-setv(D['WaveDrag'], 'Cd', 2.0)
+setv(D['WaveDrag'], 'Cd', 4.0)
 setv(D['AirBrake'], 'R0', [-3.4, 0.0, 0.3])      # the speed brake is the split flaperons, ailerons and rudders
 setv(D['AirBrake'], 'Area', 1.2)
 col = {'CollisionFuselage': 'ColFuselage', 'CollisionLeftVerticalStabilizer': 'ColFinLeft',
@@ -551,12 +555,20 @@ for o in dyn.children:
 
 # ---------------------------------------------------------------------------------------------- new dynamic signals
 # nozzles (F119 2D nozzle): open at idle, closing towards full dry thrust, opening again with afterburner
+NOZZLE_PARKED, NOZZLE_PARKED_N2 = 0.7, 0.60      # ~21 deg (ac_f22.NOZZLE_OPEN 0.52 rad a unit); idle N2 is ~0.65
 for side, eng in (('Left', 'Engine1'), ('Right', 'Engine2')):
     obj(dyn, 'linear_interpolation', 'Nozzle%sDry' % side, anchor, Input='%sN2.Output' % eng,
         Map=' (0.0 0.3) (0.65 0.3) (1.0 0.0) ')      # 0.75 at idle (Su-35 schedule) gaped open: see-through gaps
     obj(dyn, 'mixlinear', 'Nozzle%sMix' % side, anchor, Input0='Nozzle%sDry.Output' % side,
         Input1='%sAfterburner.Output' % eng, Weight0=1.0, Weight1=0.5, Offset=0.0)
-    obj(dyn, 'linear_interpolation', 'Nozzle%sTarget' % side, anchor, Input='Nozzle%sMix.Output' % side,
+    # parked open (2026-11-25, ramp photo: the F119's flaps stand wide open on a stopped engine and close as it
+    # reaches idle): on the ground with N2 under NOZZLE_PARKED_N2 the flaps open to NOZZLE_PARKED - never in the air
+    # (a failed, windmilling or starved engine keeps the schedule)
+    obj(dyn, 'logic_greater', 'Nozzle%sSlow' % side, anchor, Input0='%.2f' % NOZZLE_PARKED_N2, Input1='%sN2.Output' % eng)
+    obj(dyn, 'product', 'Nozzle%sParked' % side, anchor,
+        Inputs=' Nozzle%sSlow.Output OnGroundSensor.Output %.2f ' % (side, NOZZLE_PARKED))
+    obj(dyn, 'maximum', 'Nozzle%sSchedule' % side, anchor, Inputs=' Nozzle%sMix.Output Nozzle%sParked.Output ' % (side, side))
+    obj(dyn, 'linear_interpolation', 'Nozzle%sTarget' % side, anchor, Input='Nozzle%sSchedule.Output' % side,
         Map=' (0.0 0.0) (1.0 1.0) ')
     obj(dyn, 'servoclassic', 'Nozzle%s' % side, anchor, Input='Nozzle%sTarget.Output' % side, Speed=0.6, P1=1.0)
 # F/A-18 habits the F-22 does not have / cannot meet:
@@ -571,18 +583,18 @@ setv(D['FlightController'], 'MaximumAcceleration', 9.0 * 9.81)
 #   below the Hornet's relative to the wing) - fin lift slope x 1.5
 setv(D['AirfoilVerticalStabilizer'], 'ClAlpha1', 6.28 * 1.5)
 # - throttle floor at the Hornet's supersonic limit: above about M1.2 its logic holds the engines at full dry thrust (0.78) until back
-#   below it, the throttle at 0% did nothing at M2.04 (user, 2026-10-30): the F/A-18's engine limit, nothing known of the kind on the F119
+#   below it, the throttle at 0% did nothing at M2.04 (2026-10-30): the F/A-18's engine limit, nothing known of the kind on the F119
 setv(D['MinimumThrustInput'], 'Weight0', 0.0)
 # ... and M1.5-1.6 on dry thrust had been flown on that floor: 0.78 + the flight idle 0.03 = 0.81 (flight8, M1.48 at 10.25 km and still gaining), just over the
 # engine's 0.8, above which jet_engine gives the Mach gain (AfterburnerMachIncrease). Below 0.8 its thrust has none, and at the MIL detent on its own the F-22 fell
-# below M1.2 at 34000 ft (user, 2026-11-01). A real engine does gain with ram: at full dry the command rises to the same 0.81 through the transonic. What is lit and heard goes
+# below M1.2 at 34000 ft (2026-11-01). A real engine does gain with ram: at full dry the command rises to the same 0.81 through the transonic. What is lit and heard goes
 # by the lever, so that this is not shown as afterburner
 for lever in ('Engine1ThrustLever', 'Engine2ThrustLever'):
     det = D[lever].find('Map').children[2]
     assert det.get('NominalX').strip() == '0.65', lever
     # the top of dry power, just under the afterburner's 0.8: the lever leaves the detent into minimum afterburner. The Hornet's detent held from 0.6 to 0.75 of the travel, a
-    # dead zone a key could move in with nothing happening, then a jump to 0.84 (user, 2026-11-01); 0.63 .. 0.655 lost the feel of the stop altogether (same day)
-    # A zone 0.645 .. 0.73 above the stop, as the A380's, with the drawn lever kept continuous, was tried and rejected the same day: it spoilt the way into afterburner the user had accepted
+    # dead zone a key could move in with nothing happening, then a jump to 0.84 (2026-11-01); 0.63 .. 0.655 lost the feel of the stop altogether (same day)
+    # A zone 0.645 .. 0.73 above the stop, as the A380's, with the drawn lever kept continuous, was tried and rejected the same day: it spoilt the accepted way into afterburner
     setv(det, 'Value', 0.799)
     setv(det, 'SnapMinimumX', 0.61)
     setv(det, 'SnapMaximumX', 0.66)
@@ -607,7 +619,7 @@ for eng, side in (('Engine1', 'Left'), ('Engine2', 'Right')):
     obj(dyn, 'mixlinear', eng + 'LeverWithRam', cmd, Input0=eng + 'LeverShaped.Output', Input1=eng + 'Ram.Output', Weight0=1.0, Weight1=1.0)
     obj(dyn, 'minimum', eng + 'LeverLimited', cmd, Inputs=' %sLeverWithRam.Output 1.0 ' % eng)
     setv(cmd, 'Inputs', ' %sLeverLimited.Output MinimumThrustInput.Output ' % eng)
-    # ... and its fuel. At 0.81 the engine bills that bit of thrust at the afterburner's rate: 26800 pph each at M1.54, 34570 ft (user's FPAS, 2026-11-01), 53600 pph on an estimated
+    # ... and its fuel. At 0.81 the engine bills that bit of thrust at the afterburner's rate: 26800 pph each at M1.54, 34570 ft (FPAS page, 2026-11-01), 53600 pph on an estimated
     # 85 kN = TSFC ~2.8 by the engine's own numbers. This is meant as dry thrust: TSFC ~1.1 (dry engines burn more with Mach; the F119's figure is not public) = 10450 pph each
     obj(dyn, 'linear', eng + 'NotLit', D[eng + 'FuelFlow'], Input=eng + 'AfterburnerSetOn.Output', Scaling=-1.0, Offset=1.0)
     obj(dyn, 'product', eng + 'RamUnlit', D[eng + 'FuelFlow'], Inputs=' %sRam.Output %sNotLit.Output ' % (eng, eng))
@@ -624,9 +636,9 @@ at_anchor = D['LeftThrottleCommand']
 for key, src in (('Cas', 'AirDataComputer.OutputCalibratedAirspeed'), ('Mach', 'AirDataComputer.OutputMachNumber')):
     obj(dyn, 'variable', 'F22At%sTarget' % key, at_anchor, Value='0.0')
     obj(dyn, 'event_value', 'F22AtCapture' + key, at_anchor, Input=src, Events=' F22At%sTarget.Set ' % key)
-# the arrows' step (user 2026-11-06: a fixed 10 kt / M0.05 was too coarse or the keypad was needed): the STEP key of
+# the arrows' step (2026-11-06: a fixed 10 kt / M0.05 was too coarse or the keypad was needed): the STEP key of
 # the SYS page cycles 1 / 5 / 10 / 50 kt and M0.01 / 0.05 / 0.10 / 0.20, from 10 kt / M0.10 (the first fixed step was
-# 10 kt / M0.05; one press of 5 kt and M0.01 was too slow then, user 2026-11-01). Exact values: the ICP keypad.
+# 10 kt / M0.05; one press of 5 kt and M0.01 was too slow then, 2026-11-01). Exact values: the ICP keypad.
 obj(dyn, 'variable', 'F22AtStepIndex', at_anchor, Value='2.0')
 obj(dyn, 'linear_interpolation', 'F22AtStepNext', at_anchor, Input='F22AtStepIndex.Output', Map=' (0.0 1.0) (1.0 2.0) (2.0 3.0) (2.5 3.0) (3.0 0.0) ')
 obj(dyn, 'event_value', 'F22AtStepCycle', at_anchor, Input='F22AtStepNext.Output', Events=' F22AtStepIndex.Set ')
@@ -698,7 +710,7 @@ setv(D['SteeringEnabledWithStabilization'], 'Weight1', 0.0)
 # - rudder trim: with the wheel brakes on Shift+Space the rudder keys Q/E become Shift+Q/E (the game's rudder trim) on
 #   the roll-out - the fins stayed deflected left and the aircraft pulled aside. So the controller takes the trim from
 #   the cockpit's YAW TRIM knob only (left console, ac K_YawTrim), its own message, not the game's rudder trim keys
-#   (user 2026-11-05: the knob turned but did nothing - the input was zeroed). As the Hornet's: the trim offsets the
+#   (2026-11-05: the knob turned but did nothing - the input was zeroed). As the Hornet's: the trim offsets the
 #   rudder command inside the flight controller - both rudders move, the pedals stay. 41 positions: 20 clicks a side.
 obj(dyn, 'input_default', 'F22YawTrim', D['FlightController'], Message='Controls.F22YawTrim', Positions=('uint', '41'),
     Range=' -1.0 1.0 ', Speed=0.1)
@@ -709,7 +721,7 @@ setv(D['FlightController'], 'InputRudderTrim', 'F22YawTrim.Output')
 setv(D['ACBusTieDesired'], 'Inputs', ' BusTieSwitch.Output BatterySwitchOn.Output ACBusTieDesired0.Output ')
 # - BATT: two positions, ON / OFF, as the F-22's switch. The Hornet's is ON (1) / OFF (0) / ORIDE (-1, the battery forced
 #   onto the essential bus); its click volume steps, and the F-22 switch draws 0 and -1 alike as OFF - two steps down put
-#   it in ORIDE and the UFDs, gear lamps and ICAWS stayed lit with BATT "off" after a shutdown (user 2026-11-15)
+#   it in ORIDE and the UFDs, gear lamps and ICAWS stayed lit with BATT "off" after a shutdown (2026-11-15)
 setv(D['BatteryOverrideSwitch'], 'Range', ' 0.0 1.0 ')
 
 # ---------------------------------------------------------------------------------------------- Hornet carrier gear out
@@ -782,9 +794,11 @@ for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
     for page in (tac, sup):
         page.find('Elements').children = [e.clone() for e in els]
 setv(D['SupportMenuLabel'], 'Input', 'MENU')
+setv(D['ChecklistLabel'], 'Input', 'CHK')      # (CHKLST ran down the side column into the key below, 2026-11-27)
 # BAY (stage 6): a menu link on every MFD's menu (left side, top) to page 10, the Hornet's stores page, which becomes
 # the F-22 BAY page: its left buttons toggle the bays (boxed while commanded open), MENU and HUD / SA stay
-D['F22BayMenuLabel'] = obj(dyn, 'constant_text', 'F22BayMenuLabel', D[prefix + 'SupportMenuPage'], Input='BAY')
+# (0.9.2: the page is SMS - stores management - with missile release; the bay buttons stay on the left)
+D['F22BayMenuLabel'] = obj(dyn, 'constant_text', 'F22BayMenuLabel', D[prefix + 'SupportMenuPage'], Input='SMS')
 
 
 def _menu_el(name, text, events, inp=None):
@@ -799,6 +813,16 @@ def _menu_el(name, text, events, inp=None):
 for bay, short in (('Left', 'LFT'), ('Center', 'CTR'), ('Right', 'RGT'), ('All', 'ALL')):
     D['F22Bay%sMenuLabel' % bay] = obj(dyn, 'constant_text', 'F22Bay%sMenuLabel' % bay, D['F22BayMenuLabel'],
                                        Input=short)
+# SMS right column (0.9.2, weapons_f22): select AIM-120 / AIM-9X (boxed = selected), REL releases the next missile of
+# the selected kind, S-J jettisons the ferry tanks (as EMER JETT)
+SMS_RIGHT = {10: ('F22Sms120', '120', 'F22WpnSelect120.Trigger', 'F22WpnIs120.Output'),
+             11: ('F22Sms9x', '9X', 'F22WpnSelect9x.Trigger', 'F22WpnIs9x.Output'),
+             13: ('F22SmsRel', 'REL', 'F22WpnRelPress.Trigger', None),
+             14: ('F22SmsSj', 'S-J', 'F22JettPress.Trigger', None)}
+# (0.9.2) LOAD: the next load, on the ground only - CLEAN, COMBAT, FERRY, FULL (loads_f22)
+SMS_RIGHT[12] = ('F22SmsLoad', 'LOAD', 'F22LoadKey.Trigger', None)
+for k_, (name_, text_, _, _) in SMS_RIGHT.items():
+    D[name_ + 'MenuLabel'] = obj(dyn, 'constant_text', name_ + 'MenuLabel', D['F22BayMenuLabel'], Input=text_)
 for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
     # MENU of the BAY page: the Hornet stores page's own MENU button (back to the menu). Copied from the support menu
     # page, it was that page's MENU label, whose events are emptied above (the label must not flip menus) - the BAY
@@ -815,13 +839,34 @@ for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
         els[5 + k] = _menu_el('F22Bay%sButton' % bay, 'F22Bay%sMenuLabel.Output' % bay, 'F22Bay%sToggle.Trigger' % bay,
                               'F22Bay%sCommand.Output' % bay)
     els[8] = _menu_el('F22BayAllButton', 'F22BayAllMenuLabel.Output', 'F22BayAllToggle.Trigger')
-    for k in range(len(els)):                         # a page of its own: the bay buttons and MENU (2) only
-        if k != 2 and not 5 <= k <= 8:
+    for k, (name_, _, events_, inp_) in SMS_RIGHT.items():
+        els[k] = _menu_el(name_ + 'Button', name_ + 'MenuLabel.Output', events_, inp_)
+    for k in range(len(els)):                         # a page of its own: the bay buttons, SMS and MENU (2) only
+        if k != 2 and not 5 <= k <= 8 and k not in SMS_RIGHT:
             els[k] = tmd.Node('text_menu_basic_page_element', 'Blank', leaf=False)
     els[2] = stores_menu
     D[prefix + 'StoresMenuPage'].find('Elements').children = els
+# F22_TEST=glow (2026-11-27): the fire's pulse (burner_f22 PULSE_*) x burner_f22.PULSE_TEST[k], k by SMS key 0 (bottom
+# left): P0 off, P1, P2 (P1 at start). Not in a release (make_release.py refuses F22_TEST)
+if os.environ.get('F22_TEST') == 'glow':
+    import burner_f22 as _B
+    n_ = len(_B.PULSE_TEST)
+    obj(dyn, 'variable', 'F22GlowTest', D['F22BayMenuLabel'], Value='1.0')
+    obj(dyn, 'linear_interpolation', 'F22GlowTestNext', D['F22BayMenuLabel'], Input='F22GlowTest.Output',
+        Map=' %s ' % ' '.join('(%.1f %.1f)' % (k, (k + 1) % n_) for k in range(n_)))
+    obj(dyn, 'event_value', 'F22GlowTestCycle', D['F22BayMenuLabel'], Input='F22GlowTestNext.Output', Events=' F22GlowTest.Set ')
+    obj(dyn, 'linear_interpolation', 'F22GlowPulse', D['F22BayMenuLabel'], Input='F22GlowTest.Output',
+        Map=' %s ' % ' '.join('(%.1f %.3f)' % (k, g) for k, g in enumerate(_B.PULSE_TEST)))
+    obj(dyn, 'output', 'GfxOutF22GlowPulse', D['F22BayMenuLabel'], Input='F22GlowPulse.Output')
+    for k in range(n_):
+        obj(dyn, 'constant_text', 'F22GlowTestLabel%d' % k, D['F22BayMenuLabel'], Input='P%d' % k)
+    obj(dyn, 'multiplexer_text', 'F22GlowTestLabel', D['F22BayMenuLabel'], InputSelect='F22GlowTest.Output',
+        Inputs=' %s ' % ' '.join('F22GlowTestLabel%d.Output' % k for k in range(n_)))
+    for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
+        D[prefix + 'StoresMenuPage'].find('Elements').children[0] = _menu_el('F22GlowTestButton', 'F22GlowTestLabel.Output',
+                                                                             'F22GlowTestCycle.Trigger')
 # Page buttons. The Hornet's own events on these are its dummy DEV0 (the stock aircraft does nothing with them either), so a label with no function goes
-# (2026-11-01, user's list; real meaning in brackets): ADI INS / STBY (attitude source: the game has no INS failure to switch away from), FUEL FLBIT (built in
+# (2026-11-01; real meaning in brackets): ADI INS / STBY (attitude source: the game has no INS failure to switch away from), FUEL FLBIT (built in
 # test), FCS BLIN / AOA (BIT logic inspection, AOA cross check), ENG RECORD (data recorder), most of HSI and SA (sensors, ACLS, waypoint sequencing, datalink).
 # FPAS and UFC BU: empty display_f18 stubs in the stock aircraft as well (the Hornet's fuel advisory and backup up-front panel were never built). UFC BU is out of
 # the menu; FPAS is built here, F22PerfPage in the graphics section.
@@ -837,7 +882,7 @@ def _keep(page, keep, extra=None):
         els[k] = e
 
 
-for name, step in (('F22BingoUp', 45.359237), ('F22BingoDown', -45.359237)):  # 100 lb a press (user 2026-11-06: 250 kg = 551 lb was too coarse; the step is in kg)
+for name, step in (('F22BingoUp', 45.359237), ('F22BingoDown', -45.359237)):  # 100 lb a press (2026-11-06: 250 kg = 551 lb was too coarse; the step is in kg)
     obj(dyn, 'event_value', name, D['F22BayMenuLabel'], Input='%.1f' % step, Events=' BingoFuel.Step ')
 # JOKER (2026-11-22, avionics block B1): the fuel to end the fight and turn for home, above BINGO - set as BINGO, by the
 # FUEL page's lower right arrows, 100 lb a press; 5000 lb at start (BINGO 3000)
@@ -882,19 +927,19 @@ for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
     _keep(D[prefix + 'FlightControlMenuPage'], {2}, {5: _menu_el('F22DirectButton', 'F22DirectMenuLabel.Output', 'F22DirectToggle.Trigger', 'F22DirectMode.Output'),
                                                      6: _menu_el('F22VectorButton', 'F22VectorMenuLabel.Output', 'F22VectorToggle.Trigger', 'F22VectorOn.Output')})
     _keep(D[prefix + 'BuiltInTestMenuPage'], {2}, {
-                                                   # (7, VOX: gone - the RADIO VOL knob's OFF mutes the voice, user
+                                                   # (7, VOX: gone - the RADIO VOL knob's OFF mutes the voice,
                                                    # 2026-11-07: one control, not three)
                                                    8: _menu_el('F22GcasButton', 'F22GcasMenuLabel.Output', 'F22GcasToggle.Trigger', 'F22GcasArmed.Output'),
                                                    # ALT GR: the alternate gear extension (failures_f22 gear_dynamics;
                                                    # the DCS cockpit has no handle for it) - lit once pulled, until RST
                                                    9: _menu_el('F22AltGearButton', 'F22AltGearMenuLabel.Output', 'F22AltGearPull.Trigger', 'F22AltGear.Output'),
-                                                   # the A/T on the right column (user 2026-11-06): on / off, up, the
+                                                   # the A/T on the right column (2026-11-06): on / off, up, the
                                                    # step (drawn across on the page, F22TvcPage: a side key's label
                                                    # reads downwards), down
                                                    # (A/T and the step are drawn on the page, across, level with
                                                    # their keys - F22TvcPage; the arrows are the menu's own symbols
                                                    # as on the Hornet's radar page: display_text printed 'arrow_up'
-                                                   # as 'a', user 2026-11-07)
+                                                   # as 'a', 2026-11-07)
                                                    10: _menu_el('F22AtButton', 'BlankLabel.Output', 'F22AtPress.Trigger'),
                                                    11: _menu_el('F22AtUpButton', 'ArrowUpSmall.Output', 'F22AtStepUp.Trigger'),
                                                    12: _menu_el('F22AtStepButton', 'BlankLabel.Output', 'F22AtStepCycle.Trigger'),
@@ -925,7 +970,13 @@ for name, inputs, event in (('Appr', 'AnyGearDown.Output F22AtAirborne.Output', 
     obj(dyn, 'logic_and', 'F22MfdAuto' + name, D['F22BayMenuLabel'], Inputs=' F22MfdAuto.Output %s ' % inputs)
     obj(dyn, 'event_edge_rising', 'F22MfdAuto%sEdge' % name, D['F22BayMenuLabel'], Input='F22MfdAuto%s.Output' % name,
         Events=' %s.Trigger ' % event, Value=1.0, Threshold=0.5)
-# CHECKLIST (user 2026-11-04): the Hornet's checklist is a drawn display class (display_f18_checklist, its takeoff /
+# MASTER ARM (2026-11-25): ARM brings the SMS page up on the left MFD, SAFE puts ENG back there (edges only:
+# the pilot can still pick any page in between)
+obj(dyn, 'event_edge_rising', 'F22MasterArmOnEdge', D['F22BayMenuLabel'], Input='MasterArmSafeSwitch.Output',
+    Events=' SetLeftMFDStores.Trigger ', Value=1.0, Threshold=0.5)
+obj(dyn, 'event_edge_falling', 'F22MasterArmOffEdge', D['F22BayMenuLabel'], Input='MasterArmSafeSwitch.Output',
+    Events=' SetLeftMFDEngines.Trigger ', Value=0.0, Threshold=0.5)
+# CHECKLIST (2026-11-04): the Hornet's checklist is a drawn display class (display_f18_checklist, its takeoff /
 # landing checks of the Hornet) - replaced by this mod's own procedures, four lists picked by the left bezel buttons
 D['F22ChecklistIndex'] = obj(dyn, 'variable', 'F22ChecklistIndex', D['F22BayMenuLabel'], Value='0.0')
 CHECKLIST_NAMES = ('START', 'T/O', 'LAND', 'SHUT')
@@ -947,7 +998,7 @@ for prefix, page in (('LeftMFD', 8), ('RightMFD', 4), ('MPCD', 2), ('LowerMFD', 
 # ICP = the F/A-18 up-front controller: its five option lines and scratchpad on the ICP windows, its keypad on the ICP
 # keys. The F-22 function keys open UFC pages - the Hornet's own (COM1 / COM2, A/P, STPT = waypoint) or F-22 pages
 # added to the UFC menu (NAV: ILS, TACAN, ADF, course, heading; ALT: altitude holds; HUD: declutter, baro / radar
-# altitude; OTHR: ADF2, time - not the Hornet's carrier beacon / data link; IFF has its own key). Hornet page
+# altitude; OTHR: LOAD, A/T, ADF2 - not the Hornet's carrier beacon / data link; IFF has its own key). Hornet page
 # numbers: 1 A/P, 2 IFF, 3 TACAN, 4 ILS, 5 D/L, 6 BCN, 9 heading, 10 course, 11 HSI time, 12 waypoint, 15 / 16 ADF1 / 2.
 ufc = D['UpFrontController']
 anchor = ufc
@@ -996,29 +1047,58 @@ def hud_set(switch, value):
     return name + '.Trigger'
 
 
-# A/T target by the keypad, as the HSEL page: OTHR, then MACH or KCAS, the digits (139 = M1.39, 450 = 450 kt), MRK. It also picks what is held, and switches the A/T on
-for key, text in (('Mach', ':MACH'), ('Cas', ':KCAS')):
-    obj(dyn, 'constant_text', 'F22At%sEntryLabel' % key, anchor, Input=text)
+# ICP pages of our own (2026-11-27: a structure instead of single values in a row). Option lines are 10 characters
+# (ICPLine*, below; the Hornet's 5 cut ':MACH 0.85'), column 0 is the selection colon.
+# A/T page (OTHR -> A/T): 1 ':A/T' on / off (as the throttle's A/T button: holds the speed of the moment); 2 MACH and
+# 3 KCAS with their targets, the colon on the one held - a press holds that one from the speed of the moment, the
+# digits typed first set the target instead (139 = M1.39, 450 = 450 kt); both switch the A/T on; 4 SYNC = both targets
+# to the speed of the moment. MRK sets the one held from the digits. The INC / DEC rocker and the SYS page step them.
 obj(dyn, 'binary_to_text', 'F22AtLineLabel', anchor, Input='F22AtActive.Output', Text0=' A/T', Text1=':A/T')
-AT_MACH_PAGE = ufc_page('F22UFCPageAtMach', [('F22AtMachEntryLabel.Output', 'DEV0.Trigger')])
-AT_CAS_PAGE = ufc_page('F22UFCPageAtCas', [('F22AtCasEntryLabel.Output', 'DEV0.Trigger')])
-obj(dyn, 'constant_text', 'F22AltFloorEntryLabel', anchor, Input=':ALOW')
-ALT_FLOOR_PAGE = ufc_page('F22UFCPageAltFloor', [('F22AltFloorEntryLabel.Output', 'DEV0.Trigger')])
-assert AT_CAS_PAGE == AT_MACH_PAGE + 1 and ALT_FLOOR_PAGE == AT_CAS_PAGE + 1
-enter_events = D['UpFrontEnterEvent'].get('Events').split()
-enter_events += ['ScratchPad.Clear'] * (AT_MACH_PAGE - len(enter_events))
-setv(D['UpFrontEnterEvent'], 'Events', ' %s F22AtEnterMach.Trigger F22AtEnterCas.Trigger F22AltFloorEnter.Trigger ' % ' '.join(enter_events))
-obj(dyn, 'event_demultiplexer', 'F22AltFloorEnter', anchor, InputSelect='ScratchPadValue.OutputValid', Events=' DEV0.Trigger F22AltFloorSet.Trigger ')
-obj(dyn, 'event_linear', 'F22AltFloorSetValue', anchor, Scaling=0.3048, Offset=0.0, Events=' F22AltFloor.Set ')       # feet
-obj(dyn, 'event_value', 'F22AltFloorSet', anchor, Input='ScratchPadValue.Output', Events=' F22AltFloorSetValue.Trigger ScratchPad.Clear ')
+obj(dyn, 'logic_invert', 'F22AtUseCas', anchor, Input='F22AtUseMach.Output')
+obj(dyn, 'binary_to_text', 'F22AtMachHead', anchor, Input='F22AtUseMach.Output', Text0=' MACH ', Text1=':MACH ')
+obj(dyn, 'binary_to_text', 'F22AtCasHead', anchor, Input='F22AtUseCas.Output', Text0=' KCAS ', Text1=':KCAS ')
+# the numbers: the targets while the A/T is on, the speed of the moment while it is off (2026-11-27: before the
+# first engage the lines read MACH 0.00 / KCAS 0) - what a press of the line would hold
+obj(dyn, 'multiplexer', 'F22AtMachIcp', anchor, InputSelect='F22AtOn.Output',
+    Inputs=' AirDataComputer.OutputMachNumber F22AtMachTarget.Output ')
+obj(dyn, 'multiplexer', 'F22AtCasIcp', anchor, InputSelect='F22AtOn.Output',
+    Inputs=' AirDataComputer.OutputCalibratedAirspeed F22AtCasTarget.Output ')
+obj(dyn, 'linear', 'F22AtCasIcpKt', anchor, Input='F22AtCasIcp.Output', Scaling=1.94384)
+obj(dyn, 'float_to_text', 'F22AtMachIcpText', anchor, Input='F22AtMachIcp.Output', Decimals=('uint32', '2'))
+obj(dyn, 'int_to_text', 'F22AtCasIcpText', anchor, Input='F22AtCasIcpKt.Output')
+obj(dyn, 'text_append', 'F22AtMachLine', anchor, Inputs=' F22AtMachHead.Output F22AtMachIcpText.Output ')
+obj(dyn, 'text_append', 'F22AtCasLine', anchor, Inputs=' F22AtCasHead.Output F22AtCasIcpText.Output ')
 for key, scale, use in (('Mach', 0.01, '1.0'), ('Cas', 0.514444, '0.0')):
     obj(dyn, 'event_demultiplexer', 'F22AtEnter' + key, anchor, InputSelect='ScratchPadValue.OutputValid', Events=' DEV0.Trigger F22AtSet%s.Trigger ' % key)
     obj(dyn, 'event_linear', 'F22AtSet%sValue' % key, anchor, Scaling=scale, Offset=0.0, Events=' F22At%sTarget.Set ' % key)
     obj(dyn, 'event_value', 'F22AtSelect' + key, anchor, Input=use, Events=' F22AtUseMach.Set ')
     obj(dyn, 'event_value', 'F22AtSet' + key, anchor, Input='ScratchPadValue.Output',
         Events=' F22AtSet%sValue.Trigger F22AtSelect%s.Trigger F22AtEngageIfOff.Trigger ScratchPad.Clear ' % (key, key))
+    # the line's key: digits typed -> that target; none -> hold it from the speed of the moment
+    obj(dyn, 'event_value', 'F22AtHold' + key, anchor, Input='1.0',
+        Events=' F22AtCapture%s.Trigger F22AtSelect%s.Trigger F22AtEngageIfOff.Trigger ' % (key, key))
+    obj(dyn, 'event_demultiplexer', 'F22AtKey' + key, anchor, InputSelect='ScratchPadValue.OutputValid',
+        Events=' F22AtHold%s.Trigger F22AtSet%s.Trigger ' % (key, key))
 obj(dyn, 'event_demultiplexer', 'F22AtEngageIfOff', anchor, InputSelect='F22AtOn.Output', Events=' F22AtEngage.Trigger DEV0.Trigger ')
 obj(dyn, 'event_value', 'F22AtEngage', anchor, Input='1.0', Events=' F22AtCaptureIntegral.Trigger F22AtCaptureLever1.Trigger F22AtCaptureLever2.Trigger F22AtOn.Set ')
+obj(dyn, 'event_value', 'F22AtSync', anchor, Input='1.0', Events=' F22AtCaptureCas.Trigger F22AtCaptureMach.Trigger ')
+obj(dyn, 'event_demultiplexer', 'F22AtEnterHeld', anchor, InputSelect='F22AtUseMach.Output',
+    Events=' F22AtEnterCas.Trigger F22AtEnterMach.Trigger ')
+AT_PAGE = ufc_page('F22UFCPageAt', [('F22AtLineLabel.Output', 'F22AtPress.Trigger'),
+                                    ('F22AtMachLine.Output', 'F22AtKeyMach.Trigger'),
+                                    ('F22AtCasLine.Output', 'F22AtKeyCas.Trigger'), ('SYNC', 'F22AtSync.Trigger')])
+obj(dyn, 'constant_text', 'F22AltFloorEntryLabel', anchor, Input=':ALOW')
+ALT_FLOOR_PAGE = ufc_page('F22UFCPageAltFloor', [('F22AltFloorEntryLabel.Output', 'DEV0.Trigger')])
+# LOAD page (OTHR -> LOAD, 2026-11-27: the load picked where it can be seen; anywhere, in the air too - in place
+# of the codes 9901-9904): the presets, the colon on the one set (loads_f22.icp_labels); the stores the SMS shows
+LOAD_PAGE = ufc_page('F22UFCPageLoad', [(lbl, 'F22LoadSet%d.Trigger' % k) for k, lbl in enumerate(loads_f22.icp_labels(obj, dyn, anchor))])
+assert ALT_FLOOR_PAGE == AT_PAGE + 1 and LOAD_PAGE == ALT_FLOOR_PAGE + 1
+enter_events = D['UpFrontEnterEvent'].get('Events').split()
+enter_events += ['ScratchPad.Clear'] * (AT_PAGE - len(enter_events))
+setv(D['UpFrontEnterEvent'], 'Events', ' %s F22AtEnterHeld.Trigger F22AltFloorEnter.Trigger ScratchPad.Clear ' % ' '.join(enter_events))
+obj(dyn, 'event_demultiplexer', 'F22AltFloorEnter', anchor, InputSelect='ScratchPadValue.OutputValid', Events=' DEV0.Trigger F22AltFloorSet.Trigger ')
+obj(dyn, 'event_linear', 'F22AltFloorSetValue', anchor, Scaling=0.3048, Offset=0.0, Events=' F22AltFloor.Set ')       # feet
+obj(dyn, 'event_value', 'F22AltFloorSet', anchor, Input='ScratchPadValue.Output', Events=' F22AltFloorSetValue.Trigger ScratchPad.Clear ')
 ICP_PAGES = {
     'Nav': ufc_page('F22UFCPageNav', [('ILS', ufc_page_event(4)), ('TCN', ufc_page_event(3)), ('ADF', ufc_page_event(15)),
                                       ('CRS', 'UpFrontControllerPageToSelectedCourse.Trigger'),
@@ -1029,23 +1109,55 @@ ICP_PAGES = {
     'HUD': ufc_page('F22UFCPageHUD', [('NORM', hud_set('HUDRejectSwitch', 0)), ('REJ1', hud_set('HUDRejectSwitch', 1)),
                                       ('REJ2', hud_set('HUDRejectSwitch', 2)), ('BARO', hud_set('HUDBaroRadarSelectSwitch', 0)),
                                       ('RALT', hud_set('HUDBaroRadarSelectSwitch', 1))]),
-    'Other': ufc_page('F22UFCPageOther', [('ADF2', ufc_page_event(16)), ('TIME', ufc_page_event(11)), ('F22AtLineLabel.Output', 'F22AtPress.Trigger'),
-                                          ('MACH', ufc_page_event(AT_MACH_PAGE)), ('KCAS', ufc_page_event(AT_CAS_PAGE))]),
-    'Steerpoint': 12,
+    # (TIME out 2026-11-27: the Hornet's HSI time page only relabelled itself - the UFD clock does not read it)
+    'Other': ufc_page('F22UFCPageOther', [('LOAD', ufc_page_event(LOAD_PAGE)), ('F22AtLineLabel.Output', ufc_page_event(AT_PAGE)),
+                                          ('ADF2', ufc_page_event(16))]),
+    # (STPT: no page since 2026-11-27 - the Hornet's waypoint page only relabelled itself and MRK cleared the digits;
+    # Aerofly sequences the route by itself)
 }
+# the codes (9900 FAIL, 9999 COND: failures_f22) on the OTHR page too - digits, MRK (2026-11-27: to reach the
+# empty page another page had to be cleared away first); the empty page still takes them
+enter_events = D['UpFrontEnterEvent'].get('Events').split()
+enter_events += ['ScratchPad.Clear'] * (ICP_PAGES['Other'] - len(enter_events)) + ['F22FailCodeEnter.Trigger']
+setv(D['UpFrontEnterEvent'], 'Events', ' %s ' % ' '.join(enter_events))
 for key, page in ICP_PAGES.items():
     obj(dyn, 'input_event', 'ICPKey' + key, anchor, Message='ICP.' + key, Events=' %s ' % ufc_page_event(page))
+
+
+# ICP clean-up (2026-11-27, after tracing every option to what reads it in the built config): the Hornet's lines
+# that only relabelled themselves are blanked, in place (an option's index is its value - the others keep theirs).
+# COM1 / COM2: GUARD, SQUELCH, CIPHER, modulation and MENU -> a :FREQ hint (the digits + MRK set the frequency);
+# IFF: modes 1 / 2 / 3 / 4 / C were all the same 'transponder on' -> one XPDR line (on / off, as UNDO; the colon when on);
+# TACAN: A/A was T/R again (it only switched the DME on) -> blank.
+def ufc_set_options(page, options):
+    els = D[page].find('Elements')
+    for k, el in enumerate(els.children):
+        if k not in options:
+            continue
+        el.name, el.children = 'Blank', []
+        if options[k]:
+            text, events = options[k]
+            el.name = 'F22Option%d' % k
+            el.children = [tmd.Node('string8', 'InputText', text), tmd.Node('string8', 'Events', ' %s ' % events)]
+
+
+obj(dyn, 'constant_text', 'F22ComFreqLabel', anchor, Input=':FREQ')
+for com in ('COM1', 'COM2'):
+    ufc_set_options('UFCPage' + com, {0: ('F22ComFreqLabel.Output', 'DEV0.Trigger'), 1: None, 2: None, 3: None, 4: None})
+obj(dyn, 'binary_to_text', 'F22IffXpdrLabel', anchor, Input='TransponderSelectedOn.Output', Text0=' XPDR', Text1=':XPDR')
+ufc_set_options('UFCPageIFF', {0: ('F22IffXpdrLabel.Output', 'ToggleTransponderOnOff.Trigger'), 1: None, 2: None, 3: None, 4: None})
+ufc_set_options('UFCPageTACAN', {2: None})
 # UFD / ICP brightness: on with the right AC bus (as the right DDI), dimmed with the wheel left of the ICP (DCS
 # ICP_WHEELUP / ICP_WHEELDWN), 0.5 at start as before
 obj(dyn, 'input_default', 'UFDBrightnessWheel', anchor, Message='UFD.Brightness', Range=' 0.0 1.0 ',
     Positions=('uint', '21'), Value=0.5)
-# (2026-11-05, user: after the fuel ran out the whole cockpit went dark at once) the two UFDs - ICAWS and the standby
+# (2026-11-05: after the fuel ran out the whole cockpit went dark at once) the two UFDs - ICAWS and the standby
 # flight group - are the displays left on the battery (DC essential bus); the ICP, MFDs and HUD need AC (generators /
 # APU), as the Hornet's. The F-22's exact battery loads are not public; standby + warnings on the battery is the rule
-# each UFD also has its own BRT knob, the left of its two (user 2026-11-17: one brightness per screen;
+# each UFD also has its own BRT knob, the left of its two (2026-11-17: one brightness per screen;
 # cockpit_controls.BRIGHTNESS): the wheel by the ICP stays the master for both UFDs and the ICP (BRT, as the F-16 ICP's
 # raster brightness wheel)
-# Each screen's right knob is its MODE (cockpit_controls.MODES, user 2026-11-18): OFF / NIGHT / DAY as the F/A-18
+# Each screen's right knob is its MODE (cockpit_controls.MODES, 2026-11-18): OFF / NIGHT / DAY as the F/A-18
 # DDI's mode knob, NIGHT 0.3 of DAY (the Hornet's own map, LeftMFDDayNightBrightness - its day / night inputs, bound to
 # no control, stay at DAY). On a cold start the modes stand at OFF (STATE_EXTRA)
 for knob in cockpit_controls.MODES.values():
@@ -1055,7 +1167,7 @@ for side in ('Left', 'Right'):
     obj(dyn, 'product', 'UFD%sBrightnessValue' % side, anchor,
         Inputs=' DCBusEssentialOn.Output UFDBrightnessWheel.Output F22%sUfdKnobLeft.Output F22%sUfdModeLevel.Output ' % (side, side))
 obj(dyn, 'product', 'ICPBrightnessValue', anchor, Inputs=' DDIRightOn.Output UFDBrightnessWheel.Output ')
-# HUD: off at the bottom of its wheel (user 2026-11-18: it could not be turned off, only dimmed - the Hornet's map
+# HUD: off at the bottom of its wheel (2026-11-18: it could not be turned off, only dimmed - the Hornet's map
 # puts the wheel's 0 at 0.3 of full brightness). As the F-16's SYM wheel and the Hornet's own HUD knob, both with an
 # OFF at the end of their travel: 0 = off, the first click 0.3, then up to full as before
 setv(D['HUDBrightnessSetting'], 'Map', ' (0.0 0.0) (0.05 0.3) (1.0 1.0) ')
@@ -1143,23 +1255,23 @@ for k in (1, 2):
 FLAP_LEVER = re.compile(r'^FlapsSelector(_Sound\d)?$')
 dyn.children = [o for o in dyn.children if not FLAP_LEVER.search(o.name)]
 # (the gear down by ALT GR counts as down - the alternate extension leaves the handle where it was: with it up after
-# ALT GR the flaps went AUTO with the gear hanging down, user 2026-11-15)
+# ALT GR the flaps went AUTO with the gear hanging down, 2026-11-15)
 obj(dyn, 'maximum', 'F22FlapsGearDown', D['FlapsMapping'], Inputs=' GearLever.Output F22AltGear.Output ')
 D['FlapsSelector'] = obj(dyn, 'linear_interpolation', 'FlapsSelector', D['FlapsMapping'], Input='F22FlapsGearDown.Output',
                          Map=' (0.0 0.0) (1.0 0.5) ')
-# Pitch trim: none - 0 always (user 2026-11-15). The F-22 has no takeoff trim (its flight control system works the
+# Pitch trim: none - 0 always (2026-11-15). The F-22 has no takeoff trim (its flight control system works the
 # stabilators at rotation) and needs no trimming in flight: neutral stick is 1 g. History: the Hornet's CHK TRIM wants
 # 40-60 % nose up before takeoff, so the mod sent its T/O TRIM message on the ground (SenderF22AutoTakeoffTrim) - at
 # any speed it also fired at the touchdown and pitched the nose up on the landing roll and at a bounce; left at takeoff
 # trim after liftoff the Hornet's laws pitched up the whole flight (its trim offsets the commanded g). Without it the
 # test is whether the nose still lifts at a normal speed with the aft CG (in October, with less aft CG, it did not
-# before ~200 kt; make_f22 CG_AFT): if not, a rotation aid comes back in another form. User's test 2026-11-15 with the
+# before ~200 kt; make_f22 CG_AFT): if not, a rotation aid comes back in another form. Test 2026-11-15 with the
 # trim at 0 by hand: lift-off 135-140 kt clean at MIL, 122-127 in afterburner, 170 with full ferry tanks - normal, no
 # aid needed. The trim starts at 0 in every flight state (the ground states had none: the Hornet's controller began at
 # 50 % nose up) and the game's spawn takeoff trim is 0 (copilot.tmc); the trim keys still work if wanted. (Holding it
 # at 0 by a sender of Controls.Trim, absolute, did nothing - the spawn still read 50 %: removed.)
 D['FlightController'].set('PitchTrim', '0.0', 'float64')
-# ... and the spawn still read 50 %, with the game's automatic trim assistance off (user 2026-11-15): the Hornet's
+# ... and the spawn still read 50 %, with the game's automatic trim assistance off (2026-11-15): the Hornet's
 # flight controller trims by itself - on the ground to its takeoff trim (50 % nose up; its class holds an
 # 'AutoTrimGround' state), back to 0 when the gear goes up in the air; the pilot can move it by hand meanwhile. Its own
 # code, not a file setting: senders of Controls.Trim did nothing - absolute (normalized) and as trim-key steps (a
@@ -1168,19 +1280,33 @@ NO_CHECK = ('CASCautionCheckFlaps', 'CASCautionCheckTrim')
 setv(D['CAS'], 'Messages', ' ' + ' '.join(m for m in D['CAS'].get('Messages').split() if m not in NO_CHECK) + ' ')
 # ICP rocker -> map range, the way the MFD buttons step it (StepMapRange: an event into MapRange.Step; the rocker's
 # first build sent NavigationDisplayPilot.Range with a step qualifier from a push button - nothing happened)
+# On the A/T page with the A/T on the rocker steps the target held by 1 kt / M0.01 instead (2026-11-27: quick
+# changes there; the map range then stays) - both targets step, only the one held counts, as F22AtStepUp / Down; each
+# press restarts the page's 30 s return to the empty page
+obj(dyn, 'logic_equal', 'F22IcpOnAtPage', anchor, Input0='UpFrontControllerPage.Output', Input1='%.1f' % AT_PAGE)
+obj(dyn, 'logic_and', 'F22IcpRockerAt', anchor, Inputs=' F22IcpOnAtPage.Output F22AtOn.Output ')
+for key, sign in (('Up', 1.0), ('Down', -1.0)):
+    for tgt, fine in (('Cas', 0.514444), ('Mach', 0.01)):
+        obj(dyn, 'linear', 'F22At%sFine%sValue' % (tgt, key), anchor, Input='F22At%sTarget.Output' % tgt, Scaling=1.0,
+            Offset=sign * fine)
+        obj(dyn, 'event_value', 'F22At%sFine%s' % (tgt, key), anchor, Input='F22At%sFine%sValue.Output' % (tgt, key),
+            Events=' F22At%sTarget.Set ' % tgt)
+    obj(dyn, 'event_value', 'F22AtFine' + key, anchor, Input='1.0',
+        Events=' F22AtCasFine%s.Trigger F22AtMachFine%s.Trigger UpFrontControllerPageResetDelay.Trigger ' % (key, key))
 for key, step in (('Up', 1.0), ('Down', -1.0)):
     obj(dyn, 'event_value', 'F22MapRange' + key, anchor, Input='%.1f' % step, Events=' MapRange.Step ')
+    obj(dyn, 'event_demultiplexer', 'F22IcpRocker' + key, anchor, InputSelect='F22IcpRockerAt.Output',
+        Events=' F22MapRange%s.Trigger F22AtFine%s.Trigger ' % (key, key))
     obj(dyn, 'input_event', 'ICPMapRange' + key, anchor, Message='ICP.MapRange' + key,
-        Events=' F22MapRange%s.Trigger ' % key)
+        Events=' F22IcpRocker%s.Trigger ' % key)
 
 # ---------------------------------------------------------------------------------------------- stores, bays, tanks
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import stores_f22 as S          # layout constants (numpy-free at import)
-# Stage 6. Load variants (livery selector, add-ons written below): F22CombatLoad (6 AIM-120C + 2 AIM-9X in the bays)
-# and F22FerryTanks (two 600 gal tanks on their wing pylons) are 0 here, 1 in their add-on's parameters.tmd - as the
-# F/A-18's external tank add-ons.
-obj(dyn, 'linear', 'F22CombatLoad', anchor, Input='0.0')
-obj(dyn, 'linear', 'F22FerryTanks', anchor, Input='0.0')
+# The load: F22CombatLoad (6 AIM-120C + 2 AIM-9X in the bays) and F22FerryTanks (two 600 gal tanks on their wing
+# pylons). Until 0.9.1 the livery's add-ons set them; 0.9.2: picked on the ground from the SMS page (loads_f22)
+import loads_f22
+loads_f22.base(obj, dyn, anchor, ufc_label)
 obj(dyn, 'logic_invert', 'F22CombatHidden', anchor, Input='F22CombatLoad.Output')
 # weapon bays: the BAY page of the MFDs (or a Weapons.Bay* message) toggles each bay's door command; ALL opens every
 # bay if all are shut, else shuts them. Door servos 0 shut .. 1 open (the side bays swing the AIM-9 trapeze out with
@@ -1193,7 +1319,12 @@ for bay in BAYS:
         Events=' F22Bay%sCommand.Set ' % bay)
     obj(dyn, 'input_event', 'F22Bay%sMessage' % bay, anchor, Message='Weapons.Bay%s' % bay,
         Events=' F22Bay%sToggle.Trigger ' % bay)
-    obj(dyn, 'product', 'F22Bay%sDemand' % bay, anchor, Inputs=' F22Bay%sCommand.Output DCBusEssentialOn.Output ' % bay)
+    # (0.9.2: a launch opens the bay by itself - weapons_f22 F22Bay<bay>Launch; the pilot's command still holds it open)
+    obj(dyn, 'maximum', 'F22Bay%sWant' % bay, anchor, Inputs=' F22Bay%sCommand.Output F22Bay%sLaunch.Output ' % (bay, bay))
+    # (the door is held where it stands without power - failures_f22 freezes it on DC ESS as on hydraulics. Until
+    # 2026-11-25 power multiplied the command: the bus dropping for a moment as each generator came on line at engine
+    # start shut the doors part way)
+    obj(dyn, 'linear', 'F22Bay%sDemand' % bay, anchor, Input='F22Bay%sWant.Output' % bay)
     obj(dyn, 'servoclassic', 'F22Bay' + bay, anchor, Input='F22Bay%sDemand.Output' % bay, Speed=1.0, P0=0.0, P1=1.0,
         P2=0.0, P3=0.0, Position=0.0)
     # page status: 0 CLSD, 1 MOVE, 2 OPEN
@@ -1211,6 +1342,9 @@ obj(dyn, 'event_value', 'F22BayAllToggle', anchor, Input='F22BayAllCommand.Outpu
     Events=' F22BayAllTarget.Set F22BayAllApply.Trigger ')
 obj(dyn, 'input_event', 'F22BayAllMessage', anchor, Message='Weapons.BayAll', Events=' F22BayAllToggle.Trigger ')
 obj(dyn, 'logic_or', 'F22BayOpen', anchor, Inputs=' %s ' % ' '.join('F22Bay%sUnlocked.Output' % b for b in BAYS))
+# missile release (0.9.2, weapons_f22): select on the SMS page, MASTER ARM, REL / the Strobe key
+import weapons_f22
+weapons_f22.base(obj, dyn, anchor)
 # air refuelling receptacle (AAR panel: door OPEN / CLOSE switch, receptacle light knob) - for the look, Aerofly has
 # no refuelling; the door needs hydraulics (battery), the light DC power
 obj(dyn, 'input_switch', 'F22AARSwitch', anchor, Message='Fuel.AARDoor', Value=0.0,
@@ -1421,7 +1555,7 @@ for pname in getattr(C, 'STATIC_PARTS', {}):
         g('rigidbodygraphics', pname, GeometryList=' %s ' % pname, **body('Fuselage'))
 # ---------------------------------------------------------------------------------------------- console switches (2026-11-04)
 # The static console controls made working parts (ac SWITCH_PARTS / CLICK_SWITCHES); each acts on the aircraft, none is
-# an empty toggle (user). The F/A-18 systems behind YAW TRIM (rudder trim) and LAMP TEST (annunciator test) are the
+# an empty toggle. The F/A-18 systems behind YAW TRIM (rudder trim) and LAMP TEST (annunciator test) are the
 # donor's own; the rest is ours below. Donor cockpit volumes, anti-ice, bleed air and cabin temperature feed nothing
 # in Aerofly (outputs for the Hornet's knob graphics only): those F-22 knobs stay static.
 def dyn_node(name):
@@ -1502,7 +1636,7 @@ node.set('Inputs', node.get('Inputs').replace('OnGroundSensor.Output', 'F22Groun
 # the ICAWS while it runs, BIT PASS when done; OFF and STOP hold the result, STOP aborts a check still running, loss of
 # DC power clears it; each new START (from OFF) clears the last result and runs it again. In the air it does not run.
 # The switch rests at STOP (aft, under the notch of its red guard, as modelled); the guard lifts whenever the switch is
-# out of STOP (user 2026-11-05: it stayed shut). STOP aborts a running check, a passed one stays (BIT PASS until power
+# out of STOP (2026-11-05: it stayed shut). STOP aborts a running check, a passed one stays (BIT PASS until power
 # goes or a new START).
 obj(dyn, 'input_discrete', 'F22FlcsBitSwitch', anchor, Message='FCS.F22Bit', Range=' -1.0 1.0 ', Value=-1.0, **SW_SOUND)
 obj(dyn, 'logic_greater', 'F22FlcsGuardOpen', anchor, Input0='F22FlcsBitSwitch.Output', Input1='-0.5')
@@ -1545,21 +1679,21 @@ obj(dyn, 'logic_and', 'F22OnBattery', anchor, Inputs=' DCBusEssentialOn.Output F
 # about 160 lb/h. (The donor APU spun up from the switch alone, without fuel or power.)
 obj(dyn, 'logic_or', 'F22ApuFuel', anchor, Inputs=' Engine1FuelFed.Output Engine2FuelFed.Output ')
 obj(dyn, 'logic_and', 'F22ApuCanRun', anchor, Inputs=' F22ApuFuel.Output DCBusEssentialOn.Output ')
-# APU switch OFF / ARM / START (user 2026-11-06: the game had only two positions - the donor's APU on / off): START
+# APU switch OFF / ARM / START (2026-11-06: the game had only two positions - the donor's APU on / off): START
 # starts it, it runs in ARM, OFF stops it; losing fuel or DC power stops it too (a new START is needed)
 obj(dyn, 'input_discrete', 'F22ApuSwitch', D['APUN1'], Message='Engines.F22Apu', Range=' -1.0 1.0 ', Value=-1.0,
     EventsUp=' SwitchSoundLeftConsole.Trigger ', EventsDown=' SwitchSoundLeftConsole.Trigger ')
 obj(dyn, 'logic_greater', 'F22ApuStartPos', D['APUN1'], Input0='F22ApuSwitch.Output', Input1='0.5')
 obj(dyn, 'logic_greater', 'F22ApuOffPos', D['APUN1'], Input0='-0.5', Input1='F22ApuSwitch.Output')
 # (the latch is set by event_value objects, as the ICAWS acknowledge: the first build set it from event_edge_rising with
-# Value 0 and OFF did not stop the APU in the game, user 2026-11-06)
+# Value 0 and OFF did not stop the APU in the game, 2026-11-06)
 obj(dyn, 'variable', 'F22ApuRun', D['APUN1'], Value='0.0')
 obj(dyn, 'event_value', 'F22ApuRunOn', D['APUN1'], Input='1.0', Events=' F22ApuRun.Set ')
 obj(dyn, 'event_value', 'F22ApuRunOff', D['APUN1'], Input='0.0', Events=' F22ApuRun.Set ')
 obj(dyn, 'event_edge_rising', 'F22ApuStarted', D['APUN1'], Input='F22ApuStartPos.Output', Events=' F22ApuRunOn.Trigger ', Value=1.0, Threshold=0.5)
 obj(dyn, 'event_edge_rising', 'F22ApuStopped', D['APUN1'], Input='F22ApuOffPos.Output', Events=' F22ApuRunOff.Trigger ', Value=1.0, Threshold=0.5)
 # Fuel or DC lost for 2 s stops it (the APU controller rides through a short interruption). Without the ride-through
-# the APU died ~1 s after it came up (user 2026-11-06): the battery feeds DC ESS only while DC L is below 12 V
+# the APU died ~1 s after it came up (2026-11-06): the battery feeds DC ESS only while DC L is below 12 V
 # (DCBusEssentialFeedFromUtilityBattery, BatterySwitchOnAndDCBusLeftOff) while DCBusEssentialOn needs 20 V, so as the
 # APU generator picks up the network (the ~0.5 s settling measured with DIAG_POWER) DC ESS reads off and the latch reset.
 obj(dyn, 'logic_invert', 'F22ApuCannotRunNow', D['APUN1'], Input='F22ApuCanRun.Output')
@@ -1582,7 +1716,7 @@ setv(D['AirDataComputer'], 'InputEnable1', 'DCBusEssentialOn.Output')
 # estimate of the pump curve), the APU drives the emergency pump on system 1 (Eaton: emergency hydraulic pump).
 # Every surface is powered by both systems: the actuators get the larger share - no pressure, the commands fade and
 # the surfaces trail to neutral, part pressure, part deflection. (The F119's nozzles are fuel-actuated: not here.)
-# A stopped engine in Aerofly does not windmill: its N2 falls to 0 (user's test 2026-11-05: RPM 0, the pressure fell
+# A stopped engine in Aerofly does not windmill: its N2 falls to 0 (test 2026-11-05: RPM 0, the pressure fell
 # from 3000 to 0 and stayed). A real one keeps turning in the airflow and its pumps give part of their output: the
 # windmill N2 here is our estimate by airspeed (none below 100 kt, ~15 % at 250 kt, ~22 % at 400 kt - typical of
 # military turbofans, no F119 figure is public); the gearbox pumps (hydraulic, the nozzles' fuel pressure) turn with
@@ -1591,7 +1725,7 @@ setv(D['AirDataComputer'], 'InputEnable1', 'DCBusEssentialOn.Output')
 # make up the leakage, the PRESSURE holds - what its speed limits is the FLOW, i.e. how fast the surfaces can move. The
 # first model (until 2026-11-21) scaled the deflection with a pressure curve (half at 10 % N2): out of fuel on finals at
 # 140-150 kt the windmill's ~7 % N2 gave 500-700 psi and 18 % of the surface travel - the stabilators trailed, the nose
-# dropped and nothing could hold it (user's test). Now: pressure full above ~5 % N2 (estimate), and each surface's rate
+# dropped and nothing could hold it (in a test). Now: pressure full above ~5 % N2 (estimate), and each surface's rate
 # is limited by the flow, the sum of both systems' (dual tandem actuators), which grows with N2 up to rated at 60 % (idle
 # is above). Windmilling at 140 kt the surfaces reach their full travel, but at ~a fifth of their rate: the aircraft can
 # be held and flown gently, not thrown about; diving for speed brings the rate back.
@@ -1625,7 +1759,7 @@ obj(dyn, 'logic_or', 'F22HydLow', anchor, Inputs=' F22HydLow1.Output F22HydLow2.
 # pitch by the nozzles). The two nozzles share one angle: the larger pump decides.
 obj(dyn, 'maximum', 'F22NozzleActuation', anchor, Inputs=' F22HydPump1.Output F22HydPump2.Output ')
 # (applied to NozzleAngle after tvc_f22.apply, which builds it)
-# ---- what must stop without AC power or hydraulics (audit 2026-11-05, user: "check what keeps working that should not")
+# ---- what must stop without AC power or hydraulics (audit 2026-11-05: what kept working that should not)
 # gear: retracting needs hydraulic pressure; without it a lowered gear stays down (down-locks) and a raised one stays up
 # (up-locks) until it is selected down - then it falls free (no pressure needed). (GearSequence followed the handle
 # with both engines dead.)
@@ -1637,7 +1771,7 @@ obj(dyn, 'logic_or', 'F22GearTarget', D['GearSequence'], Inputs=' GearDownOrOnGr
 setv(D['GearSequence'], 'Input', 'F22GearTarget.Output')
 # strut travel as drawn (work/anim.json, args 0 / 3 / 5): the nose strut swings evenly over the whole sequence, the
 # main struts at 0.5 - 0.9 (doors 0.3 - 0.5). The Hornet maps moved all three at 0.25 - 0.75, so the gear joints and
-# the down / up-lock lamps ran together and off the picture (user 2026-11-07: lamps late and all three in step, the
+# the down / up-lock lamps ran together and off the picture (2026-11-07: lamps late and all three in step, the
 # nose takes longer)
 setv(dyn_node('MapNoseGear'), 'Map', ' (0.0 1.0) (1.0 0.0) ')
 setv(dyn_node('MapMainGear'), 'Map', ' (0.0 1.0) (0.5 1.0) (0.9 0.0) (1.0 0.0) ')
@@ -1663,7 +1797,7 @@ add_inputs('F22TaxiLightOn', 'ACBus1AOn.Output')
 HYD_SERVOS = ('ServoLeftAileron', 'ServoRightAileron', 'ServoLeftRudder', 'ServoRightRudder', 'ServoLeftFlap',
               'ServoRightFlap', 'ServoLeftSlat', 'ServoRightSlat', 'ServoOuterLeftSlat', 'ServoOuterRightSlat',
               'ServoAirBrake', 'ServoSteering')       # the stabilators: after tvc_f22.apply (it sets their inputs)
-# FLCS BIT surface program (user 2026-11-05: the check only lit ICAWS lines - as a fly-by-wire ground BIT, the surfaces
+# FLCS BIT surface program (2026-11-05: the check only lit ICAWS lines - as a fly-by-wire ground BIT, the surfaces
 # now run through their travel and the stick and pedals do nothing while it runs). Over the 40 s (F22BitProgress 0..1):
 # stabilators together (pitch), then against each other (roll), ailerons, rudders, trailing-edge flaps, leading-edge
 # flaps, then neutral. Angles (rad) about 80 % of each surface's drawn travel: ailerons / rudders +-30 deg (ac DRIVERS
@@ -1729,7 +1863,7 @@ def hyd_gate(name):
     node.set('Input', 'F22Hyd%s.Output' % name, 'string8')
 
 
-# rudders at high speed (2026-11-22, user's videos 22:37-08:24): 'the fins shake left and right at 500-650 kt' - frame by
+# rudders at high speed (2026-11-22, test videos: the fins shook left and right at 500-650 kt) - frame by
 # frame the fin structure stood still (tip vs root ~1 px once the fin springs were fixed) but one edge of each fin's
 # outline - the rudder - swung +-5 px at ~1.8 Hz while the aircraft hardly moved (roll < 0.4 deg, canopy steady): the
 # Hornet's yaw / roll-coordination laws drive this airframe's rudders into a buzz at high dynamic pressure, as their
@@ -1830,13 +1964,13 @@ for k in getattr(C, 'PRESS_PARTS', ()):
 print('keys pushed in while held: %d' % n_press)
 # stores (stage 6): the bay missiles show with the combat load (the AIM-9X parts '__S' ride their trapeze chains);
 # the ferry tanks are drawn by their add-on, on their own bodies
+# (0.9.2, weapons_f22: each missile hides as it is released - its copy flies on its own body, drawn by the add-on)
 g('graphics_input', 'GfxF22CombatHidden', InputID=('uint32', published('F22CombatHidden')))
-if 'Stores_AIM120' in parts:
-    g('rigidbodygraphics', 'Stores_AIM120', GeometryList=' Stores_AIM120 ', **body('Fuselage'),
-      InputHide='GfxF22CombatHidden.Output')
+weapons_f22.held_graphics(g, parts)
+_aim9_hide = {m['held']: 'GfxF22Msl%dHeldHidden.Output' % m['k'] for m in weapons_f22.missiles() if m['kind'] == '9x'}
 for n in G:
     if n.type == 'rigidbodygraphics' and n.name.endswith('__S'):
-        n.children.append(tmd.Node('string8', 'InputHide', 'GfxF22CombatHidden.Output'))
+        n.children.append(tmd.Node('string8', 'InputHide', _aim9_hide.get(n.name, 'GfxF22CombatHidden.Output')))
 # the pilot figure (ac PILOT_MATERIAL): drawn from outside and the aircraft's other cameras, not in the pilot's own
 # view - as the F/A-18's (graphics_human with ShowInside)
 if 'Pilot' in parts:
@@ -1846,7 +1980,7 @@ if 'Pilot' in parts:
 # ---------------------------------------------------------------------------------------------- exterior lights
 # Switches of the F/A-18 (left console): position lights (Controls.Lighting.Navigation, brightness knob), formation
 # lights (knob), landing-taxi light (one switch, on only with the nose gear down and locked). No anti-collision /
-# strobe lights (user 2026-11-22): two red wingtip strobes on the F/A-18's strobe switch were removed - no public source
+# strobe lights (2026-11-22): two red wingtip strobes on the F/A-18's strobe switch were removed - no public source
 # shows such lights on the F-22, so the switch (and the game's strobe key) does nothing. Positions and colours from the DCS light nodes; lens geometry (parts L_<key> / A_<nodes>__L<key>) glows
 # with its switch, point lights are the visible glow sprites, cone lights the light cast on the airframe / ground.
 # Brightness values as the accepted Su-35 lights (themselves sized on the stock F/A-18).
@@ -1871,11 +2005,11 @@ g('graphics_product', 'NavFlash', Input0='NavFlashSelect.Output', Input1='NavFla
 g('graphics_mix', 'NavLevel', Input0='NavSteady.Output', Input1='NavFlash.Output', Weight0=1.0, Weight1=1.0)
 g('graphics_linear_interpolation', 'NavPowered', Input='GfxPositionLight.Output', Map=' (0.0 0.0) (0.01 1.0) (1.0 1.0) ')
 g('graphics_product', 'NavLights', Input0='NavLevel.Output', Input1='NavPowered.Output')
-# gear position lights (landing gear panel, user 2026-11-04): NOSE / LEFT / RIGHT green while that gear is down and
+# gear position lights (landing gear panel, 2026-11-04): NOSE / LEFT / RIGHT green while that gear is down and
 # locked (the donor's per-gear signals), on DC power; dark in transit and up
-# Brightness as the stock F/A-18's gear annunciators (user: the first build, colour x 1.6, was too dim - the Hornet's are
+# Brightness as the stock F/A-18's gear annunciators (the first build, colour x 1.6, was too dim - the Hornet's are
 # (200 900 100) x AnnunciatorBrightness = DC x its day/night dimmer, and light with the annunciator test)
-# (2026-11-06, user) yellow while that gear moves (neither down and locked nor up and locked), green once down and
+# (2026-11-06) yellow while that gear moves (neither down and locked nor up and locked), green once down and
 # locked, dark when up. Two bodies of the same lens: the green annunciator (as before, with the lamp test) and an amber
 # one, the green hidden while the gear moves, the amber hidden otherwise (the first try, graphics_multi_color with
 # red / green parts, lit red: it picks a colour, it does not mix)
@@ -1889,7 +2023,7 @@ for gear in ('Nose', 'Left', 'Right'):
     for sig in ('Amber', 'Moving', 'NotMoving'):
         g('graphics_input', 'GfxGear%s%s' % (gear, sig), InputID=('uint32', published('F22Gear%s%s' % (gear, sig))))
     g('graphics_input', 'GfxGear%sLamp' % gear, InputID=('uint32', published('F22Gear%sLamp' % gear)))
-# the gear handle's wheel glows red while any leg is in transit (user 2026-11-16, as the F/A-18's handle light): a lamp
+# the gear handle's wheel glows red while any leg is in transit (2026-11-16, as the F/A-18's handle light): a lamp
 # copy of the wheel on the handle (ac _gear_handle_light), hidden while dark; on the DC essential bus as the plates
 obj(dyn, 'maximum', 'F22GearAnyMoving', anchor, Inputs=' F22GearNoseMoving.Output F22GearLeftMoving.Output F22GearRightMoving.Output ')
 obj(dyn, 'product', 'F22GearHandleLight', anchor, Inputs=' F22GearAnyMoving.Output DCBusEssentialOn.Output ')
@@ -1907,8 +2041,8 @@ GEAR_LAMPS = {'GearNose': 'F22GearIndicatorColor', 'GearLeft': 'F22GearIndicator
               'GearRight': 'F22GearIndicatorColor', 'BattLamp': 'F22CautionIndicatorColor'}
 LAMP_SWITCH = {'Formation': 'FormationLightScaled', 'Landing': 'GfxLandingLight', 'Taxi': 'GfxTaxiLight',
                'GearHandle': 'GfxGearHandleLight', 'NavRed': 'NavLights', 'NavGreen': 'NavLights'}
-# (GearHandle: 900, the annunciators' scale, burnt the wheel out to a pink blob - user 2026-11-17: far too bright)
-LAMP_GAIN = {'Formation': 1.0, 'Landing': 6.0, 'Taxi': 6.0, 'GearHandle': 1.5, 'NavRed': 0.6, 'NavGreen': 0.6}   # (3.0 burnt the lens out to white-cyan / white-yellow, 1.2 still orange / turquoise: user 2026-11-22)
+# (GearHandle: 900, the annunciators' scale, burnt the wheel out to a pink blob - 2026-11-17: far too bright)
+LAMP_GAIN = {'Formation': 1.0, 'Landing': 6.0, 'Taxi': 6.0, 'GearHandle': 1.5, 'NavRed': 0.6, 'NavGreen': 0.6}   # (3.0 burnt the lens out to white-cyan / white-yellow, 1.2 still orange / turquoise: 2026-11-22)
 # ('__K<body>' / '__B<body>': a lamp on a breakable part, kept on the fuselage / flying with the body - the swap is
 # breakage_f22.damage_graphics')
 lamp_keys = sorted({re.split('__[KB]', p.split('__L')[-1] if '__L' in p else p[2:])[0] for p in list(parts) + list(anim)
@@ -1950,7 +2084,7 @@ for n in G:
 # (the first build's (0.8 1.0 0.85) on every texture lit the cockpit as by day). The game's own
 # cockpit-lighting command (Controls.Lighting.*) sets the same knobs. Flood since 2026-10-22: baked lamp light on the
 # side consoles only (ac BAKE_FLOOD) at the F/A-18's strength - its flood colours are 2.9 / 2.3 / 1.4 (orange) and
-# 0 / 1.4 / 1.4 (blue); ours (0.28 0.38 0.3) lit nearly nothing at full FLOOD (user test)
+# 0 / 1.4 / 1.4 (blue); ours (0.28 0.38 0.3) lit nearly nothing at full FLOOD (in a test)
 for src, name, col in (('FloodLightBrightness', 'CockpitFlood', (1.9, 2.5, 2.0)),
                        ('ConsoleBrightness', 'ConsoleLettering', (0.5, 1.6, 0.6)),
                        ('PanelLightBrightness', 'PanelLettering', (0.5, 1.6, 0.6))):
@@ -1966,7 +2100,7 @@ for name, own in (('DDIRightBrightness', 'RightMFDBrightness'), ('DDILowerBright
                   ('MPCDBrightness', 'MPCDBrightnessSetting')):
     assert own + '.Output' in D[name].get('Inputs'), name
     setv(D[name], 'Inputs', D[name].get('Inputs').replace(own + '.Output', 'LeftMFDBrightness.Output'))
-# ... and each MFD has its own BRT knob too, the left of its two (user 2026-11-17: one brightness per screen): the
+# ... and each MFD has its own BRT knob too, the left of its two (2026-11-17: one brightness per screen): the
 # panel knob stays the master
 for name, knob in (('DDILeftBrightness', 'LeftMfd'), ('DDIRightBrightness', 'RightMfd'), ('DDILowerBrightness', 'LowerMfd'),
                    ('MPCDBrightness', 'Pmfd')):
@@ -2053,7 +2187,7 @@ if H and 'HudProjection' in parts:
     copied[H['centre']].set('R0', ' ' + fmt(hud['centre']) + ' ', 'tmvector3d')
     copied[H['centre']].set('Radius', '%.4f' % hud['radius'], 'float64')
     g('rigidbodygraphics', 'HudCombiner', GeometryList=' HudCombiner ', **body('Fuselage'))
-    # the HUD at full brightness looked about half as bright as the stock F/A-18's by day (user, 2026-10-22; a
+    # the HUD at full brightness looked about half as bright as the stock F/A-18's by day (2026-10-22; a
     # brightness above 1 is clamped): the collimated projection drawn twice - the HUD light adds up on the scene
     # (one geometry in two graphics objects stops the model from loading: each layer has its own, ac HUD_LAYERS)
     for k in range(2, getattr(C, 'HUD_LAYERS', 1) + 1):
@@ -2099,8 +2233,8 @@ def place_copy(src, name, **fields):
     return name
 
 
-# the DDI font (fontdisplay; 2 = the UFC's segments). UFD text 17 with a stride of 0.9 x size, as the MFD pages (user
-# 2026-11-17: the UFDs looked different - at 20 / 16 a letter was 3.55 mm on the UFD glass (0.177 mm per atlas unit),
+# the DDI font (fontdisplay; 2 = the UFC's segments). UFD text 17 with a stride of 0.9 x size, as the MFD pages
+# (2026-11-17: the UFDs looked different - at 20 / 16 a letter was 3.55 mm on the UFD glass (0.177 mm per atlas unit),
 # 12 % over the MFD rows' 3.2 mm (30 page units x 0.106 mm), with the MFDs' stride: denser and bolder; 17 = 3.0 mm).
 # UFD_NARROW: the column beside the right UFD's ADI (108 units: the clock's 8 characters need a stride of 13.5)
 UFD_FONT = dict(FontID='0', FontSize=17.0, Stride=15.3)
@@ -2161,17 +2295,19 @@ icp_d = dict(centre=icp_c, radius=max(math.dist(icp_c, d['centre']) + d['radius'
 # ICP: the UFC option lines in the five windows (line k at atlas y 244 - 56 k, 215 x 40 units each), the scratchpad
 # Measured on screenshots (2026-11-01): every line had no gap under the glyphs. The glyph runs from ~0.22 x size under Position to ~0.96 x size over it (screens 40 units high, top gap 6.25 at 30 / 249):
 # at size 30 from 249 it went under the window's 244 and lost its bottom. Size 29 from 253: 246.6 .. 280.8
-icp_lines = [place_copy('UpFrontControllerLine%d' % k, 'ICPLine%d' % k, Position=' 22 %d ' % (253 - 56 * k), FontSize=29.0)
-             for k in range(5)]
+# (2026-11-27: 10 characters a line, ':MACH 0.85' / ':COMBAT', at the scratchpad's size - was 5 at 29 / stride 41 as the
+# Hornet's. Size 21 / stride 21: a glyph ~17.6 wide, 10 cells from 22 end at 232 < 235; centred in the 40 units: 256)
+icp_lines = [place_copy('UpFrontControllerLine%d' % k, 'ICPLine%d' % k, Position=' 22 %d ' % (256 - 56 * k), FontSize=21.0,
+                        Stride=21.0, Length='10') for k in range(5)]
 window('ICPLines', icp_d, icp_lines)
 window('ICPScratch', screens['DisplayICPScratch'], [
     # (size 26 on the stock stride 22 made the digits run into each other: a glyph is ~0.84 x size wide). A glyph is centred on its cell: measured on screenshots, the overlay at 34 starts
-    # at 22.8, so at 21 its first letter was cut by the window's 15 (ON, user 2026-11-01); digits at 34 with size 26 end 3.5 units short of the window's 245
+    # at 22.8, so at 21 its first letter was cut by the window's 15 (ON, 2026-11-01); digits at 34 with size 26 end 3.5 units short of the window's 245
     place_copy('UpFrontControllerScratchPad', 'ICPScratchPad', Position=' 24 306 ', FontSize=22.0, Stride=23.0),
     place_copy('UpFrontControllerScratchPadOverlay', 'ICPScratchPadOverlay', Position=' 30 304 ')])
 # left UFD (atlas 430..800 x 630..915): engines left / right (RPM %, EGT degC, fuel flow 100 lb/h, nozzle %, oil psi
 # - the F/A-18 IFEI's values, as text: its LCD digits drew blue cells and cut the third digit) above the cautions
-# header: each engine's state in place of the plain L / R (2026-11-05, user: on the battery the UFDs are all that is
+# header: each engine's state in place of the plain L / R (2026-11-05: on the battery the UFDs are all that is
 # left, and the engines' state could not be told) - RUN, OFF, MOT (starter, no fuel), STRT (starting), WMIL
 # (windmilling: stopped, turned by the airflow), FADC (stopped by its FADEC); F22Eng<n>StageW, ENG page section
 for k in (1, 2):
@@ -2205,18 +2341,18 @@ AMBER = (1.0, 0.75, 0.0, 1.0)
 obj(dyn, 'logic_greater', 'F22SpeedBrakeOut', anchor, Input0='ServoAirBrake.Output', Input1='0.05')
 obj(dyn, 'logic_greater', 'F22FlapsDown', anchor, Input0='FlapsSelector.Output', Input1='0.25')
 # the ICAWS FLAPS line: flaps down with the gear up - ALT FLAPS (gear down, the flaps follow the gear handle and the
-# line only repeated the gear lamps, user 2026-11-06: clutter)
+# line only repeated the gear lamps, 2026-11-06: clutter)
 obj(dyn, 'logic_invert', 'F22GearNotDown', anchor, Input='AnyGearDown.Output')
 obj(dyn, 'logic_and', 'F22FlapsAlt', anchor, Inputs=' F22FlapsDown.Output F22GearNotDown.Output ')
 # Voice (our choice, nothing is published of the F-22's). The airliners' terrain_warning was tried first (2026-11-01) and rejected: its civil envelope spoke as soon as the nose went down, out of
 # step with the HUD's arrow. PULL UP now comes from what the arrow reads, TerrainRadar.OutputPullUpCue: 0 / 1 from the closing speed against the room to turn at this speed (game code).
-# Spoken from the first moment of the cue and repeated while it lasts, the words on the ICAWS (none on the HUD: the arrow is enough, user 2026-11-01). Voices: Kokoro-82M (Apache 2.0,
+# Spoken from the first moment of the cue and repeated while it lasts, the words on the ICAWS (none on the HUD: the arrow is enough, 2026-11-01). Voices: Kokoro-82M (Apache 2.0,
 # make_voices_kokoro.py; the macOS voices of the first builds are gone). The VOX knob's OFF mutes them. (Heights called out with the gear down, as the airliners', tried and taken out: fighters do not have it)
-# Volume: the RADIO VOL panel's VOX knob only (user 2026-11-07: the ICP thumbwheel, this knob and the SYS VOX key did
+# Volume: the RADIO VOL panel's VOX knob only (2026-11-07: the ICP thumbwheel, this knob and the SYS VOX key did
 # the same thing; the ICP wheel and the key are gone). 0 .. 1 in 20 clicks of 5 %, OFF at 0 mutes the voice and the
 # tones. Audio taper: equal clicks sound equally far apart - the gain falls 30 dB from the top to the first click
-# (1.5 x 10^(-1.5 (1 - p)); the linear 0 .. 1.5 of the first build changed little over its upper half, user: "only on /
-# off"); 0.9 at start = gain 1.06, the level accepted by ear (1.0 before). Each click plays a short 1 kHz tone at the
+# (1.5 x 10^(-1.5 (1 - p)); the linear 0 .. 1.5 of the first build changed little over its upper half, only on /
+# off); 0.9 at start = gain 1.06, the level accepted by ear (1.0 before). Each click plays a short 1 kHz tone at the
 # new level, so the level can be set by ear without waiting for a warning.
 obj(dyn, 'input_default', 'F22VoiceVolume', anchor, Message='Voice.Volume', Range=' 0.0 1.0 ', Positions=('uint', '21'), Value=0.9)
 obj(dyn, 'logic_greater', 'F22VoiceOn', anchor, Input0='F22VoiceVolume.Output', Input1='0.01')
@@ -2266,12 +2402,12 @@ voice('F22VoiceBingoIn', published('F22VoiceBingo'), 'voice_bingo.wav', 3.0)
 obj(dyn, 'logic_confirm_delay', 'F22OverGHeld', anchor, Input='F22OverG.Output', TimeUp=0.01, TimeDown=4.0, Threshold=0.5)
 obj(dyn, 'product', 'F22VoiceOverG', anchor, Inputs=' F22OverGHeld.Output F22VoiceOn.Output ')
 voice('F22VoiceOverGIn', published('F22VoiceOverG'), 'voice_overg.wav', 3.0)
-# A tone when Auto-GCAS takes the stick, once (user, 2026-11-01): the outer marker's dashes at twice the pitch, 800 Hz, four in a second, so that no new file is needed
+# A tone when Auto-GCAS takes the stick, once (2026-11-01): the outer marker's dashes at twice the pitch, 800 Hz, four in a second, so that no new file is needed
 obj(dyn, 'product', 'F22VoiceGcas', anchor, Inputs=' F22GcasActive.Output F22VoiceOn.Output ')
 voice('F22VoiceGcasIn', published('F22VoiceGcas'), 'marker_outer.wav', 1.0, pitch='2.0')
 # Marker beacons on the approach: the tone over each one (marker_receiver of the stock aircraft, which only light lamps with it; our tones). The receiver is real (game code: it looks for fixes
-# named OM, MM, IM at the airports nearby), but no such beacon was met in Haugesund, Bergen or San Francisco (user, 2026-11-01). Tones made up from the radio height were tried and taken out:
-# a beacon tells the place on the approach, the height is on the HUD anyway (user), so where the game has no beacon there is no tone
+# named OM, MM, IM at the airports nearby), but no such beacon was met at the airports tried (2026-11-01). Tones made up from the radio height were tried and taken out:
+# a beacon tells the place on the approach, the height is on the HUD anyway, so where the game has no beacon there is no tone
 obj(dyn, 'logic_and', 'F22CNIMarker', anchor, Inputs=' ACBus2AOn.Output F22CNISwitch.Output ')         # CNI, on AC as the ILS
 obj(dyn, 'marker_receiver', 'F22MarkerReceiver', anchor, Body='Fuselage', InputEnable='F22CNIMarker.Output')
 
@@ -2287,7 +2423,7 @@ for key, wav in (('Outer', 'marker_outer'), ('Middle', 'marker_middle'), ('Inner
     obj(snd, 'soundmultiply', 'F22Marker%sVolume0' % key, Input0='F22Marker%sIn.Output' % key, Input1='0.5')
     obj(snd, 'soundmultiply', 'F22Marker%sVolume' % key, Input0='F22Marker%sVolume0.Output' % key, Input1='F22VoiceLevel.Output')
     cockpit_loop('F22Marker%sSound' % key, 'F22Marker%sVolume.Output' % key, '1.0', wav + '.wav')
-# Air along the canopy, the user's idea, as the Concorde's wind loop but for a strong pressurised canopy: a quiet hiss by calibrated airspeed, so quieter high up at the same Mach, no whistle.
+# Air along the canopy, as the Concorde's wind loop but for a strong pressurised canopy: a quiet hiss by calibrated airspeed, so quieter high up at the same Mach, no whistle.
 # Buffet near the limits: low rumble from angle of attack and g, fading out at low speed. Levels are in the configs, to be set by ear
 obj(dyn, 'output', 'F22SoundCas', out_anchor, Input='AirDataComputer.OutputCalibratedAirspeed')
 obj(dyn, 'linear_interpolation', 'F22BuffetAoa', anchor, Input='PitotTube.AngleOfAttack', Map=' (0.26 0.0) (0.44 0.5) (0.70 1.0) ')
@@ -2296,7 +2432,7 @@ obj(dyn, 'maximum', 'F22BuffetAny', anchor, Inputs=' F22BuffetAoa.Output F22Buff
 obj(dyn, 'linear_interpolation', 'F22BuffetSpeed', anchor, Input='AirDataComputer.OutputCalibratedAirspeed', Map=' (30.0 0.0) (80.0 1.0) ')
 obj(dyn, 'product', 'F22Buffet', anchor, Inputs=' F22BuffetAny.Output F22BuffetSpeed.Output ')
 obj(snd, 'soundinput', 'F22FlowCas', InputID=('uint32', 'F22SoundCas.Output'))
-obj(snd, 'soundmapping', 'F22FlowVolume', Input='F22FlowCas.Output', Map=' (0.0 0.0) (40.0 0.0024) (100.0 0.01) (200.0 0.024) (350.0 0.042) (600.0 0.054) ')    # 0.3 x the first try: at 300-500 kt it was as loud as the engines (user); x 0.4 again 2026-11-21 (wind covered the engines in the cockpit, user: 2-3 x quieter)
+obj(snd, 'soundmapping', 'F22FlowVolume', Input='F22FlowCas.Output', Map=' (0.0 0.0) (40.0 0.0024) (100.0 0.01) (200.0 0.024) (350.0 0.042) (600.0 0.054) ')    # 0.3 x the first try: at 300-500 kt it was as loud as the engines; x 0.4 again 2026-11-21 (wind covered the engines in the cockpit, 2-3 x quieter)
 obj(snd, 'soundmapping', 'F22FlowPitch', Input='F22FlowCas.Output', Map=' (0.0 0.7) (100.0 0.8) (300.0 1.1) (600.0 1.3) ')
 cockpit_loop('F22FlowSound', 'F22FlowVolume.Output', 'F22FlowPitch.Output', 'flow_noise.wav')
 obj(snd, 'soundinput', 'F22BuffetIn', InputID=('uint32', published('F22Buffet')))
@@ -2307,7 +2443,7 @@ cockpit_loop('F22BuffetSound', 'F22BuffetVolume.Output', '2.5', 'buffet.wav')
 import engine_sound_f22
 engine_sound_f22.apply(globals())
 # Auto-GCAS (our choice, as on the F-16 and F-35; nothing is known of one on the F-22). The HUD arrow alone is too late for it: the game's cue gives one second before the point where a pilot
-# with wings level must pull (terrain_radar, game code), and a second of delay on top lost the aircraft nearly every time, inverted always (user, 2026-11-01). So it works out the room it needs:
+# with wings level must pull (terrain_radar, game code), and a second of delay on top lost the aircraft nearly every time, inverted always (2026-11-01). So it works out the room it needs:
 # from its own path (TerrainRadar.OutputDistance along the velocity, 0 = no ground within 20 s, x sine of the path = height) against the sink during the reaction and the roll to level, the sink
 # gained while rolling (the laws keep +1 g, inverted that pushes down), the height lost in the pull V^2 / a x (1 - cos path), and 40 m. Times and speeds are estimates: roll ~150 deg/s (Hornet laws
 # did ~250 deg/s), g onset 0.4 s. On a model at 90-300 m/s, path -3 .. -85 deg, bank 0 .. 180 deg the lowest point stayed over 40 m, and with a roll of 90 deg/s over 30 m; the terrain ahead in level flight is left to the arrow, which
@@ -2428,6 +2564,24 @@ ICAWS = [('FUEL LOW', 'CautionFuelLow'), ('BINGO', 'BingoFuelReached'), ('JOKER'
          ('HYD', 'F22HydLow')]     # (one slot for either system: an eighth row would fall below the left UFD, y 630)
 # failures (FAIL page, failures_f22.py, 2026-11-09): their logic, and their ICAWS lines
 failures_f22.dynamics(globals())
+# the MFD menu in groups (2026-11-27; the links had stayed on the Hornet's keys): top, left to right = navigation
+# and flying (HSI, SA, ADI, HUD, APPR); right column, top down = the aircraft's systems (ENG, FUEL, FCS, SYS, FAIL -
+# the hidden one); left column = the mission (SMS, STAT, FPAS, CHKLST); bottom: MENU in the middle, AUTO right of it
+# (right MFD only). Element k = key: 0-4 bottom left to right, 5-9 left top down, 10-14 right top down, 15-19 top
+MENU_ORDER = {0: None, 1: None, 2: 'SupportMenuLabel', 3: 'F22MfdAutoButton', 4: None,
+              5: 'F22BayPageLink', 6: 'F22StatPageLink', 7: 'FlightPerformanceAdvisorySystemPageLink',
+              8: 'ChecklistPageLink', 9: None,
+              10: 'EnginePageLink', 11: 'FuelPageLink', 12: 'FlightControlSystemLabel', 13: 'F22TvcPageLink',
+              14: 'F22FailPageLink',
+              15: 'HorizontalSituationPageLink', 16: 'SituationAwarenessPageLink', 17: 'AttitudeIndicatorPageLink',
+              18: 'HUDPageLink', 19: 'F22ApprPageLink'}
+for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
+    for page in (D[prefix + 'TacticalMenuPage'], D[prefix + 'SupportMenuPage']):
+        old_els = {e.name: e for e in page.find('Elements').children if e.name != 'Blank'}
+        new_els = [old_els.pop(MENU_ORDER[k]) if MENU_ORDER[k] in old_els else
+                   tmd.Node('text_menu_basic_page_element', 'Blank', leaf=False) for k in range(20)]
+        assert not old_els, (prefix, sorted(old_els))           # every link placed
+        page.find('Elements').children = new_els
 ICAWS += failures_f22.ICAWS
 # master caution: the F-22 cockpit has no Hornet MASTER CAUTION lamp (the reset button seemed to do nothing), so an
 # unacknowledged caution flashes on the ICAWS (the CAS flasher, 1 s) until the reset (left button under the left UFD,
@@ -2435,9 +2589,9 @@ ICAWS += failures_f22.ICAWS
 # cautions (the Hornet's CAS had no GEN message: switching a generator off raised nothing)
 ADVISORIES = ('F22SpeedBrakeOut', 'F22FlapsAlt', 'ParkingBrakeSet', 'F22BayOpen', 'F22PullUp', 'F22AoaHigh', 'F22GcasActive', 'F22AtActive',
               'F22BitRunning', 'F22BitPassShow', 'F22JokerReached')
-# BIT PASS on the ground only (in the air it stayed lit the whole flight, user 2026-11-06: clutter); FCS: the Hornet's
+# BIT PASS on the ground only (in the air it stayed lit the whole flight, 2026-11-06: clutter); FCS: the Hornet's
 # aileron-off caution or the direct mode (tvc_f22: the laws are bypassed)
-# ... and until the ICAWS reset (left button under the left UFD, as a caution's acknowledge; user 2026-11-07: it stayed
+# ... and until the ICAWS reset (left button under the left UFD, as a caution's acknowledge; 2026-11-07: it stayed
 # up to the takeoff and nothing cleared it). A new pass shows it again.
 obj(dyn, 'variable', 'F22BitPassAcked', anchor, Value='0.0')
 obj(dyn, 'event_value', 'F22BitPassAck', anchor, Input='1.0', Events=' F22BitPassAcked.Set ')
@@ -2464,7 +2618,7 @@ obj(dyn, 'logic_invert', 'ICAWSFlashDark', anchor, Input='CASFlasher.Output')
 obj(dyn, 'logic_and', 'ICAWSBlank', anchor, Inputs=' ICAWSUnacknowledged.Output ICAWSFlashDark.Output ')
 obj(dyn, 'logic_invert', 'ICAWSLit', anchor, Input='ICAWSBlank.Output')
 g('graphics_animation_render_list', 'F22Nothing', RenderList='  ')
-# ICAWS as a list (2026-11-06, user: the 3 x 7 grid of fixed places, one per message, read as scattered words; colours:
+# ICAWS as a list (2026-11-06: the 3 x 7 grid of fixed places, one per message, read as scattered words; colours:
 # red = a problem, yellow = only the aircraft's state). The lit messages in order of importance - the warnings (PULL UP,
 # OVER G, HYD, FCS), the cautions, both red, then the state (speed brake, parking brake, A/T...) yellow and steady -
 # packed into 4 rows of 3 under the engine table, MORE and the number when more are lit. An unacknowledged caution
@@ -2510,8 +2664,8 @@ g('graphics_animation_render_list', 'F22IcawsMoreList', RenderList=' %s %s ' % (
     label('MORE', (690, 650), 15.0, UFD_RED),
     number_of('F22IcawsMore.Output', 'IcawsMore', (750, 650), 1.0, n=2, font=dict(icaws_font, Color=' %g %g %g %g ' % UFD_RED))))
 g('graphics_animation_render_switch', 'F22IcawsMoreShow', Input='GfxF22IcawsOverflow.Output', RenderList=' F22Nothing F22IcawsMoreList ')
-# the legend of the ICAWS reset key (user 2026-11-17): the left of the three keys under the left UFD acknowledges the
-# cautions (Warnings.MasterCautionPilot). Key centres as the right UFD's (its TIME legends, calibrated on the user's
+# the legend of the ICAWS reset key (2026-11-17): the left of the three keys under the left UFD acknowledges the
+# cautions (Warnings.MasterCautionPilot). Key centres as the right UFD's (its TIME legends, calibrated on a
 # screenshot 2026-11-07: x 556 / 627 / 698, 8 units over the image's bottom edge), the left UFD's image 310 units higher
 ufd_l.append(label('RESET', (556 - int(2.5 * 13.5), 638), 15.0))
 ufd_l.append('F22IcawsMoreShow')
@@ -2519,8 +2673,8 @@ window('UFDLeft', screens['DisplayLeftUFD'], ufd_l)
 # right UFD (atlas 430..800 x 320..605): standby attitude (the F/A-18 ADI page: attitude, airspeed, altitude,
 # vertical speed; the four squares under it are its sideslip indicator - the lower one is the ball) beside total fuel
 # (lb) with the time / range to BINGO and the local time
-# (2026-11-07, user) two pages again, flipped by the lower middle button (R_SMFD_3; the top one until 2026-11-18): SFI (this page) and TIME - kept from the
-# rejected UFD pages of 2026-11-06 (scratchpad make_f22_ufd_v2.py), the rest of those stays out. Back to SFI by itself
+# (2026-11-07) two pages again, flipped by the lower middle button (R_SMFD_3; the top one until 2026-11-18): SFI (this page) and TIME - kept from the
+# rejected UFD pages of 2026-11-06 (tried offline), the rest of those stays out. Back to SFI by itself
 # when the standby instruments are what is left: the battery alone on the bus, or no engine running in the air.
 
 
@@ -2539,9 +2693,9 @@ obj(dyn, 'variable', 'F22UfdRPage', anchor, Value='0.0')
 # three pages since 2026-11-22 (NAV added, avionics block A6): SFI -> TIME -> NAV -> SFI
 obj(dyn, 'linear_interpolation', 'F22UfdRPageOther', anchor, Input='F22UfdRPage.Output', Map=' (0.0 1.0) (1.0 2.0) (1.5 2.0) (1.5001 0.0) (2.0 0.0) ')
 obj(dyn, 'event_value', 'F22UfdRPageNext', anchor, Input='F22UfdRPageOther.Output', Events=' F22UfdRPage.Set ')
-# the lower middle key, with the next page's name over it (user 2026-11-17: the key above the screen sits over the
+# the lower middle key, with the next page's name over it (2026-11-17: the key above the screen sits over the
 # ADI's corner boxes, no room for its legend; the next page of a longer list would come the same way). The top key
-# flipped them too until 2026-11-18 (user: one key for the pages) - free now, as the left UFD's
+# flipped them too until 2026-11-18 (one key for the pages) - free now, as the left UFD's
 ufd_button('F22UfdR2Button', 'UFD.RightKey2', 'F22UfdRPageNext.Trigger')
 g('graphics_input', 'GfxF22UfdRPage', InputID=('uint32', published('F22UfdRPage')))
 obj(dyn, 'logic_and', 'F22BothEnginesOut', anchor, Inputs=' Engine1NotRunning.Output Engine2NotRunning.Output F22AtAirborne.Output ')
@@ -2553,7 +2707,7 @@ g('graphics_animation_render_switch', 'F22UfdAdiSwitch', Input='GfxF22UfdRPage.O
 window('UFDRightADI', screens['DisplayRightUFD'], ['F22UfdAdiSwitch'], pos=(432, 345), size=(255, 255))
 clock_src, _, _ = dyn_value('LocalTime')
 obj(dyn, 'time_to_text', 'UFDClockText', anchor, Input=clock_src, Hours=('bool', 'true'), Seconds=('bool', 'true'))
-# (2026-11-06, user) COM1 / COM2 out: they showed the Hornet's channel numbers ('1' / '2'), no channel has a frequency -
+# (2026-11-06) COM1 / COM2 out: they showed the Hornet's channel numbers ('1' / '2'), no channel has a frequency -
 # they meant nothing. FUEL with T (minutes) and R (nautical miles) to BINGO at the present flow and ground speed, the
 # FPAS page's own figures (F22PerfTime / F22PerfRange), held at 999 min / 9999 NM with the engines off
 obj(dyn, 'clamp', 'F22UfdFuelTime', anchor, Input='F22PerfTime.Output', Range=('tmvector2d', ' 0.0 59940.0 '))
@@ -2594,16 +2748,16 @@ obj(dyn, 'multiplexer', 'F22ApuStage', anchor, InputSelect='APUAvailable.Output'
 obj(dyn, 'multiplexer_text', 'F22ApuText', anchor, InputSelect='F22ApuStage.Output',
     Inputs=' %s ' % ' '.join(ufc_label(t) for t in ('OFF', 'STRT', 'ON')))
 small = UFD_NARROW
-# shown only when it matters (user 2026-11-05: in normal flight these lines were clutter): the APU turning, a
+# shown only when it matters (2026-11-05: in normal flight these lines were clutter): the APU turning, a
 # hydraulic system low, the battery alone on the bus or an engine not running (on the ground before the start too)
 obj(dyn, 'logic_or', 'F22UfdSysShow', anchor, Inputs=' F22ApuTurning.Output F22HydLow.Output F22OnBattery.Output '
     'Engine1NotRunning.Output Engine2NotRunning.Output ')
 g('graphics_input', 'GfxF22UfdSysShow', InputID=('uint32', published('F22UfdSysShow')))
-ufd_sys = [label('APU', (694, 380), 15.0),          # (size 20 ran into the state: 'APUOFF', user 2026-11-05)
+ufd_sys = [label('APU', (694, 380), 15.0),          # (size 20 ran into the state: 'APUOFF', 2026-11-05)
           place_copy('UpFrontControllerLine0', 'UFDApu', Input=text_out('Apu', 'F22ApuText.Output'),
                      Position=' 746 380 ', Length='4', **small),
           label('HYD', (694, 357), 15.0),               # ('HYD L/R' at 20 ran out of the window)
-          # (two 4-digit fields at 13.5 touched: '24072407', user 2026-11-05 - smaller digits with a gap, L then R)
+          # (two 4-digit fields at 13.5 touched: '24072407', 2026-11-05 - smaller digits with a gap, L then R)
           number_of('F22HydSystem1.Output', 'Hyd1', (692, 334), 3000.0, n=4, font=dict(small, FontSize=15.0, Stride=12.0)),
           number_of('F22HydSystem2.Output', 'Hyd2', (750, 334), 3000.0, n=4, font=dict(small, FontSize=15.0, Stride=12.0))]
 g('graphics_animation_render_list', 'F22UfdSysList', RenderList=' %s ' % ' '.join(ufd_sys))
@@ -2612,8 +2766,8 @@ ufd_r.append('F22UfdSys')
 # TIME: the local time, the flight time (counts while airborne, held on the ground) and a stopwatch for the approach,
 # a hold or a check, as the A380's: an integral of its running flag. The three lower buttons, left to right R_SMFD_2 /
 # 3 / 4: ST/SP starts and stops it, the middle one is free, RST zeroes it - on this page only. (In the rejected build
-# RST sat on the middle button and the legends stood off their buttons, user 2026-11-07: legends now centred over
-# them - the user's screenshot: 1.331 px per page unit, buttons at page x 556 / 627 / 698 by the legends' centres)
+# RST sat on the middle button and the legends stood off their buttons, 2026-11-07: legends now centred over
+# them - a screenshot: 1.331 px per page unit, buttons at page x 556 / 627 / 698 by the legends' centres)
 obj(dyn, 'integral', 'F22FlightTime', anchor, Input='F22AtAirborne.Output')
 obj(dyn, 'variable', 'F22StopwatchRunning', anchor, Value='0.0')
 obj(dyn, 'logic_invert', 'F22StopwatchOther', anchor, Input='F22StopwatchRunning.Output')
@@ -2632,7 +2786,7 @@ time_page = [label('TIME', (585, 585), 17.0),
              label('TIMER', (445, 455)), ufd_text('TimeState', 'F22StopwatchState.Output', (590, 455), 4),
              ufd_text('TimeWatch', 'F22StopwatchText.Output', (470, 400), 8, dict(UFD_FONT, FontSize=34.0, Stride=28.0)),
              label('ST/SP', (522, 328), 15.0), label('NAV', (627 - int(1.5 * 13.5), 328), 15.0), label('RST', (678, 328), 15.0)]
-# (2026-11-07, user) the stopwatch also on the SFI page, under the clock - once started (running, or stopped with a
+# (2026-11-07) the stopwatch also on the SFI page, under the clock - once started (running, or stopped with a
 # time on it); the flight time stays on TIME only
 obj(dyn, 'logic_greater', 'F22StopwatchUsed', anchor, Input0='F22Stopwatch.Output', Input1='0.5')
 g('graphics_input', 'GfxF22StopwatchUsed', InputID=('uint32', published('F22StopwatchUsed')))
@@ -2655,7 +2809,7 @@ obj(dyn, 'product', 'F22NavEteRaw', anchor, Inputs=' GPSNavigationSystem.OutputN
 obj(dyn, 'clamp', 'F22NavEte', anchor, Input='F22NavEteRaw.Output', Range=('tmvector2d', ' 0.0 356400.0 '))
 for n_, src in (('F22UfdNavIls', 'F22CNIILSOn.Output'), ('F22UfdNavTcn', 'F22CNITACANOn.Output')):
     obj(dyn, 'binary_to_text', n_, anchor, Input=src, Text0='OFF', Text1='ON')
-# (the local time top left, as on the SFI page: user 2026-11-22 - ETE says how long to the point, the clock how long
+# (the local time top left, as on the SFI page: 2026-11-22 - ETE says how long to the point, the clock how long
 # it has been)
 nav_page = [label('NAV', (600, 585), 17.0), ufd_text('NavClock', 'UFDClockText.Output', (445, 585), 8, UFD_NARROW),
             label('STPT', (445, 545)), ufd_text('NavStpt', 'GPSNavigationSystem.OutputNextWaypointIdentifier', (560, 545), 8),
@@ -2664,7 +2818,7 @@ nav_page = [label('NAV', (600, 585), 17.0), ufd_text('NavClock', 'UFDClockText.O
             label('CRS', (445, 431)), number_of('SelectedCourse.Output', 'NavCrs', (620, 431), 180.0 / math.pi, n=5),
             label('HSEL', (445, 393)), number_of('SelectedHeading.Output', 'NavHsel', (620, 393), 180.0 / math.pi, n=5),
             # RCV: the receivers' power (ICP NAV -> ILS / TCN -> UNDO), not the HSI's boxed TCN / ILS, which only pick
-            # what the HSI shows (user 2026-11-22: 'ILS OFF' with ILS boxed on the HSI read as a fault)
+            # what the HSI shows (2026-11-22: 'ILS OFF' with ILS boxed on the HSI read as a fault)
             label('RCV', (445, 355), 15.0),
             label('ILS', (495, 355), 15.0), ufd_text('NavIls', 'F22UfdNavIls.Output', (540, 355), 3, UFD_NARROW),
             label('TCN', (600, 355), 15.0), ufd_text('NavTcn', 'F22UfdNavTcn.Output', (645, 355), 3, UFD_NARROW),
@@ -2690,16 +2844,23 @@ for name, texts in (('F22BayStateText', ('CLSD', 'MOVE', 'OPEN')), ('F22TanksTex
 for bay in BAYS:
     obj(dyn, 'multiplexer_text', 'F22Bay%sStateText' % bay, anchor, InputSelect='F22Bay%sState.Output' % bay,
         Inputs=' %s ' % ' '.join(ufc_label(t) for t in ('CLSD', 'MOVE', 'OPEN')))
-for bay, load in (('Center', '6 AIM-120C'), ('Left', 'AIM-9X'), ('Right', 'AIM-9X')):
-    obj(dyn, 'multiplexer_text', 'F22Bay%sLoadText' % bay, anchor, InputSelect='F22CombatLoad.Output',
-        Inputs=' %s %s ' % (ufc_label('EMPTY'), ufc_label(load)))
+# (0.9.2) what is still in each bay: the main bay counts its AIM-120C, a side bay shows its AIM-9X while it hangs
+obj(dyn, 'multiplexer_text', 'F22BayCenterLoadText', anchor, InputSelect='F22WpnCount120.Output',
+    Inputs=' %s ' % ' '.join(ufc_label(t) for t in ['EMPTY'] + ['%d AIM-120C' % n for n in range(1, 7)]))
+for bay, m_ in (('Left', 7), ('Right', 8)):
+    obj(dyn, 'multiplexer_text', 'F22Bay%sLoadText' % bay, anchor, InputSelect='F22Msl%dHeld.Output' % m_,
+        Inputs=' %s %s ' % (ufc_label('EMPTY'), ufc_label('AIM-9X')))
+# the release status (weapons_f22 F22WpnStatus): MASTER ARM off / on the ground / a launch running / the selected kind
+# gone / ready
+obj(dyn, 'multiplexer_text', 'F22WpnStatusText', anchor, InputSelect='F22WpnStatus.Output',
+    Inputs=' %s ' % ' '.join(ufc_label(t) for t in ('SAFE', 'GND', 'LAUNCH', 'EMPTY', 'READY')))
 # tanks still on: the load's two less the jettisoned / lost ones (breakage_f22.tank_release)
 obj(dyn, 'sum', 'F22TanksOnCount', anchor, Inputs=' F22TankOnLeft.Output F22TankOnRight.Output ')
 obj(dyn, 'product', 'F22TanksHanging', anchor, Inputs=' F22TanksOnCount.Output F22FerryTanks.Output ')
 obj(dyn, 'multiplexer_text', 'F22TanksText', anchor, InputSelect='F22TanksHanging.Output',
     Inputs=' %s ' % ' '.join(ufc_label(t) for t in ('NONE', '1 X 600 GAL', '2 X 600 GAL')))
 bay_font = dict(UFD_FONT, FontSize=BAY_FONT, Stride=BAY_FONT * 0.9)
-bay_items = [page_title('WEAPON BAYS')]
+bay_items = [page_title('SMS')]
 for row, (bay, short) in enumerate((('Left', 'LFT'), ('Center', 'CTR'), ('Right', 'RGT'))):
     y = 840 - 50 * row
     bay_items += [label(short, (110, y), BAY_FONT),
@@ -2709,20 +2870,28 @@ for row, (bay, short) in enumerate((('Left', 'LFT'), ('Center', 'CTR'), ('Right'
                   place_copy('UpFrontControllerLine0', 'F22BayPage%sState' % bay,
                              Input=text_out('Bay%sState' % bay, 'F22Bay%sStateText.Output' % bay),
                              Position=' 720 %d ' % y, Length='4', **bay_font)]
+bay_items += [label('STATUS', (110, 690), BAY_FONT),
+              place_copy('UpFrontControllerLine0', 'F22BayPageStatus', Input=text_out('WpnStatus', 'F22WpnStatusText.Output'),
+                         Position=' 330 690 ', Length='6', **bay_font)]
 bay_items += [label('TANKS', (110, 640), BAY_FONT),
               place_copy('UpFrontControllerLine0', 'F22BayPageTanks', Input=text_out('Tanks', 'F22TanksText.Output'),
                          Position=' 330 640 ', Length='11', **bay_font)]
+bay_items += [label('LOAD', (110, 590), BAY_FONT),           # the load picked on the ground (key 12 LOAD, loads_f22)
+              place_copy('UpFrontControllerLine0', 'F22BayPageLoad', Input=text_out('LoadName', 'F22LoadText.Output'),
+                         Position=' 330 590 ', Length='6', **bay_font)]
 # the aircraft from above under the table (block G, 2026-11-22, after the AOA F-22's stores page; mfd_symbols): the
 # outline, each bay with its doors (closed / moving / open: solid, dashed, doors folded out) and its missiles, the
 # ferry tanks on their pylons - sprites from the display2 atlas, drawn before the text
 SIL_POS = (300, 80)
 BAY_SPRITES = mfd_f22.PAGE_SPRITES.setdefault(10, [])
 BAY_SPRITES.append(('BaySilhouette', 'Silhouette', SIL_POS, None, None))
-for bay in BAYS:
-    obj(dyn, 'mixlinear', 'F22SprBay%sIndex' % bay, anchor, Input0='F22Bay%sState.Output' % bay, Input1='F22CombatLoad.Output',
-        Weight0=1.0, Weight1=3.0)
+for bay in BAYS:          # the bay's doors (0.9.2: the missiles are sprites of their own, drawn after the bays)
     at = mfd_symbols.layout()['Bay' + bay]['at']
-    BAY_SPRITES.append(('Bay' + bay, 'Bay' + bay, (SIL_POS[0] + at[0], SIL_POS[1] + at[1]), 'F22SprBay%sIndex' % bay, None))
+    BAY_SPRITES.append(('Bay' + bay, 'Bay' + bay, (SIL_POS[0] + at[0], SIL_POS[1] + at[1]), 'F22Bay%sState' % bay, None))
+for m_ in weapons_f22.missiles():
+    at = mfd_symbols.layout()['Msl%d' % m_['k']]['at']
+    BAY_SPRITES.append(('Msl%d' % m_['k'], 'Msl%d' % m_['k'], (SIL_POS[0] + at[0], SIL_POS[1] + at[1]),
+                        'F22Msl%dHeld' % m_['k'], None))
 for side, full in (('L', 'Left'), ('R', 'Right')):
     at = mfd_symbols.layout()['Tank' + full]['at']
     BAY_SPRITES.append(('Tank' + full, 'Tank' + full, (SIL_POS[0] + at[0], SIL_POS[1] + at[1]), 'F22FuelExt%sShown' % side, None))
@@ -2759,7 +2928,7 @@ for side, x in (('L', 110), ('R', 790)):
 # JOKER (2026-11-22) beside its arrows, the right column's lower two keys (BINGO: the two above, the Hornet's own figure).
 # In the size of the Hornet's BINGO (in-game: at 30 the word and the figure read smaller than BINGO 3000), between the
 # two arrows, right edges lined up short of them
-# (second pass, measured on the user's screenshot: at 34 / 45 the glyphs stood 44 / 60 px against BINGO's 37 / 51 -
+# (second pass, measured on a screenshot: at 34 / 45 the glyphs stood 44 / 60 px against BINGO's 37 / 51 -
 # now 29 / 38; and in the Hornet page's own yellowish green, 0.33 1 0.02, not our pure green)
 JOKER_LBL, JOKER_NUM, JOKER_RIGHT = 29.0, 38.0, 895
 HORNET_GREEN = (0.33, 1.0, 0.02, 1.0)
@@ -2775,7 +2944,7 @@ for o in G:
                                            for t in o.get('RenderList').split()) + ' ')
         n_fuel += 1
 print('FUEL page EXT L / R in %d MFD page switches' % n_fuel)
-# FPAS page (empty in the stock Hornet, user's wish 2026-11-01): what the fuel means now, at the present flow and ground speed. Units are the game's SI (kg, kg/s,
+# FPAS page (empty in the stock Hornet, 2026-11-01): what the fuel means now, at the present flow and ground speed. Units are the game's SI (kg, kg/s,
 # m/s, m, s). All to BINGO, the reserve the pilot set on the FUEL page. Flow in afterburner is honest: minutes shrink at once
 LB, NM = 2.204622621849, 1 / 1852.0
 obj(dyn, 'sum', 'F22PerfFlow', anchor, Inputs=' Engine1FuelFlow.Output Engine2FuelFlow.Output ')
@@ -2790,9 +2959,14 @@ obj(dyn, 'mixlinear', 'F22PerfFuelAtWaypointRaw', anchor, Input0='TotalFuel.Outp
 obj(dyn, 'maximum', 'F22PerfFuelAtWaypoint', anchor, Inputs=' F22PerfFuelAtWaypointRaw.Output 0.0 ')
 perf_font = dict(UFD_FONT, FontSize=BAY_FONT, Stride=BAY_FONT * 0.9)
 # the aircraft as a whole, for the ENG page (2026-11-22): gross weight = the donor's bookkeeping (empty + counted fuel)
-# + our combat load (6 x 157 + 2 x 85 kg, stores_f22); both engines' thrust; thrust / weight
-obj(dyn, 'mixlinear', 'F22GrossWeight', anchor, Input0='GrossMass.Output', Input1='F22CombatLoad.Output', Weight0=1.0,
-    Weight1=6 * 157.0 + 2 * 85.0)
+# + the missiles still on board (weapons_f22 F22StoresMass: 157 kg an AIM-120C, 85 kg an AIM-9X); both engines'
+# thrust; thrust / weight. Plus the ferry tanks' own empty mass while they hang (breakage_f22.TANK_SHELL each: the
+# bookkeeping counts only their fuel; in the physics it is the light shell and the station tank, 2026-11-27)
+for side in ('Left', 'Right'):
+    obj(dyn, 'product', 'F22TankEmptyMass' + side, anchor,
+        Inputs=' F22FerryTanks.Output F22TankOn%s.Output %.1f ' % (side, breakage_f22.TANK_SHELL))
+obj(dyn, 'sum', 'F22GrossWeight', anchor,
+    Inputs=' GrossMass.Output F22StoresMass.Output F22TankEmptyMassLeft.Output F22TankEmptyMassRight.Output ')
 obj(dyn, 'sum', 'F22ThrustTotal', anchor, Inputs=' Engine1.OutputThrust Engine2.OutputThrust ')
 obj(dyn, 'inverse', 'F22GrossWeightInv', anchor, Input='F22GrossWeight.Output')
 obj(dyn, 'product', 'F22ThrustToWeight', anchor, Inputs=' F22ThrustTotal.Output F22GrossWeightInv.Output %.6f ' % (1 / 9.80665))
@@ -2840,7 +3014,8 @@ CHECKLISTS = [
                     'LAMP TEST ...... CHECK']),
     ('BEFORE TAKEOFF', ['CANOPY ......... CLOSED', 'BIT PASS ...... ON ICAWS', 'MASTER ARM ....... SAFE', 'ALT FLAPS ........ NORM',
                         'FLAPS ...... T/O (AUTO)', 'TRIM ............. AUTO', 'LDG/TAXI LIGHT .... LDG', 'NAV / FORM LIGHTS .. ON',
-                        'PARK BRAKE .... RELEASE', 'ICAWS ........... CLEAR', '', 'GEAR UP NEEDS AIRBORNE', 'OR DN LOCK OVERRIDE']),
+                        'PARK BRAKE .... RELEASE', 'WEAPON BAYS .... CLOSED', 'ICAWS ........... CLEAR', 'GEAR UP NEEDS AIRBORNE',
+                        'OR DN LOCK OVERRIDE']),
     ('LANDING', ['SPEED ....... BELOW 250', 'GEAR ............. DOWN', '3 GREEN ...... NOSE L R', 'FLAPS ...... LDG (AUTO)',
                  'ALT FLAPS ........ NORM', '  (EXTEN: FLAPS GEAR UP)', 'A/T ... AOA 8.5 IF WANT', 'LDG LIGHT .......... ON',
                  'SPEED BRAKE ...... AS RQ', '', 'AFTER LANDING:', 'LIGHT ............ TAXI', 'FLAPS ........... AUTO']),
@@ -2863,7 +3038,11 @@ for n_, type_, f_ in (
         ('F22ChkApuStopped', 'logic_invert', dict(Input='F22ApuTurning.Output')),
         ('F22ChkApuOff', 'logic_and', dict(Inputs=' F22ChkApuStopped.Output F22ChkBothRunning.Output ')),
         ('F22ChkBitStarted', 'logic_or', dict(Inputs=' F22BitRunning.Output F22BitPass.Output ')),
-        ('F22ChkArmSafe', 'logic_invert', dict(Input='F22DirectMode.Output')),
+        # (MASTER ARM read the DIR mode until 2026-11-25 - from the days the switch flipped it; the switch itself now)
+        ('F22ChkArmSafe', 'logic_invert', dict(Input='MasterArmSafeSwitch.Output')),
+        # the bays parked open on a cold start (2026-11-25) shut before take-off; BAY OPEN is only an advisory, so ICAWS
+        # CLEAR does not catch it
+        ('F22ChkBaysShut', 'logic_invert', dict(Input='F22BayOpen.Output')),
         ('F22ChkLdgLight', 'logic_greater', dict(Input0='LandingLight.Output', Input1='0.5')),
         ('F22ChkTaxiLight', 'logic_greater', dict(Input0='F22TaxiLight.Output', Input1='0.5')),
         ('F22ChkNavLights', 'logic_greater', dict(Input0='PositionLightBrightnessKnob.Output', Input1='0.04')),
@@ -2904,7 +3083,7 @@ CHECKLIST_DONE = [
     ['BatterySwitchOn', 'F22ChkApuReady', 'F22ChkCanopyShut', 'F22ChkCniAcp', 'F22ChkModes', 'F22ChkFadecNorm', 'F22ChkBothRunning',
      'F22ChkGens', 'F22ChkBattLightOut', 'F22ChkApuOff', 'F22ChkBitStarted', 'F22BitPass', 'F22ChkLampTested'],
     ['F22ChkCanopyShut', 'F22BitPass', 'F22ChkArmSafe', 'F22ChkAltFlapsNorm', 'F22FlapsDown', 'ON', 'F22ChkLdgLight',
-     'F22ChkNavLights', 'F22ChkBrakeOff', 'F22ChkIcawsClear', 'NOTE', 'NOTE', 'NOTE'],
+     'F22ChkNavLights', 'F22ChkBrakeOff', 'F22ChkBaysShut', 'F22ChkIcawsClear', 'NOTE', 'NOTE'],
     ['F22ChkSlow', 'AllGearDown', 'AllGearDown', 'F22FlapsDown', 'F22ChkAltFlapsNorm', 'NOTE', 'F22AtActive', 'F22ChkLdgLight',
      'NOTE', 'NOTE', 'NOTE', 'F22ChkTaxiLight', 'NOTE'],
     ['ParkingBrakeSet', 'F22ChkIdle', 'F22ChkApuStopped', 'Engine1NotRunning', 'NOTE', 'Engine2NotRunning', 'NOTE', 'F22ChkFadecNorm',
@@ -2950,7 +3129,7 @@ print('CHECKLIST page in %d MFD page switches' % n_chk)
 for k, side in ((1, 'L'), (2, 'R')):
     obj(dyn, 'multiplexer', 'F22Eng%dStageCrank' % k, anchor, InputSelect='Engine%dRunWithFuel.Output' % k, Inputs=' 1.0 2.0 ')
     # (the starter turns only with air on it: Engine<n>StarterPressureSufficient, the jet_engine's InputStart - a start
-    # request without the APU showed MOT at 0 RPM, user 2026-11-05)
+    # request without the APU showed MOT at 0 RPM, 2026-11-05)
     obj(dyn, 'multiplexer', 'F22Eng%dStageStart' % k, anchor, InputSelect='Engine%dStarterPressureSufficient.Output' % k,
         Inputs=' 0.0 F22Eng%dStageCrank.Output ' % k)
     obj(dyn, 'multiplexer', 'F22Eng%dStageRun' % k, anchor, InputSelect='Engine%dRunning.Output' % k,
@@ -2985,16 +3164,16 @@ obj(dyn, 'float_to_text', 'F22AtMachText', anchor, Input='F22AtMachTarget.Output
 obj(dyn, 'constant_text', 'F22AtAoaText', anchor, Input='8.5')
 obj(dyn, 'multiplexer_text', 'F22AtTargetText', anchor, InputSelect='F22AtMode.Output', Inputs=' F22AtCasText.Output F22AtMachText.Output F22AtAoaText.Output ')
 # (the SYS and FCS pages that show these: mfd_f22.py)
-# HUD: the A/T's target under the airspeed box while the A/T holds (kt, Mach or AoA as on the SYS page; user
+# HUD: the A/T's target under the airspeed box while the A/T holds (kt, Mach or AoA as on the SYS page;
 # 2026-11-07). Drawn into the HUD's own render list, so it goes through the same HUD_SCALE as the F/A-18 symbology
-# (page units 0 .. 1024, centre 512 = boresight). Placed from the user's HUD screenshot: the donor's HUD is conformal
+# (page units 0 .. 1024, centre 512 = boresight). Placed from a HUD screenshot: the donor's HUD is conformal
 # (Radius 0.16 m about 0.7 m from the eye: ~40 page units per ladder degree), the 5 deg ladder step there is 117 px ->
 # 0.59 px per unit; boresight at px (973, 257) (the FPV 58 px under it at 2.5 deg AoA), the speed box 806 .. 861 x 268
 # px -> right edge at page x 313, the text's middle 30 px under the box's -> page y 442 (an estimate, to be checked
 # in the game)
 if H:
     g('graphics_input', 'GfxF22HudAtShow', InputID=('uint32', published('F22AtActive')))
-    # Place (2026-11-07, the user's night screenshot with it showing at the first guess, 217 432): the speed box 113 px
+    # Place (2026-11-07, a night screenshot with it showing at the first guess, 217 432): the speed box 113 px
     # wide there = ~99 page units (earlier screenshots) -> 1.14 px per unit; the number stood 47 px right of the box's
     # digits and 244 px under where it belongs, just below the box -> 41 units left, 214 up: right edge at page x 272
     # (field of 4 from 176), baseline 646. Next screenshot: right edge right, the number 38 px under the place just below
@@ -3020,8 +3199,11 @@ if H:
 failures_f22.graphics(globals())           # FAIL page in place of the Hornet's UFC BU page
 breakage_f22.fcs_status(globals())         # surface states (OK / DEGD / HYD / LOST / JAM) for the FCS page
 mfd_f22.pages(globals())                   # our ENG, FCS and SYS pages in place of the Hornet's (2026-11-17)
-# the DDI page background in a colour the compressed sprite texture keeps exactly (mfd_symbols.BG; was 0.035 0.082 0.039)
+# one background on every screen (mfd_symbols.BG, black - 2026-11-27): the DDI page fill (the F/A-18's CRT green
+# 0.035 0.082 0.039 before) and the render targets' clear, which is the PMFD's and the UFDs' background (0.03 before);
+# a colour the compressed sprite texture keeps exactly. display2 (DisplayTexture2) is cloned from this one below
 next(o for o in G if o.name == 'GreenBackgroundColor').set('Color', ' %.6f %.6f %.6f ' % mfd_symbols.BG, 'tmvector3d')
+next(o for o in G if o.name == 'DisplayTexture').set('ClearColor', ' %.6f %.6f %.6f 1.0 ' % mfd_symbols.BG, 'tmvector4d')
 # the pages' picture sprites (block G): per screen, last in its list, in its atlas coordinates (mfd_f22.PAGE_SPRITES) -
 # a switch on that screen's page shows the ENG / BAY ones only while it shows that page
 for screen, render, page_var, wpos, wsize in (('L', 'RenderLeftDDIWithMenu', 'LeftMFDPage', (18, 614), 390),
@@ -3417,6 +3599,9 @@ nz.set('Input', 'F22NozzleCommandPowered.Output', 'string8')
 failures_f22.after_tvc(globals())          # NOZZLE failure: the command frozen
 breakage_f22.apply(globals())              # wing consoles break at 13.5 g; mechanics tests via F22_TEST=...
 burner_f22.apply(gfx, dyn, parts)
+# (0.9.2) the stores' light bodies always hang (loads_f22): their mass off the fuselage - the clean aircraft as before
+setv(D['Fuselage'], 'Mass', float(D['Fuselage'].get('Mass')) - loads_f22.light_total())
+print('stores: light bodies %.0f kg taken off the fuselage' % loads_f22.light_total())
 os.makedirs(OUT, exist_ok=True)
 tmd.save(root, os.path.join(OUT, NAME + '.tmd'))
 # flight states of the F/A-18; cold & dark as an F-22 stands on the ramp: canopy open (the lever at 0 holds it
@@ -3438,19 +3623,26 @@ STATE_EXTRA = {'clean': [('servoclassic', 'F22MainGearCtlL', 'Position', 1.0),  
                         ('input_default', 'PanelLightKnob', 'Value', 0.0),
                         ('input_default', 'ConsoleBrightnessKnob', 'Value', 0.0),
                         ('input_default', 'FloodLightKnob', 'Value', 0.0),
-                        # every display off (user 2026-11-17: the screens turned on by hand on a cold start, as the
+                        # every display off (2026-11-17: the screens turned on by hand on a cold start, as the
                         # Hornet's DDIs from their OFF position; 2026-11-18: by each screen's MODE knob at OFF, the
                         # dimmers left where they were) and the HUD's SYM wheel down (the F-16's: it powers the HUD)
                         ('input_default', 'HUDBrightnessKnob', 'Value', 0.0)] + [
                         ('input_discrete', 'F22%sKnobRight' % k, 'Value', 0.0) for k in cockpit_controls.MODES.values()] + [
-                        # (user 2026-11-06: CNI, AUX and the generators stood ON on a cold start) the console
+                        # (2026-11-06: CNI, AUX and the generators stood ON on a cold start) the console
                         # switches as the aircraft is left: CNI / ACP off, generators off, APU OFF, FLCS STOP
                         ('input_discrete', 'F22CNISwitch', 'Value', 0.0),
                         ('input_discrete', 'F22ACPSwitch', 'Value', 0.0),
                         ('input_switch', 'Engine1GeneratorSwitch', 'Value', 0.0),
                         ('input_switch', 'Engine2GeneratorSwitch', 'Value', 0.0),
                         ('input_discrete', 'F22ApuSwitch', 'Value', -1.0),
-                        ('input_discrete', 'F22FlcsBitSwitch', 'Value', -1.0)]}
+                        ('input_discrete', 'F22FlcsBitSwitch', 'Value', -1.0),
+                        # (2026-11-25, ramp photo) the nozzles parked wide open, every weapon bay open - the
+                        # pilot's command too, and the door held where it stands while there is no hydraulic pressure
+                        ('servoclassic', 'NozzleLeft', 'Position', NOZZLE_PARKED),
+                        ('servoclassic', 'NozzleRight', 'Position', NOZZLE_PARKED)] + [
+                        x_ for b_ in BAYS for x_ in (('variable', 'F22Bay%sCommand' % b_, 'Value', 1.0),
+                                                     ('servoclassic', 'F22Bay' + b_, 'Position', 1.0),
+                                                     ('state_frozen', 'F22BayHeld' + b_, 'Value', 1.0))]}
 for suffix in ('clean', 'cold', 'flaps', 'gear', 'landing', 'start', 'takeoff'):        # no carrier start
     src = os.path.join(DONOR, 'f18_%s.tmd' % suffix)
     if os.path.exists(src):
@@ -3461,7 +3653,7 @@ for suffix in ('clean', 'cold', 'flaps', 'gear', 'landing', 'start', 'takeoff'):
             if o.name == 'LandingLightSwitch' and o.find('Value') is not None:
                 o.set('Value', '%g' % (1.0 if float(o.get('Value')) < 0.5 else 2.0), 'float64')
         # pitch trim 0 in every state (make_f22 'Pitch trim'): the ground states set none and the Hornet's flight
-        # controller started at its takeoff trim, 50 % nose up (user 2026-11-15, after the trim went to 0 for good)
+        # controller started at its takeoff trim, 50 % nose up (2026-11-15, after the trim went to 0 for good)
         for type_, name, field, value in STATE_EXTRA.get(suffix, []) + [('flight_controller_f18', 'FlightController',
                                                                          'PitchTrim', 0.0)]:
             node = next((o for o in lst_.children if o.name == name), None)
@@ -3476,7 +3668,7 @@ tmd.save(make_controls(), os.path.join(OUT, 'controls.tmd'))
 # ---- load variants (stage 6): add-ons as the F/A-18's external tank add-ons (option.tmc Type addon, parameters.tmd
 # overriding the base's switch, system.tmd adding bodies, aerodynamics and graphics) and repaints of the default livery
 # that require them (the livery selector is Aerofly's only load choice: the MB-339's tip-tank liveries)
-def addon_file(dyn_nodes, gfx_nodes=()):
+def addon_file(dyn_nodes, gfx_nodes=(), snd_nodes=()):
     root = tmd.Node('file', '', leaf=False)
     mm = tmd.Node('modelmanager', '', leaf=False)
     dl = tmd.Node('pointer_list_tmuniverse', 'DynamicObjects', leaf=False)
@@ -3486,6 +3678,10 @@ def addon_file(dyn_nodes, gfx_nodes=()):
         gl = tmd.Node('pointer_list_tmgraphics', 'GraphicObjects', leaf=False)
         gl.children = list(gfx_nodes)
         mm.children.append(gl)
+    if snd_nodes:
+        sl = tmd.Node('pointer_list_tmsound', 'SoundObjects', leaf=False)
+        sl.children = list(snd_nodes)
+        mm.children.append(sl)
     root.children.append(mm)
     doc = tmd.Node('document', '', leaf=False)          # tmd.save writes the children of the node it gets
     doc.children.append(root)
@@ -3504,22 +3700,15 @@ def write_option(folder, description, type_, tags=None, requirements=None):
 holder = tmd.Node('list', 'x', leaf=False)
 vec3 = lambda v: ('tmvector3d', ' %s ' % fmt(v))
 farr = lambda xs: ('float64', '[ %s ]' % ' '.join('%.4f' % x for x in xs))     # as the F/A-18's: float64 [ ... ]
-# combat load: 6 x AIM-120C (157 kg) + 2 x AIM-9X (85 kg) as one mass in the bays, locked to the fuselage
-combat_dyn = [obj(holder, 'linear', 'F22CombatLoad', Input='1.0')]
-combat_sys = [obj(holder, 'rigidbody', 'F22CombatLoadBody', Mass=6 * 157.0 + 2 * 85.0, InertiaLength=vec3([3.6, 2.6, 0.4]),
-                  R0=vec3([2.45, 0.0, -0.45]), B0=('tmmatrix3d', ' 1.0 0.0 0.0  0.0 1.0 0.0  0.0 0.0 1.0 ')),
-              obj(holder, 'multibody_joint', 'JointF22CombatLoad', Body0='Fuselage', Body1='F22CombatLoadBody',
-                  R0=vec3([2.45, 0.0, -0.45]), X0=vec3([1.0, 0.0, 0.0]), Kp=0.0, Kd=0.0, Type=('uint32', '1'),
-                  InputLock='1.0')]
-ad = os.path.join(OUT, 'load_combat')
-write_option(ad, 'Combat load: 6 AIM-120C, 2 AIM-9X', 'addon', tags='loads_combat')
-tmd.save(addon_file(combat_dyn), os.path.join(ad, 'parameters.tmd'))
-tmd.save(addon_file(combat_sys), os.path.join(ad, 'system.tmd'))
+# 0.9.2: one add-on of Type default, loaded with every livery (loads_f22): the missiles - 6 x AIM-120C (157 kg) +
+# 2 x AIM-9X (85 kg), each a light body on its launcher released from the SMS page (weapons_f22) - and the ferry
+# tanks, each a light shell; the stores' mass in station tanks; the load picked on the ground (SMS LOAD)
+combat_sys, combat_gfx, combat_snd = weapons_f22.addon(obj, holder)
 # ferry tanks: each tank with its pylon a body of its own (2050 kg: 236 kg tank and pylon, est., + 1814 kg fuel - the
 # mass stays the full one, as the internal fuel's), drag of the tank (its profile) and the pylon; on an ejector rack
 # through a breakable joint, its hull on a body of its own (breakage_f22.tank_addon: EMER JETT drops tank and pylon)
-ferry_dyn = [obj(holder, 'linear', 'F22FerryTanks', Input='1.0')]
 ferry_sys, ferry_gfx = [], []
+r_shell = loads_f22.ratio('shell', breakage_f22.TANK_SHELL)     # the shell a light body: its aerodynamics scaled alike
 prof = [(0.0, 0.0), (0.04, 0.17), (0.10, 0.40), (0.20, 0.68), (0.30, 0.88), (0.40, 1.0), (0.66, 1.0), (0.80, 0.82),
         (0.94, 0.53), (1.0, 0.47)]
 nose = [p for p in prof if p[0] <= 0.40]
@@ -3530,10 +3719,10 @@ for side, st in (('L', 'Pylon2'), ('R', 'Pylon10')):
     cg = [S.TANK_NOSE_X - 3.2, y, zc + 0.05]
     t_dyn, t_gfx = breakage_f22.tank_addon(obj, holder, side, body_name, cg, S.TANK_FUEL,
                                            (S.TANK_NOSE_X - 0.6, S.TANK_NOSE_X - 6.1), zc, 'ColStoreTank' + side)
-    # the shell (tank and pylon, empty): its fuel hangs beside it as slugs (breakage_f22.tank_addon); a thin shell -
-    # InertiaLength 6.7 / 1.04 / 1.04 gives a thin cylinder's m r2 about its axis
+    # the shell (tank and pylon, empty) a light body (loads_f22), the rest of it and its fuel in its station tank
+    # (breakage_f22.tank_addon); a thin shell - InertiaLength 6.7 / 1.04 / 1.04 gives a thin cylinder's m r2 about its axis
     ferry_sys += [
-        obj(holder, 'rigidbody', body_name, Mass=breakage_f22.TANK_SHELL, InertiaLength=vec3([6.7, 1.04, 1.04]),
+        obj(holder, 'rigidbody', body_name, Mass=breakage_f22.TANK_SHELL * r_shell, InertiaLength=vec3([6.7, 1.04, 1.04]),
             R0=vec3(cg), B0=('tmmatrix3d', ' 1.0 0.0 0.0  0.0 1.0 0.0  0.0 0.0 1.0 ')),
         # the shell's aerodynamics as a slender body (breakage_f22: the fall): the whole length gives drag - along
         # (Cdx) and the viscous cross-flow drag of a cylinder (~1.0), which damps a tumble - and no lift; the
@@ -3545,27 +3734,29 @@ for side, st in (('L', 'Pylon2'), ('R', 'Pylon10')):
             StationX=farr([S.TANK_NOSE_X - f * 6.7 for f, _ in prof]), StationY=farr([y] * len(prof)),
             StationZ=farr([zc] * len(prof)), StationWidth=farr([0.85 * r for _, r in prof]),
             StationHeight=farr([0.85 * r for _, r in prof]), StationShape=('uint32', '[ %s ]' % ' '.join(['0'] * len(prof))),
-            Cdx=0.05, Cdy=1.0, Cdz=1.0, Cly=0.0, Clz=0.0, Cm=0.0),
+            Cdx=0.05 * r_shell, Cdy=1.0 * r_shell, Cdz=1.0 * r_shell, Cly=0.0, Clz=0.0, Cm=0.0),
         obj(holder, 'aerofuselage', 'F22Tank%sNoseAero' % side, Body=body_name,
             StationX=farr([S.TANK_NOSE_X - f * 6.7 for f, _ in nose]), StationY=farr([y] * len(nose)),
             StationZ=farr([zc] * len(nose)), StationWidth=farr([0.85 * r for _, r in nose]),
             StationHeight=farr([0.85 * r for _, r in nose]), StationShape=('uint32', '[ %s ]' % ' '.join(['0'] * len(nose))),
-            Cdx=0.0, Cdy=0.0, Cdz=0.0, Cly=breakage_f22.TANK_NOSE_CL, Clz=breakage_f22.TANK_NOSE_CL, Cm=0.0),
+            Cdx=0.0, Cdy=0.0, Cdz=0.0, Cly=breakage_f22.TANK_NOSE_CL * r_shell, Clz=breakage_f22.TANK_NOSE_CL * r_shell, Cm=0.0),
         obj(holder, 'aerodynamic_drag', 'F22Pylon%sDrag' % side, Body=body_name, X0=vec3([1.0, 0.0, 0.0]),
-            R0=vec3([0.2, y, S.TANK_TOP_Z + 0.15]), Area=0.04)] + t_dyn
+            R0=vec3([0.2, y, S.TANK_TOP_Z + 0.15]), Area=0.04 * r_shell)] + t_dyn
     ferry_gfx += t_gfx
-ad = os.path.join(OUT, 'load_ferry')
-write_option(ad, 'Ferry tanks: 2 x 600 US gal', 'addon', tags='loads_ferry')
-tmd.save(addon_file(ferry_dyn), os.path.join(ad, 'parameters.tmd'))
-tmd.save(addon_file(ferry_sys, ferry_gfx), os.path.join(ad, 'system.tmd'))
-# load repaints (listed for the converter in model.tmc by make_f22_meta.py); like every stock repaint each holds a
-# texture - an unchanged copy of the smallest one (the 64 px formation light)
-for folder, description, load in (('combat', 'US Air Force - combat load', 'load_combat'),
-                                  ('ferry', 'US Air Force - ferry tanks', 'load_ferry')):
-    write_option(os.path.join(OUT, folder), description, 'repaint', requirements=load)
-    if os.path.exists(os.path.join(OUT, 'lamp_formation_color.png')):     # converter input; absent in a release install
-        shutil.copy(os.path.join(OUT, 'lamp_formation_color.png'), os.path.join(OUT, folder))
-print('variants: load_combat, load_ferry add-ons; repaints combat, ferry')
+ad = os.path.join(OUT, 'stores')
+write_option(ad, 'Stores: missiles and ferry tanks, loaded on the ground', 'default', tags='stores')
+tmd.save(addon_file(loads_f22.clock(obj, holder) + combat_sys + ferry_sys, combat_gfx + ferry_gfx, combat_snd),
+         os.path.join(ad, 'system.tmd'))
+for old in ('load_combat', 'load_ferry', 'combat', 'ferry', 'combat_ferry', 'zz_test_mass'):
+    # the stage 6 add-ons and load repaints, and the mass test, gone (0.9.2)
+    if os.path.isdir(os.path.join(OUT, old)):
+        shutil.rmtree(os.path.join(OUT, old))
+# community liveries (liveries_f22.py: their own colour maps, written there) - one entry each, the load is picked in
+# the cockpit (loads_f22)
+import liveries_f22
+for lv in liveries_f22.LIVERIES:
+    write_option(os.path.join(OUT, lv['folder']), lv['description'], 'repaint')
+print('stores add-on (default); repaints %s' % ', '.join(lv['folder'] for lv in liveries_f22.LIVERIES))
 print('graphics objects %d; strut ext nose %.3f main %.3f (arm %s); DCS stroke %s' % (len(G), NOSE_EXT, MAIN_EXT, {k: tuple(round(x, 3) for x in v) for k, v in ARM.items()}, dcs_stroke))
 print('written', OUT)
 

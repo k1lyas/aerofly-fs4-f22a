@@ -1,7 +1,7 @@
 # F-22A: cockpit guide
 
 *(untested)* marks things that follow the logic of the F/A-18 the aircraft is built on, but were not tried in the
-F-22 yet. Original (Russian) of this guide: `source/aircraft/f22/GUIDE.md`.
+F-22 yet.
 
 ## Displays
 
@@ -13,10 +13,12 @@ F-22 yet. Original (Russian) of this guide: `source/aircraft/f22/GUIDE.md`.
 | PMFD (centre) | map: route, airports, beacons (HSI) |
 | Left / right / lower MFD | ENG / FUEL / FCS by default; the MENU key (bottom, middle) lists the pages |
 
-**MFD pages** (MENU): FUEL, FPAS (range), HSI, ADI, CHKLST (checklists), ENG, FCS (flight controls), HUD (repeater), SA,
-BAY (weapon bays), STAT (status), APPR (approach), SYS (automation and power). There are no dummy keys on the pages:
-what has a label works. On the right MFD's menu, **AUTO** (boxed when on, off at start) lets that screen follow the
-flight: the checklist when parked with the brake set, APPR when the gear goes down in the air, FUEL when it comes up.
+**MFD pages** (MENU), in groups: along the top navigation and flying - HSI, SA, ADI, HUD (repeater), APPR (approach);
+on the right the aircraft's systems - ENG, FUEL, FCS (flight controls), SYS (automation and power) and the hidden FAIL
+(see Failures); on the left the mission - SMS (stores: bays, missiles, tanks), STAT (status), FPAS (range), CHK
+(checklists); MENU at the bottom. There are no dummy keys on the pages: what has a label works. On the right MFD's
+menu, **AUTO** (bottom, right of MENU; boxed when on, off at start) lets that screen follow the flight: the checklist
+when parked with the brake set, APPR when the gear goes down in the air, FUEL when it comes up.
 
 - **FUEL:** the upper two arrows on the right set BINGO, the lower two JOKER (shown beside them), 100 lb a press.
   JOKER is the fuel to end the fight and turn for home (5000 lb at start, BINGO 3000).
@@ -25,8 +27,8 @@ flight: the checklist when parked with the brake set, APPR when the gear goes do
   bottom the wind (direction and speed, *untested*).
 - **ENG:** either side of the title a round N2 gauge per engine (the figure inside, the arc full at 100 %); below, each engine's state (OFF, MOTOR, START, RUN, FADEC = stopped by its FADEC switch, WMILL = windmilling,
   SEIZED; FIRE in red while it burns), N1 %, EGT °C, fuel flow lb/h, thrust kN, nozzle %, oil psi, vibration;
-  below, the APU and the inlet temperature, and the aircraft as a whole: GW (gross weight, lb: empty + fuel + weapons
-  as the mod counts them), THR (both engines' thrust, kN) and T/W (thrust to weight). Top keys: L FIRE / R FIRE.
+  below, the APU and the inlet temperature, and the aircraft as a whole: GW (gross weight, lb: empty + fuel + missiles
+  and tanks), THR (both engines' thrust, kN) and T/W (thrust to weight). Top keys: L FIRE / R FIRE.
 - **STAT:** the systems in one grid - BATT, APU, GEN L/R, HYD, A/T, AP, GCAS, VEC, DIR, BAY, GEAR, HOOK, P BRK,
   CANOPY, NAV, FORM, LDG, TAXI, BIT. White = off, green = on, amber = fault (a generator or hydraulics down, running
   on the battery, the canopy open in the air; DIR is amber whenever it is on).
@@ -41,7 +43,7 @@ flight: the checklist when parked with the brake set, APPR when the gear goes do
   its target.
 - **HSI:** TCN, ILS, WPDSG, SCALE; link to SA. **ADI:** link to HSI. **SA:** scale and compass, no other aircraft and
   no map; link to HSI.
-- **CHKLST:** four lists picked by the left keys - START (cold start), T/O, LAND, SHUT. A line whose switch the
+- **CHK:** four lists picked by the left keys - START (cold start), T/O, LAND, SHUT. A line whose switch the
   aircraft can read turns from white to green once it is done (BATT on, APU running, canopy closed, CNI / ACP,
   display modes and HUD, generators, FLCS BIT, lamp test, lights, gear down, ICAWS clear...); notes are grey, what is
   automatic (TRIM AUTO) is green at once.
@@ -59,6 +61,10 @@ selected course (CRS) and heading (HSEL); RCV - whether the ILS and TACAN receiv
 UNDO). The boxed TCN / ILS on the HSI are another thing: they only pick what the HSI shows.
 
 ## Cold start
+
+The aircraft stands as on the ramp: canopy open, every weapon bay open, the nozzles parked wide open (they stay
+open on the ground until the engine reaches idle, and close as it does; in the air they never park). Close the bays
+on the SMS page once the engines run (the doors need hydraulic pressure).
 
 1. BATT on (two positions, ON / OFF; with engines and APU off, OFF takes all power from the aircraft).
 2. APU on, about 4 s to come up: the displays get power, ICAWS shows L GEN / R GEN.
@@ -87,18 +93,19 @@ about 135 kt with the stick fully back, more when heavy (ferry tanks).
 A key at the top selects a function → its options appear on the right → the arrow at an option selects it (a colon
 `:` = selected / on). Numbers: type the digits (they show in the scratchpad) → **MRK = enter (ENT)**. **CLR** deletes
 a character. **UNDO = ON/OFF** of the selected function (the F-22 panel has no ENT and ON/OFF keys, and the Hornet's
-logic needs them).
+logic needs them). A page goes back to the empty one by itself after 30 s.
 
 | Key | Options |
 |---|---|
 | A/P | autopilot: ATTH, HSEL, BALT, RALT, CPL |
 | NAV | ILS, TCN (TACAN), ADF, CRS (course), HDG (selected heading) |
-| STPT | waypoint (POSN, ELEV, GRID, O/S) *(untested)* |
-| IFF | transponder: modes 1, 2, 3, 4, C *(untested)* |
+| IFF | **XPDR** - transponder on / off (colon = on; as UNDO); the code: digits → MRK |
 | ALT | BALT, RALT (as under A/P); ALOW: threshold of the ALTITUDE call, digits in feet → MRK |
 | HUD | NORM / REJ1 / REJ2 - declutter levels of the HUD; BARO / RALT - which altitude the HUD shows *(untested)* |
-| OTHR | ADF2 (second ADF), TIME (timer), A/T (on / off), MACH and KCAS (autothrottle target) |
-| COM1 / COM2 | radio: GRCV, SQCH, cipher, modulation *(untested; radios change almost nothing in Aerofly)* |
+| OTHR | **LOAD** (the load, see Stores), **A/T** (the autothrottle, see Autothrottle), ADF2 (second ADF); failure codes (see Failures): digits → MRK |
+| COM1 / COM2 | frequency: digits → MRK (the `:FREQ` hint) *(radios change almost nothing in Aerofly)* |
+
+STPT and DVR do nothing: Aerofly sequences the route by itself.
 
 ## Autopilot
 
@@ -154,7 +161,8 @@ The POWER ring of the game's interface shows the throttle position, not thrust a
 | 97-100 % | at the stop | full afterburner |
 
 RPM hardly rises in afterburner, as on the real engine: read the afterburner from fuel flow FF, nozzle NOZ and the
-flame. Speeds: military power at 34 000 ft gives about M 1.5 (no afterburner, slow to get there), afterburner M 2.2-2.25.
+flame. Speeds: military power at 34 000 ft gives about M 1.5 (no afterburner, slow to get there), afterburner M 2.2-2.25;
+low down the afterburner holds about 800 kt (M 1.21 at sea level).
 
 ## Thrust vectoring and direct mode
 
@@ -169,11 +177,22 @@ breaks the aircraft: the wings come off at 13.5 g (see "Structure").
 
 ## Autothrottle and Auto-GCAS
 
-**Autothrottle.** The A/T key on SYS, or OTHR → A/T. Gear up it holds the speed at engagement: Mach from M 0.7 up,
-calibrated airspeed below. Gear down it holds 8.5° angle of attack. Target: the arrows on SYS (±0.05 M, ±10 kt) or
-OTHR → MACH / KCAS → digits → MRK (139 = M 1.39, 450 = 450 kt); such an entry engages it. Dry thrust only; the
-levers in the cockpit follow. It disengages when you move the throttle by more than 3 % (thrust goes to the lever
-position at once), in afterburner and at touchdown.
+**Autothrottle.** Gear up it holds the speed at engagement: Mach from M 0.7 up, calibrated airspeed below. Gear down
+it holds 8.5° angle of attack. Dry thrust only; the levers in the cockpit follow. It disengages when you move the
+throttle by more than 3 % (thrust goes to the lever position at once), in afterburner and at touchdown.
+
+ICP page **OTHR → A/T**:
+- **A/T** - on / off (colon = on), as the A/T key on SYS.
+- **MACH 0.85** and **KCAS 450** - the targets; the colon marks the one held. While the autothrottle is off the lines
+  show the speed of the moment. Pressing a line holds it from the speed of the moment; digits typed first set the
+  target (139 = M 1.39, 450 = 450 kt). Both engage the autothrottle.
+- **SYNC** - both targets to the speed of the moment.
+- **MRK** after digits sets the target held.
+- While this page is open and the autothrottle is on, the ▲▼ rocker at the bottom right of the ICP steps the target
+  by ±1 kt / ±M 0.01.
+
+Coarse steps: the INC / DEC rocker at the upper left of the ICP or the arrows on SYS (the step: STEP, 1 / 5 / 10 /
+50 kt, M 0.01 - 0.20).
 
 **Auto-GCAS** (our choice; nothing is published about such a system on the F-22). On by default, the GCS key. It
 works out the height margin from flight path, bank and speed and steps in at the last moment, as a pilot would: rolls
@@ -192,7 +211,7 @@ panel (right console) sets their volume; at OFF it mutes voices and tones.
 
 The terrain map is on the centre MFD (PMFD) only, HSI page, MODE key. The side MFDs have none: the engine keeps one
 map. The ▲▼ rocker at the bottom right of the ICP is the map scale on the SA / HSI pages (the F-16 has its FLIR
-rocker there, which this aircraft does not need).
+rocker there, which this aircraft does not need); on the OTHR → A/T page with the autothrottle on it steps its target.
 
 ## Night lighting
 
@@ -217,29 +236,57 @@ thumbwheel with the mouse wheel or by dragging, 20 clicks over its range:
   click; turning one opens the ICP's HDG / CRS page with the value (as the F-16's HDG and CRS knobs on the HSI).
 - **▲▼ rocker, upper left** (INC / DEC) - steps the autothrottle target up / down, as the SYS page's arrows (the step
   size: STEP on the same page).
-- **▲▼ rocker, lower right** - map scale (see Map).
+- **▲▼ rocker, lower right** - map scale (see Map); on the A/T page with the autothrottle on, its target ±1.
 
 ## Landing and taxi light
 
 LDG/TAXI LIGHT switch (left console, at the gear handle): forward LDG, middle OFF, aft TAXI. Drag with the mouse.
 The lights work only with the nose gear down.
 
-## Weapon bays, tanks, refuelling
+## Stores: bays, missiles, tanks, refuelling
 
-**The load** is chosen with the livery in the aircraft menu: the plain one has empty bays; **combat** has 6 AIM-120C
-in the main bay and 2 AIM-9X in the side bays (+1112 kg); **ferry** has two 600 US gal tanks on pylons.
+**The livery** is chosen in the aircraft menu: USAF and six community liveries (USAF squadrons and fictional schemes;
+authors in CREDITS.md). The aircraft starts clean.
 
-**BAY page** on any MFD: MENU → upper left key **BAY**. The keys **LFT / CTR / RGT** open and close each bay (boxed
-= commanded open), **ALL** all of them (if all are closed: open, otherwise close). In the middle: what is in the bay
-and the door state (CLSD / MOVE / OPEN), below it the tanks. Under the table the aircraft from above (from our model): the bay doors (solid frame closed, dashed moving, open with a second frame or the door folded out), the missiles with the combat load, the tanks on their pylons while they hang. While any bay is not closed, ICAWS shows **BAY OPEN**.
-The side bays swing the AIM-9X out on its launcher with the doors. Needs power. Open bays add no drag.
+**The load** is chosen in the cockpit, four of them: **CLEAN** - empty bays; **COMBAT** - 6 AIM-120C in the main bay
+and 2 AIM-9X in the side bays (157 / 85 kg each); **FERRY** - two 600 US gal tanks on pylons; **FULL** - both.
+- **ICP: OTHR → LOAD** - the arrow at a load sets it at once, anywhere, in the air too (colon = the current one): the
+  way to start with a load on the runway or in the air.
+- **SMS → LOAD** (right column) - round CLEAN → COMBAT → FERRY → FULL, on the ground with the parking brake set only
+  (the engines may run), as the ground crew would.
+
+Missiles fired and tanks jettisoned do not come back either way: to rearm, choose the livery again (the aircraft
+reloads where it is, clean), then LOAD. Tanks hung where there were none come full; tanks already hanging (FERRY →
+FULL) keep what is in them.
+
+**SMS page** (stores) on any MFD: MENU → upper left key **SMS**.
+- Left keys **LFT / CTR / RGT** open and close each bay (boxed = commanded open), **ALL** all of them (if all are
+  closed: open, otherwise close).
+- Right keys: **120 / 9X** select the missile (boxed), **LOAD** the load (above), **REL** releases the next one, **S-J** jettisons the tanks.
+- In the middle: what is still in each bay and its door state (CLSD / MOVE / OPEN), **STATUS**, the tanks, **LOAD** (the load).
+- Under the table the aircraft from above (from our model): the bay doors (solid frame closed, dashed moving, thick
+  with the doors marked open), each missile while it is aboard, the tanks while they hang. While any bay is not
+  closed, ICAWS shows **BAY OPEN**. The side bays swing the AIM-9X out on its launcher with the doors. Needs power.
+  Open bays add no drag.
+
+**Missile release (for the pictures - no targets, no guidance):** MASTER ARM (front panel, right of EMER JETT) to
+**ARM** (the left MFD turns to SMS; SAFE puts ENG back), in the air, select **120** or **9X**, then **REL** or the key assigned to **Strobe** in the game's control
+settings (the F-22 has no strobe lights). The bay opens by itself; an AIM-120C is thrown down by its ejector and lights
+its motor a moment later, an AIM-9X leaves its rail forward with the motor lit. The missile flies on along its axis on
+its own thrust (about 6 s for the AIM-120C, 5 s for the AIM-9X, estimates) and coasts on level out of sight (it holds
+its line as if guided; launched in a dive onto water it would end the flight - the game counts any part of the
+aircraft touching water as a crash); the bay closes
+again 1.5 s after the launch. You hear the motor light and roar away (muffled in the cockpit). One launch at a time. **STATUS:** SAFE (MASTER ARM off), GND (on the ground), LAUNCH,
+EMPTY (none of the selected kind left), READY. The motor glows; there is no smoke trail - the game has nothing to draw
+one with.
 
 **Ferry tanks:** their fuel goes first; the FUEL page shows what is left in them under the wing tanks, **EXT L /
-EXT R** (lb). **Jettison:** the **EMER JETT** button (left edge of the front panel, left of MASTER ARM; in the game's
-control settings `Controls.EmergencyJettision`, if it can be assigned) drops both tanks with their pylons, as on the
-F-22. In the air and with power only; on the ground the button is locked. Each tank is pushed off by the pylon's
-ejector and falls by itself with its own mass and drag; its fuel leaves the count. To get the tanks back start a new
-flight from the menu. The aircraft's mass goes down in steps of 453 kg per tank as the ferry fuel burns.
+EXT R** (lb). **Jettison:** the **EMER JETT** button (left edge of the front panel, left of MASTER ARM), **S-J** on the
+SMS page, or the key assigned to **Hook** in the game's control settings (the gliders' tow release) drops both tanks
+with their pylons, as on the F-22. In the air and with power only; on the ground it is locked. Each tank is pushed off
+by the pylon's ejector and falls by itself with its own mass and drag; its fuel leaves the count. To get the tanks
+back change the livery, then LOAD. The aircraft's mass (and GW on the ENG page) goes down with the ferry fuel as it
+burns; missiles and tanks weigh what the real ones do, and a jettisoned tank takes its mass with it.
 
 **Air refuelling (for looks):** left edge of the front panel under EMER JETT: the AAR switch opens the receptacle
 door behind the cockpit, the knob is its light. Aerofly has no air refuelling.
@@ -251,8 +298,9 @@ from outside). Without power the pictures go dark with the screens.
 
 ## Failures (FAIL page)
 
-A hidden instructor page. To open it: type **9900** on the ICP and press **ENTR** on the empty ICP page - the right
-MFD shows FAIL at once, and the menu of every MFD keeps a **FAIL** link at the top. Left: ▲▼ cursor, **SEL** breaks
+A hidden instructor page. To open it: on the ICP press **OTHR** (or use the empty ICP page), type **9900** and press
+**MRK** - the right MFD shows FAIL at once, and the menu of every MFD keeps a **FAIL** link at the bottom right. In the
+same way **9999** switches COND on and off without the FAIL page. Left: ▲▼ cursor, **SEL** breaks
 the selected item now (or repairs it). Right: **RAND** - one random failure in 1-15 minutes (you know neither which
 nor when), **COND** - failures caused by how you fly (**on from the start**; this key turns it off), **RST** -
 repair everything, **PAGE** - second page.
@@ -309,6 +357,6 @@ lost shows on the **FCS** page (surface table): OK, DEGD (one hydraulic system),
 
 Every switch, knob, key, thumbwheel and rocker in the cockpit moves and can be clicked, but not all of them have a
 function yet: AUX GEN, FUEL TANKS, the ECS CABIN panel, the RADIO VOL knobs other than VOX, the AUX COMM panel, the
-OXYGEN panel, DVR, three of the left UFD's keys and the right UFD's top key. They are prepared for new functions: the list with the name of each control's state is in
+OXYGEN panel, the ICP's STPT and DVR keys, three of the left UFD's keys and the right UFD's top key. They are prepared for new functions: the list with the name of each control's state is in
 **COCKPIT_CONTROLS.md** - a function can be added with the Python scripts alone, no model work and no converter.
 The gear handle's wheel glows red while the gear is in transit.

@@ -730,7 +730,7 @@ def press_parts():
 def attach_legends():
     """ac LEGEND_MATERIAL: the lettering of a key is a flat object of its own (DCS material F22_SCREEN) lying a fraction
     of a millimetre over the key's face. It joins the key's part - left in the fuselage it stayed in the air while
-    the key went in under it (user 2026-11-17, every ICP key). A legend is a small cockpit object without animation
+    the key went in under it (2026-11-17, every ICP key). A legend is a small cockpit object without animation
     whose box lies inside the box of a key (PRESS_PARTS) or of a part marked legend=True (KNOB_PARTS: the rockers)."""
     pat = getattr(C, 'LEGEND_MATERIAL', None)
     if not pat:

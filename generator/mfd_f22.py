@@ -1,4 +1,4 @@
-"""Our MFD pages ENG, FCS and SYS, one layout for all (user 2026-11-17: "order on the MFD screens" - the Hornet's
+"""Our MFD pages ENG, FCS and SYS, one layout for all (2026-11-17: order on the MFD screens - the Hornet's
 engine and flight-control pages carried dead numbers and an always empty servo-valve grid, our overlays came in four
 font sizes, SYS mixed flight controls with automatics).
 
@@ -146,7 +146,7 @@ def eng_page(ns):
     p.title('ENGINES')
     xl, xr = 620, 860                     # right ends of the L and R value fields
     # round N2 gauges (block G, 2026-11-22, after the AOA F-22's engine page) either side of the title, the figure
-    # inside (user, same day: under the title, over the table, the page looked crowded); 120 units, 22 steps
+    # inside (same day: under the title, over the table, the page looked crowded); 120 units, 22 steps
     import mfd_symbols
     sc = 120.0 / mfd_symbols.DIAL
     dial_y, digit = 880, 26                 # (850: the right gauge covered the R over its column, in-game)
@@ -191,9 +191,9 @@ def eng_page(ns):
     # the aircraft as a whole (2026-11-22, after the AOA F-22's engine page: gross weight, thrust, thrust / weight):
     # GW = our weight bookkeeping (empty + counted fuel + the combat load; the game itself does not take the fuel off the
     # mass), THR = both engines' thrust now, T/W = THR / (GW x g)
-    for r, (text, src, k_, dec) in enumerate((('GW LB', 'F22GrossWeight.Output', 2.204622621849, 0),
-                                              ('THR KN', 'F22ThrustTotal.Output', 0.001, 0),
-                                              ('T/W', 'F22ThrustToWeight.Output', 1.0, 2))):
+    rows_ = (('GW LB', 'F22GrossWeight.Output', 2.204622621849, 0), ('THR KN', 'F22ThrustTotal.Output', 0.001, 0),
+             ('T/W', 'F22ThrustToWeight.Output', 1.0, 2))
+    for r, (text, src, k_, dec) in enumerate(rows_):
         p.label(text, 560, y - DY * r)
         p.value(src, xr, y - DY * r, 5, k_, 0.0, dec)
     p.install({'F22EnginesPage', 'EnginesPage'})
@@ -284,7 +284,7 @@ def sys_page(ns):
         else:
             src, n = what
             p.text(gens.get(src, src), xv - _w(n), y, n)
-    # the A/T keys' legends, across, level with keys 1 and 3 of the right column (calibrated 2026-11-07 on the user's
+    # the A/T keys' legends, across, level with keys 1 and 3 of the right column (calibrated 2026-11-07 on a
     # screenshot: keys at page y 786 / 625 / 465 / 307; keys 2 and 4 carry the menu's arrows)
     at_key = p.dyn('binary_to_text', 'F22MfdSysAtKey', Input='F22AtActive.Output', Text0='A/T', Text1='*A/T')
     p.text(at_key, 894, 786, 4)

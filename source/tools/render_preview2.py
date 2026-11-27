@@ -99,7 +99,7 @@ shown = []
 repaint_name = os.path.basename(os.path.normpath(REPAINT)) if REPAINT else ''
 if EXPORTED:
     # (the pose scene's own DCS meshes have mixed face winding and inner shells - dark patches at the nose and the intakes,
-    # chequered with back faces hidden, user 2026-11-17; the export has sorted that out)
+    # chequered with back faces hidden, 2026-11-17; the export has sorted that out)
     for o in sc.objects:
         o.hide_render = True
     for o in bpy.data.collections['exported'].objects:
@@ -128,7 +128,7 @@ if REPAINT and hasattr(C, 'PREVIEW_OBJECTS') and not EXPORTED:
         o.data.materials.append(material_for(o))
         shown.append(o)
 
-# ---- studio render as the stock previews (user 2026-11-17: IPACS' cards - lit, glossy, a mirror reflection under the
+# ---- studio render as the stock previews (2026-11-17: IPACS' cards - lit, glossy, a mirror reflection under the
 # aircraft, nose left, from front-left above). Cycles: a soft key light from above-front, a sky fill, the aircraft
 # rendered twice - as it stands and mirrored about the ground plane (its underside, as a real mirror shows it) - and
 # the mirror image laid under it at REFLECTION opacity, fading downwards (the SDK sample's DR400 card).
@@ -136,7 +136,7 @@ REFLECTION = 0.5
 from bpy_extras.object_utils import world_to_camera_view
 import numpy as np
 
-# standing on all its wheels (user 2026-11-17: the main wheels hung over their reflection - in the export pose they are
+# standing on all its wheels (2026-11-17: the main wheels hung over their reflection - in the export pose they are
 # 23 cm higher than the nose wheel): pitched about the main wheels until the wheel bottoms are level (geometry.json)
 geom_path = os.path.join(os.environ.get('AC_DIR', ''), 'work', 'geometry.json')
 if os.path.exists(geom_path):

@@ -39,17 +39,17 @@ NOZZLE_MASS = 300.0                 # out of the engine body, whose centre moves
 TAIL_MAP = ' (-0.42 %.4f) (-0.1 0.05) (0.0 0.0) (0.1 -0.05) (0.42 %.4f) ' % (MAX_ANGLE, -MAX_ANGLE)
 # calibrated airspeed (m/s): full up to ~290 kt, a quarter from ~505 kt, where the tail's moment is far the larger
 SPEED_MAP = ' (0.0 1.0) (150.0 1.0) (260.0 0.25) '
-# Direct mode (a wish of the user, in the spirit of the Su-27 family's "hard link"; the F-22 has nothing like it): airborne,
+# Direct mode (in the spirit of the Su-27 family's "hard link"; the F-22 has nothing like it): airborne,
 # with DIR on (SYS page), the stick asks for a pitch rate of its own, past the Hornet's laws. Plain stick to surface
 # tumbled the aircraft (test 2026-10-30: ~160 deg/s at 10-70 kt, no damping), so stabilators and nozzles close on the rate.
 # Limits (radians, m/s), second try: 50 deg/s and 9 g / 3 g felt heavy and slow in the game. Third: 80 deg/s at any speed looked
 # like magic when slow (flight 2026-10-30: nose up to 77 deg/s below 40 kt, while the path stayed within thrust + lift, 1.2 g at
 # 40-70 kt). Now the pull rises from ~26 deg/s near standstill, as fast as the mod's full-stick loops, to 62 deg/s at ~195 kt,
-# then what 16 g allows at that speed (11 g until 2026-11-09: the user asked for DIRECT to be the unprotected mode, as a
+# then what 16 g allows at that speed (11 g until 2026-11-09: DIRECT was made the unprotected mode, as a
 # hard link in DCS - full stick fast and low overstresses the airframe, the wings break at 13.5 g, breakage_f22.py; the
 # peak 62 deg/s stays). Push: the same near standstill, then 5 g. No more pull past 60-70 deg angle of attack, the
 # F-22's published trimmed alpha. Roll and yaw stay with the flight controller.
-# 2026-11-21 (user: 'flip it sharper at the top of a vertical climb, more vector in DIR'): the nozzles' +-20 deg stays (the
+# 2026-11-21 (a sharper flip at the top of a vertical climb, more vector in DIR): the nozzles' +-20 deg stays (the
 # F119's and the drawn travel); what held the flip was the law - 26-31 deg/s asked when slow, no pull past 60-70 deg
 # alpha. Slow now 52-57 deg/s pull and push (the thrust's +-20 deg at full burner, ~600 kN m, has the authority), the
 # pull goes on to ~100 deg alpha (through the stall: a flip, unprotected as DIRECT is meant to be)
@@ -60,7 +60,7 @@ DIRECT_ALPHA_MAP = ' (1.6 1.0) (1.85 0.0) '
 # with the servo rates, 40-600 kt, idle to afterburner. Inverse with dynamic pressure, nozzles only when slow
 DIRECT_TAIL_GAIN = ' (0.0 1.2) (77.0 1.2) (110.0 0.6) (150.0 0.32) (200.0 0.18) (260.0 0.108) (350.0 0.06) '
 DIRECT_NOZZLE_GAIN = ' (0.0 0.8) (100.0 0.8) (150.0 0.4) (260.0 0.1) '
-# the hard part of DIRECT (2026-11-09, user: "as the hard link in DCS"): the rate loop alone could not move the
+# the hard part of DIRECT (2026-11-09: as the hard link in DCS): the rate loop alone could not move the
 # stabilators more than ~4 deg fast (its gain falls with dynamic pressure), 10.3 g at 450-500 kt in the game, so the
 # 13.5 g wing limit (breakage_f22.py) was out of reach. Now the stick also moves them directly, the same at any speed,
 # as a mechanical link: 0.10 rad (5.7 deg) at full stick on top of the loop. Fast and low a full pull goes far past the
@@ -71,7 +71,7 @@ DIRECT_HARD = 0.10                  # rad of stabilator per full stick
 # wing joints rang and broke in the air with the peak still 10.3 g (in-game 2026-11-09, twice). Over 2 s the load
 # changes slower than the wings' ~8 Hz, they follow it without ringing
 DIRECT_FADE_RATE = 0.5              # 1 / s
-# The stabilator command alone hardly moved the nozzles in steady flight (user: 'static'), and not at all on the ground below
+# The stabilator command alone hardly moved the nozzles in steady flight ('static'), and not at all on the ground below
 # 95 kt: the stick also feeds them directly. It adds no loop gain, the controller closes around it.
 STICK_FEED = math.radians(8.0)
 # on the ground with the throttles back the nozzles follow the stick at any speed (the F-22's control check): no thrust to speak
@@ -164,7 +164,7 @@ def apply(dyn):
         _node('servoclassic', 'NozzleAngle', Input='F22NozzleTarget.Output', Speed=DIRECT_NOZZLE_RATE, P1=1.0),
         # DCS args 622/623: no longer drives the drawn nozzles (ac_f22.py NOZZLE_PLATES read NozzleAngle), the table parts still need the signal
         _node('linear', 'VectorPitch', Input='NozzleAngle.Output', Scaling=-1.0 / MAX_ANGLE),
-        # the mode from the DIR key of the SYS page only (user 2026-11-05: the MASTER ARM switch flipped it too - a weapons
+        # the mode from the DIR key of the SYS page only (2026-11-05: the MASTER ARM switch flipped it too - a weapons
         # switch has nothing to do with the flight controls; the switch stays a plain ARM/SAFE toggle)
         _node('variable', 'F22DirectFlipped', Value='0.0'),
         _node('logic_invert', 'F22DirectFlippedNot', Input='F22DirectFlipped.Output'),

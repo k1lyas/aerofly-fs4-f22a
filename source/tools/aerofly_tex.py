@@ -311,7 +311,7 @@ def _blur(a, sigma):
 
 
 def screen_wear_map(n=1024, seed=7):
-    """Wear of a flat LCD's face (F-22 MFDs and UFDs, user 2026-11-17): matt anti-glare glass, its marks in the
+    """Wear of a flat LCD's face (F-22 MFDs and UFDs, 2026-11-17): matt anti-glare glass, its marks in the
     screen's own colour map, as the stock F/A-18's screens (write_display_textures). Map 0..1, v up, the edges of the
     map = the bezel. (A separate cover glass with the instrument glass shader was tried and dropped the same day: that
     shader reflects one environment picture taken at the spawn, in flight the screens showed the parking spot's trees -

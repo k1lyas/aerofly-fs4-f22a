@@ -5,8 +5,8 @@ and a round N2 gauge (ENG page).
 The game draws a picture on a display with texture_animation_rectangle: a rectangle of a texture, picked from a list
 of source positions by a value (the SDK sample: display_source_light, an RGB sheet - the sprites are opaque and carry
 their own background; source positions from the bottom left). Ours lie in the free corners of the display2 atlas's
-colour map (the lower MFD, the UFDs and the ICP take only part of its 2048 x 2048), painted on the DDI page's own
-background green (GreenBackgroundColor 0.035 0.082 0.039, a constant), so that an opaque sprite does not show as a box.
+colour map (the lower MFD, the UFDs and the ICP take only part of its 2048 x 2048), painted on the screens' own
+background (BG, a constant), so that an opaque sprite does not show as a box.
 
 Every variable element (a bay with its doors and load, a tank) is a sprite of its own; its variants are cut from the
 whole picture drawn with that element in that state, so an element may cross the outline. Elements must not overlap
@@ -17,10 +17,12 @@ exporter in Blender (ac_f22.DISPLAY_SYMBOLS) and the offline preview."""
 import math
 
 ATLAS = 2048
-# the DDI page background, as make_f22 sets GreenBackgroundColor: a colour the compressed texture keeps exactly (5-6-5
-# bits: 1/31, 5/63, 1/31 - in-game 2026-11-22 the F/A-18's 0.035 0.082 0.039 came out of the texture a step off and
-# the sprites showed as boxes of another shade)
-BG = (1 / 31.0, 5 / 63.0, 1 / 31.0)
+# the screens' background, as make_f22 sets it (the DDI page fill GreenBackgroundColor and both render targets' clear):
+# a colour the compressed texture keeps exactly (5-6-5 bits - in-game 2026-11-22 the F/A-18's 0.035 0.082 0.039 came
+# out of the texture a step off and the sprites showed as boxes of another shade). Black since 2026-11-27 (the
+# DDIs' green - the F/A-18's monochrome CRTs - did not go with the PMFD, the colour MPCD's near-black 0.03 clear; the
+# F-22's six screens are colour LCDs on black): 1/31, 2/63, 1/31 = 0.032, as the PMFD was
+BG = (1 / 31.0, 2 / 63.0, 1 / 31.0)
 GREEN = (0.30, 1.00, 0.30)          # our pages' green (mfd_f22.GREEN)
 DIM = (0.10, 0.34, 0.12)
 SS = 3                              # supersampling
@@ -95,7 +97,7 @@ class Canvas:
 
 # ------------------------------------------------------------------------------------------------ the aircraft
 # From above, nose up: the outline, canopy and fins come from our own model (mfd_silhouette.py renders its masks; the
-# first outline drawn by eye did not look like the F-22 - user 2026-11-22); bays, missiles and tanks are placed from
+# first outline drawn by eye did not look like the F-22 - 2026-11-22); bays, missiles and tanks are placed from
 # the model's own store positions. FRAME: the picture's extent in model metres (x forward, y left), 25 px a metre.
 SIL_W, SIL_H = 400, 480
 FRAME = (-7.75, 11.45, -8.0, 8.0)
@@ -154,28 +156,50 @@ def _box(rect):
     return lo, hi
 
 
-def draw_bay(cv, bay, state, load):
+def draw_bay(cv, bay, state):
+    """The bay's doors: shut solid, moving dashed, open thick with the doors swung out (0.9.2: no inner frame in the
+    main bay any more - the missiles are sprites of their own and must not cut it)."""
     (ax, ay), (bx, by) = _box(BAY_RECT[bay])
     box = [(ax, ay), (bx, ay), (bx, by), (ax, by)]
     if state == 1:
         cv.line(box, 2.0, GREEN, closed=True, dash=(6, 5))
     else:
         cv.line(box, 3.5 if state == 2 else 2.0, GREEN, closed=True)
-    if state == 2 and bay == 'Center':   # open: a second frame inside (the side bays sit right beside it - no room
-        cv.line([(ax + 5, ay + 5), (bx - 5, ay + 5), (bx - 5, by - 5), (ax + 5, by - 5)], 1.5, GREEN, closed=True)   # for doors)
+    if state == 2 and bay == 'Center':   # the two doors open: short marks off both ends (the side bays sit beside it)
+        for x_ in (ax + 5, bx - 5):
+            cv.line([(x_, by + 2), (x_, by + DOOR_PX)], 2.5, GREEN)
+            cv.line([(x_, ay - 2), (x_, ay - DOOR_PX)], 2.5, GREEN)
     elif state == 2:                     # the side bay's door, folded out
         out = 0.55 * PX_M
         for x_ in ((ax,) if bay == 'Left' else (bx,)):
             s = -1 if x_ == ax else 1
             cv.line([(x_, ay + 6), (x_ + s * out, ay + 6 + out * 0.5)], 2.5, GREEN)
             cv.line([(x_, by - 6), (x_ + s * out, by - 6 - out * 0.5)], 2.5, GREEN)
-    if load:
-        if bay == 'Center':              # 6 AIM-120C where the model carries them
-            for y, x in AIM120:
-                cv.capsule(_px(x + 0.1, y), _px(x + 3.55, y), 4.0, GREEN)
-        else:                            # one AIM-9X
-            y = 1.41 if bay == 'Left' else -1.41
-            cv.capsule(_px(1.10, y), _px(4.00, y), 4.0, GREEN)
+
+
+DOOR_PX = 11                             # the main bay's open door marks, px off its ends
+MSL_HALF = 2.5                           # a missile sprite's half width, px (the capsule is 4 px wide)
+
+
+def missile_icons():
+    """{k: (a, b)} the capsule of each missile in release order (weapons_f22.missiles), in sprite pixels: the AIM-120C
+    where the model carries them, the AIM-9X stowed in its side bay."""
+    import weapons_f22
+    out = {}
+    for m in weapons_f22.missiles():
+        if m['kind'] == '120':
+            x0, y = m['tail'][0], m['centre'][1]
+            out[m['k']] = (_px(x0 + 0.1, y), _px(x0 + 3.55, y))
+        else:
+            y = 1.41 if m['side'] == 'L' else -1.41
+            out[m['k']] = (_px(1.10, y), _px(4.00, y))
+    return out
+
+
+def draw_missile(cv, k, on):
+    if on:
+        a, b = missile_icons()[k]
+        cv.capsule(a, b, 4.0, GREEN)
 
 
 def draw_tank(cv, side, on):
@@ -185,15 +209,21 @@ def draw_tank(cv, side, on):
     cv.capsule(_px(TANK_X[0] + TANK_W / 2, y), _px(TANK_X[1] - TANK_W / 2, y), TANK_W * PX_M, GREEN, filled=False, edge=2.0)
 
 
-def _bbox(bay=None, side=None):
+def _bbox(bay=None, side=None, missile=None):
     """An element's rectangle in the silhouette's pixels: its drawing in every variant, with a margin."""
+    if missile:
+        (ax, ay), (bx, by) = missile_icons()[missile]
+        x0, x1 = int(math.floor(ax - MSL_HALF)), int(math.ceil(ax + MSL_HALF))
+        y0, y1 = int(math.floor(min(ay, by) - 3)), int(math.ceil(max(ay, by) + 3))
+        return (x0, y0, x1 - x0, y1 - y0)
     if bay:
         (ax, ay), (bx, by) = _box(BAY_RECT[bay])
         out = 0.55 * PX_M + 4
         # (elements must not overlap: the centre bay and the side bays are 4 px apart - 2 px margins between them)
         l = ax - {'Center': 2, 'Left': out, 'Right': 2}[bay]
         r = bx + {'Center': 2, 'Left': 2, 'Right': out}[bay]
-        return (int(math.floor(l)), int(ay - 4), int(math.ceil(r) - math.floor(l)), int(by - ay + 8) + 1)
+        v = DOOR_PX + 3 if bay == 'Center' else 4
+        return (int(math.floor(l)), int(ay - v), int(math.ceil(r) - math.floor(l)), int(by - ay + 2 * v) + 1)
     y = TANK_Y if side == 'Left' else -TANK_Y
     hw = TANK_W * PX_M / 2 + 3
     (cx, ya), (_, yb) = _px(TANK_X[0], y), _px(TANK_X[1], y)
@@ -201,11 +231,13 @@ def _bbox(bay=None, side=None):
 
 
 def silhouette(states):
-    """The whole picture: states {bay: (state, load), 'TankLeft': on, 'TankRight': on}."""
+    """The whole picture: states {bay: door state, 'Msl<k>': on, 'TankLeft': on, 'TankRight': on}."""
     cv = Canvas(SIL_W, SIL_H)
     draw_base(cv)
     for bay in BAY_RECT:
-        draw_bay(cv, bay, *states.get(bay, (0, 0)))
+        draw_bay(cv, bay, states.get(bay, 0))
+    for k in missile_icons():
+        draw_missile(cv, k, states.get('Msl%d' % k, 0))
     for side in ('Left', 'Right'):
         draw_tank(cv, side, states.get('Tank' + side, 0))
     return cv.result()
@@ -214,7 +246,7 @@ def silhouette(states):
 # ------------------------------------------------------------------------------------------------ N2 gauge
 DIAL = 140
 N2_STEPS = [0, 10, 20, 30, 40, 50, 55, 60, 64, 68, 72, 76, 80, 84, 87, 90, 92, 94, 96, 98, 99, 100]
-N2_FULL = 100.0                          # 0 .. 100 % over 270 deg, from 7:30 clockwise (the arc full at 100 %: user, a
+N2_FULL = 100.0                          # 0 .. 100 % over 270 deg, from 7:30 clockwise (the arc full at 100 %: a
                                          # 100 .. 110 % end nothing could fill was dead space)
 
 
@@ -259,7 +291,9 @@ def layout():
                      size=(DIAL, DIAL), at=None)
     assert DIAL_AT[1] + DIAL * ((len(N2_STEPS) - 1) // 3 + 1) <= SIL_AT[1]
     x, y, row_h = B_AT[0], B_AT[1], 0
-    for name, n, box in [('Bay' + b, 6, _bbox(bay=b)) for b in BAY_RECT] + [('Tank' + s, 2, _bbox(side=s)) for s in ('Left', 'Right')]:
+    for name, n, box in [('Bay' + b, 3, _bbox(bay=b)) for b in BAY_RECT] + \
+            [('Msl%d' % k, 2, _bbox(missile=k)) for k in missile_icons()] + \
+            [('Tank' + s, 2, _bbox(side=s)) for s in ('Left', 'Right')]:
         src = []
         for _ in range(n):
             if x + box[2] > B_AT[0] + B_W:
@@ -285,8 +319,8 @@ def variants(name):
     pics = []
     if name.startswith('Bay'):
         bay = name[3:]
-        for k in range(6):
-            pics.append(silhouette({bay: (k % 3, k // 3)})[y:y + h, x:x + w])
+        for k in range(3):
+            pics.append(silhouette({bay: k})[y:y + h, x:x + w])
     else:
         for on in (0, 1):
             pics.append(silhouette({name: on})[y:y + h, x:x + w])

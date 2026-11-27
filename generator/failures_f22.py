@@ -1,4 +1,4 @@
-"""F-22 failures (block 1 of docs/reference/FAILURES.md, user 2026-11-09): an instructor page FAIL on the MFDs, hidden
+"""F-22 failures (block 1 of docs/reference/FAILURES.md, 2026-11-09): an instructor page FAIL on the MFDs, hidden
 until a code is entered on the ICP, with failures chosen by hand, at random, or caused by how the aircraft is flown.
 
 make_f22.py calls dynamics() before its ICAWS list, after_tvc() after the nozzle law and graphics() in the MFD pages.
@@ -10,8 +10,8 @@ FAIL page (in place of the Hornet's UFC BU page, which is out of the menu): two 
   left keys:  up / down move the cursor, SEL fails the selected item now (or clears it again)
   right keys: RAND arms one failure at random 1 - 15 min later (common ones three times as likely as rare ones),
               COND switches on the failures caused by flying (below; on from the start), RST clears everything
-Code: FAIL_CODE on the ICP scratchpad, ENTR on the empty ICP page: the right MFD shows FAIL, the link stays on every MFD
-menu.
+Code: FAIL_CODE typed on the empty ICP page or on OTHR, then MRK: the right MFD shows FAIL, the link stays on every MFD
+menu. COND_CODE switches COND the same way (the load codes 9901-9904 gave way to the ICP LOAD page, 2026-11-27).
 
 What the pilot does about each (and what clears it), see FAILURES.md section 2 / 3:
   GEN       generator trips off: cycle its GEN switch (OFF, ON) - it comes back
@@ -65,9 +65,10 @@ public).
 import math
 import os
 
-# the instructor's code (user 2026-11-15: 9900, opens the page at once). ENTR acts on the open ICP page - on the
-# empty one only this code is read (A/T, ALOW, radio entries have pages of their own): no clash with other entries
+# the instructor's code (2026-11-15: 9900, opens the page at once). MRK acts on the open ICP page - on the
+# empty one and on OTHR only these codes are read (A/T, ALOW, radio entries have pages of their own): no clash with other entries
 FAIL_CODE = 9900
+COND_CODE = 9999        # COND on / off without the FAIL page (2026-11-26)
 
 # key, page text, weight in RAND (3 = common, 1 = rare)
 ITEMS = [('Gen1', 'L GEN', 3), ('Gen2', 'R GEN', 3), ('Hyd1', 'L HYD', 3), ('Hyd2', 'R HYD', 3),
@@ -246,7 +247,7 @@ def dynamics(ns):
         sysn.set('Inputs', ' F22HydSupply%d.Output F22HydLeft%d.Output F22HydNotBurnt%d.Output F22HydNotReached%d.Output '
                  % (k, k, k, k))
 
-    # ---- what the engine page shows before it goes (user 2026-11-09: the seizure came with no warning but a clock).
+    # ---- what the engine page shows before it goes (2026-11-09: the seizure came with no warning but a clock).
     # A dry bearing shakes, then drags: VIB on the ENG page climbs, then EGT; a fire reaching the casing from 50 s
     # shakes it too; a bleed leak loses compressor air, the FADEC holds thrust with a hotter turbine. All estimates
     # (no F119 figures). VIB on the page = value x 100 (the Hornet's 0.015 at full power reads 1.5)
@@ -270,7 +271,7 @@ def dynamics(ns):
           Inputs=' F22Egt%dBase.Output F22EgtOilHot%d.Output F22EgtBleed%d.Output ' % (k, k, k))
         # seized: the computers see a stopped engine in the airflow - no relight
         o('logic_and', 'F22SeizedWarn%d' % k, Inputs=' F22Seized%d.Output DCBusEssentialOn.Output ' % k)
-        # rough running (the feel block, user 2026-11-09): a damaged engine hunts - the thrust swings a few per cent,
+        # rough running (the feel block, 2026-11-09): a damaged engine hunts - the thrust swings a few per cent,
         # two beats against each other so it is not a metronome (each engine its own); heard in its sound, felt as yaw
         for ab, (f, w) in zip('AB', ((0.83 + 0.08 * k, 0.6), (2.3 - 0.2 * k, 0.4))):
             o('product', 'F22RoughPhase%s%d' % (ab, k), Inputs=' F22SimTime.Output %.3f ' % f)
@@ -310,9 +311,12 @@ def dynamics(ns):
     assert st[-1] == 'F22HydAuthority.Output', st
     setv(steer, 'Inputs', ' %s F22HydSystem2.Output ' % ' '.join(st[:-1]))
     o('logic_greater', 'F22BayHydOK', Input0='F22HydSystem1.Output', Input1='0.5')
+    # (and power: without DC ESS the door control valves hold the doors too - the bus dropping for a moment at each
+    # generator's coming on line no longer moves them, 2026-11-25)
+    o('logic_and', 'F22BayDrive', Inputs=' F22BayHydOK.Output DCBusEssentialOn.Output ')
     for bay in ('Center', 'Left', 'Right'):
         door = dyn_node('F22Bay' + bay)
-        o('state_frozen', 'F22BayHeld' + bay, Input=door.get('Input').strip(), InputEnable='F22BayHydOK.Output', Value=0.0)
+        o('state_frozen', 'F22BayHeld' + bay, Input=door.get('Input').strip(), InputEnable='F22BayDrive.Output', Value=0.0)
         setv(door, 'Input', 'F22BayHeld%s.Output' % bay)
 
     # ---- fuel leak, screens, antiskid, air data, oxygen
@@ -360,7 +364,7 @@ def dynamics(ns):
     o('logic_and', 'F22NozzleWarn', Inputs=' F22FailNozzle.Output ')
 
     # ---- caused by flying (COND)
-    # on from the start (user 2026-11-15: the aircraft breaks by how it is flown without first opening the page)
+    # on from the start (2026-11-15: the aircraft breaks by how it is flown without first opening the page)
     o('variable', 'F22FailCond', Value='1.0')
     not_('F22FailCondOff', 'F22FailCond.Output')
     o('event_value', 'F22FailCondToggle', Input='F22FailCondOff.Output', Events=' F22FailCond.Set ')
@@ -433,7 +437,7 @@ def dynamics(ns):
     # (the cylinder command through a rate limit, GEAR_CTL_RATE: a fold, a jam or RST stepped it a whole stroke in a
     # frame - K 5e7 N/m x 0.67 m: ~33 MN into the airframe, and RST tore the left wing off, in-game 2026-11-11 / 12.
     # The handle's own sequence moves it at 0.75 / s: through the limit unchanged)
-    # A fold is a failure, not a retraction (user 2026-11-13: "they just go in as if all were well"): the side brace /
+    # A fold is a failure, not a retraction (2026-11-13: they had gone in as if all were well): the side brace /
     # down-lock lets go and the leg swings back under the aircraft's weight in a fraction of a second, stopping where it
     # jams - the airframe on the runway, the leg wedged under it, not stowed. Its own travel F22FoldFrac: up to 80 % of
     # the leg's travel (FOLD_STOP, the cylinder command for it from the cylinder geometry: the wheel rises 0.76 m main /
@@ -457,7 +461,7 @@ def dynamics(ns):
     # deep stall in afterburner: the inlet flow breaks down, one engine stalls out. The F119 and its inlets are built
     # for high-AoA flight with the nozzles vectoring - the F-22's display flying does it in afterburner - so only past
     # that envelope: > 60 deg AoA, < 60 kt, 3 s (was 50 deg / 100 kt / 2 s, a fighter's usual limit; softened at the
-    # user's wish 2026-11-15)
+    # 2026-11-15)
     o('logic_greater', 'F22StallAoa', Input0='PitotTube.AngleOfAttack', Input1='1.0472')
     o('logic_greater', 'F22StallSlow', Input0='30.9', Input1='AirspeedIndicator.IndicatedAirspeed')
     o('logic_or', 'F22StallAb', Inputs=' Engine1AfterburnerSetOn.Output Engine2AfterburnerSetOn.Output ')
@@ -474,7 +478,7 @@ def dynamics(ns):
     o('event_edge_rising', 'F22StallHit', Input='F22StallHeld.Output', Events=' F22StallPick.Trigger ', Value=1.0,
       Threshold=0.5)
     # brakes: heat from braking work (pedal x ground speed), cooling in ~10 min; hot from 1.0, then they fade.
-    # Checked offline (scratchpad simfail.py): a full stop from 130 kt ~0.5, a rejected takeoff at 150 kt ~0.7, so two
+    # Checked offline: a full stop from 130 kt ~0.5, a rejected takeoff at 150 kt ~0.7, so two
     # hard stops close together make them hot (estimates); cooling takes 1.0 off in 10 min
     o('product', 'F22BrakeWork', Inputs=' F22FailCond.Output F22BrakeDemand.Output InertialReferenceSystem.OutputGroundSpeed ')
     o('mixlinear', 'F22BrakeHeatRate', Input0='F22BrakeWork.Output', Input1='1.0', Weight0=1 / 800.0, Weight1=-1 / 600.0)
@@ -589,15 +593,21 @@ def dynamics(ns):
     o('event_value', 'F22FailReset', Input='0.0', Events=' F22FailResetZero.Trigger F22FailResetOne.Trigger %s '
       'F22Bos.Reset F22BrakeHeat.Reset Accelerometer.Reset ' % ' '.join(resets))
 
-    # ---- hidden link: FAIL_CODE on the scratchpad, ENTR on the empty ICP page (page 0 cleared the pad before): the
-    # link shows on every MFD menu and the right MFD goes to the page at once (user 2026-11-15; it toggled the link
+    # ---- hidden link: FAIL_CODE on the scratchpad, MRK on the empty ICP page or OTHR (page 0 cleared the pad before): the
+    # link shows on every MFD menu and the right MFD goes to the page at once (2026-11-15; it toggled the link
     # before - the page then took the menu, FAIL, on an MFD)
     o('variable', 'F22FailUnlocked', Value='0.0')
     o('event_value', 'F22FailOpen', Input='1.0', Events=' F22FailUnlocked.Set SetRightMFDUFCBU.Trigger ScratchPad.Clear ')
-    o('logic_equal', 'F22FailCodeMatch', Input0='ScratchPadValue.Output', Input1='%d.0' % FAIL_CODE)
-    o('logic_and', 'F22FailCodeOk', Inputs=' ScratchPadValue.OutputValid F22FailCodeMatch.Output ')
-    o('event_demultiplexer', 'F22FailCodeEnter', InputSelect='F22FailCodeOk.Output',
-      Events=' ScratchPad.Clear F22FailOpen.Trigger ')
+    # codes of the empty ICP page (2026-11-26): FAIL_CODE, COND_CODE. The entry -> the
+    # code's number (1, 2, ..; 0 = no code, the pad is cleared) -> that code's event; each clears the pad itself
+    codes = sorted({FAIL_CODE: 'F22FailOpen.Trigger', COND_CODE: 'F22FailCondCode.Trigger'}.items())
+    o('event_value', 'F22FailCondCode', Input='1.0', Events=' F22FailCondToggle.Trigger ScratchPad.Clear ')
+    pts = ' '.join('(%.1f 0.0) (%.1f %d.0) (%.1f %d.0) (%.1f 0.0)' % (c - 0.4, c - 0.3, k, c + 0.3, k, c + 0.4)
+                   for k, (c, _) in enumerate(codes, 1))
+    o('linear_interpolation', 'F22IcpCodeNumber', Input='ScratchPadValue.Output', Map=' %s ' % pts)
+    o('product', 'F22IcpCodeSelect', Inputs=' F22IcpCodeNumber.Output ScratchPadValue.OutputValid ')
+    o('event_demultiplexer', 'F22FailCodeEnter', InputSelect='F22IcpCodeSelect.Output',
+      Events=' ScratchPad.Clear %s ' % ' '.join(e for _, e in codes))
     ent = D['UpFrontEnterEvent']
     ev = ent.get('Events').split()
     assert ev[0] == 'ScratchPad.Clear', ev[0]
@@ -681,7 +691,7 @@ def dynamics(ns):
         for k in (1, 2):
             engine_once('F22StallBang%dIn' % k, published('F22FailFlame%d' % k), 'stall_bang.wav', 14.0, k)
         # the tyre's bang, at the wheel: its own sound from real recordings (make_damage_sounds.py) - the stall bang it
-        # shared until 2026-11-21 had nothing above 1 kHz and was lost under the touchdown (user: 'almost not heard')
+        # shared until 2026-11-21 had nothing above 1 kHz and was lost under the touchdown (almost not heard)
         tyre = 'tyre_burst.wav' if _have_sound('tyre_burst') else 'stall_bang.wav'
         for side, name in (('L', 'Left'), ('R', 'Right')):
             engine_once('F22TyreBang%sIn' % side, published('F22TyreBurst' + side), tyre, 10.0, None,
@@ -713,7 +723,7 @@ def dynamics(ns):
     print('failures: %d items, RAND pool %d, sounds %s' % (n_items, len(pool), ', '.join(sounds) or 'none yet (convert)'))
 
 
-# ---- landing gear (block 3, 2026-11-11, user: "quality, with models and conversions if needed")
+# ---- landing gear (block 3, 2026-11-11: with models and conversions where needed)
 # Where each leg really is: its retraction joint's angle over the angle at which its cylinder holds it up (solved from
 # the cylinder geometry, tools in FAILURES.md: main 1.590 rad, nose 1.696 rad; magnitude, the legs only move one way
 # from down). The legs' drawing (gear_graphics) and the gear lamps follow it - before, all three followed the handle's
@@ -830,7 +840,7 @@ def gear_dynamics(o, not_, add_inputs, dyn_node, setv):
 
     # NWS: nose-wheel steering gone (failed, or no utility pressure) - the steering joint lets go and the wheel
     # castors, on a weak centring spring and its shimmy damper: steer with the brakes and, fast enough, the rudder
-    # (ICAWS NWS). (First build: the joint stayed locked at 0 - a wheel held straight, user 2026-11-15: 'the strut no
+    # (ICAWS NWS). (First build: the joint stayed locked at 0 - a wheel held straight, 2026-11-15: 'the strut no
     # longer turns but the jet still turns'.) The donor joint was always locked, its Kp / Kd unused; now they are the
     # castoring wheel's spring and damper (estimates)
     sv = dyn_node('ServoSteering')
@@ -1049,7 +1059,7 @@ def gear_graphics(ns):
     gear_broken_graphics(ns, by_name)
 
 
-# A folded leg drawn broken (user 2026-11-13): the lower strut and the wheel kinked out where the piston leaves the
+# A folded leg drawn broken (2026-11-13): the lower strut and the wheel kinked out where the piston leaves the
 # leg (the wheel splayed out / back), the leg's own door hanging off its hinge, the bay's outer door torn away. Each
 # grows with the fold (F22FoldFrac). The kink is a turn in the leg's own frame, inserted in each part's transform chain
 # inside the gear tables (after the wheel's spin): it folds with the leg. Pivots and parts from the DCS model (export

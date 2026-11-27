@@ -63,7 +63,7 @@ open(os.path.join(OUT, 'copilot.tmc'), 'w', encoding='utf-8', newline='\n').writ
 
 open(os.path.join(OUT, 'option.tmc'), 'w', encoding='utf-8', newline='\n').write("""<[file][][]
   <[object][][]
-    <[string8][Description][US Air Force]>
+    <[string8][Description][USAF]>
     <[string8][Type][repaint]>
   >
 >

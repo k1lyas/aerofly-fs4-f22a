@@ -28,7 +28,8 @@ STEAM = os.path.expanduser('~/Library/Application Support/Steam/steamapps')
 GAME = os.path.join(STEAM, 'common', 'Aerofly FS 4 Flight Simulator')
 DONOR = os.path.join(GAME, 'aircraft', 'f18')
 GENERATOR = ['make_f22.py', 'make_f22_meta.py', 'ac_f22.py', 'breakage_f22.py', 'burner_f22.py', 'failures_f22.py',
-             'stores_f22.py', 'tvc_f22.py', 'cockpit_controls.py', 'cockpit_fit.py', 'mfd_f22.py', 'mfd_symbols.py', 'engine_sound_f22.py']
+             'stores_f22.py', 'tvc_f22.py', 'cockpit_controls.py', 'cockpit_fit.py', 'mfd_f22.py', 'mfd_symbols.py', 'engine_sound_f22.py',
+             'weapons_f22.py', 'liveries_f22.py', 'loads_f22.py']
 DATA = {'parts.json': os.path.join(BUILD, 'parts.json'), 'geometry.json': os.path.join(A, 'work', 'geometry.json'),
         'anim.json': os.path.join(A, 'work', 'anim.json'), 'anim_pivots.json': os.path.join(A, 'work', 'anim_pivots.json')}
 DOCS = ['README.md', 'GUIDE.md', 'CREDITS.md', 'CHANGELOG.md', 'COCKPIT_CONTROLS.md']     # (the last: written by cockpit_controls.py)
@@ -41,7 +42,7 @@ import engine_sound_f22                                # its STOCK_COPIES: the F
 # other stock aircraft's files the configs play: installed name -> path under the game's aircraft/ (build.sh STOCK_COPIES)
 STOCK_COPY = {k + '.tsb': v for k, v in engine_sound_f22.STOCK_COPIES.items()}
 # the official Windows embeddable Python (python.org, PSF licence, unchanged) in the package's python\ folder: on
-# Windows install.bat runs it, so a player needs no Python of his own (user 2026-11-18). Not in git: downloaded once
+# Windows install.bat runs it, so a player needs no Python of his own (2026-11-18). Not in git: downloaded once
 # into work/vendor, checked against the SHA-256 python.org publishes. x64 (Windows on ARM runs it emulated)
 EMBED_PY = ('python-3.14.10-embed-amd64.zip', '90905e64a840557d8c1bc4f5b74db3d7ee85e3ffb217611cac1c7813acea4159',
             'https://www.python.org/ftp/python/3.14.10/python-3.14.10-embed-amd64.zip')
@@ -59,8 +60,10 @@ The part we wrote, as the GPL asks for with every copy: the scripts that turn th
   `build/config.tmc` naming your output folder (see the IPACS aircraft SDK).
 - `aircraft/f22/make_f22.py` and the modules it imports - the configuration generator (the copy the installer runs is
   in `../generator/`).
-- `aircraft/f22/make_cockpit_sounds.py`, `make_damage_sounds.py`, `make_voices_kokoro.py`, `mfd_pages.py` - cockpit
+- `aircraft/f22/make_cockpit_sounds.py`, `make_damage_sounds.py`, `make_launch_sound.py`, `make_voices_kokoro.py`, `mfd_pages.py` - cockpit
   sounds, damage sounds (from CC0 Freesound recordings, not included), voice warnings, the still pictures of the screens.
+- `aircraft/f22/liveries_f22.py` - the community liveries: their colour maps from the authors' DCS skins (not included;
+  see CREDITS.md for where to get them).
 - `aircraft/f22/make_release.py`, `tools/clean_check.py` - release packaging and the check that no IPACS file is in a
   package. The installer and the documents it packs are the files at the top of this package.
 
@@ -76,7 +79,7 @@ def source_files():
     sh = ''.join(open(os.path.join(REPO, f), encoding='utf-8').read() for f in (a + '/build.sh', t + '/build_lib.sh'))
     start = [t + '/' + m for m in re.findall(r'\$T/([\w/]+\.(?:py|sh))', sh)] + [t + '/build_lib.sh', t + '/clean_check.py'] + \
             [a + '/' + f for f in ('build.sh', 'make_f22.py', 'make_f22_meta.py', 'ac_f22.py', 'mfd_pages.py', 'mfd_silhouette.py',
-                                   'make_cockpit_sounds.py', 'make_damage_sounds.py', 'make_voices_kokoro.py', 'make_release.py', 'VERSION',
+                                   'make_cockpit_sounds.py', 'make_damage_sounds.py', 'make_launch_sound.py', 'make_voices_kokoro.py', 'liveries_f22.py', 'make_release.py', 'VERSION',
                                    'release/release.json')]
     mods = {}
     for d in (t, t + '/diag', a):
@@ -134,6 +137,19 @@ def main():
         stop('the last conversion did not finish (logs/convert.log) - ./build.sh convert first')
     if os.environ.get('F22_TEST'):
         stop('F22_TEST is set - a release is built without test variants')
+    # personal test liveries (third-party skins tried at home, 2026-11-25) must never ship: folders zz_test_*
+    tests = sorted(d for root_ in (BUILD, os.path.join(A, 'converted', 'aircraft', 'f22')) if os.path.isdir(root_)
+                   for d in os.listdir(root_) if d.startswith('zz_test'))
+    if tests:
+        stop('test livery folders %s in build/f22 or converted - delete them, then ./build.sh convert' % ', '.join(sorted(set(tests))))
+    # every texture a repaint folder brings must be converted, and not older than its PNG: the converter once logged a
+    # new livery's colour map "is current" and skipped it (2026-11-26, FF 191 - touch the PNG and convert again)
+    ttx = lambda d, f: os.path.join(CONVERTED, d, f[:-4].replace('_specular_alpha', '_specular') + '.ttx')   # (alpha: in it)
+    stale = [os.path.join(d, f) for d in sorted(os.listdir(BUILD)) if os.path.isdir(os.path.join(BUILD, d))
+             for f in os.listdir(os.path.join(BUILD, d)) if f.endswith('.png') and
+             (not os.path.exists(ttx(d, f)) or os.path.getmtime(ttx(d, f)) < os.path.getmtime(os.path.join(BUILD, d, f)))]
+    if stale:
+        stop('repaint textures not converted: %s - touch them, then ./build.sh convert' % ', '.join(stale))
     diag = [f for f in GENERATOR if re.search(r'\bDIAGNOSTIC\b', open(os.path.join(A, f), encoding='utf-8').read())]
     if diag and not a.allow_diagnostic:
         stop('diagnostic state in %s (a line says DIAGNOSTIC) - finish or revert it, or --allow-diagnostic' % ', '.join(diag))
@@ -162,6 +178,18 @@ def main():
                 continue
             os.makedirs(os.path.dirname(os.path.join(pkg_ac, rel)), exist_ok=True)
             shutil.copy2(src, os.path.join(pkg_ac, rel))
+    # textures of earlier builds (2026-11-22, 0.9.1 audit: 33 files, ~0.5 MB - materials since removed, illumination
+    # maps no longer exported): the converter never empties its output folder. A texture is current when the build
+    # folder still has its source picture (X.png; a _normal map comes from X_bump.png); the menu previews are kept
+    if not glob.glob(os.path.join(BUILD, '*.png')):
+        stop('build/f22 holds no textures - run ./build.sh export first (the stale-texture check reads it)')
+    for f in sorted(os.listdir(pkg_ac)):
+        stem = f[:-4]
+        if not f.endswith('.ttx') or stem.startswith('preview'):
+            continue
+        if not any(os.path.exists(os.path.join(BUILD, c)) for c in (stem + '.png', re.sub(r'_normal$', '_bump', stem) + '.png')):
+            os.remove(os.path.join(pkg_ac, f))
+            left_out.append(f + ' (stale texture)')
     gen = os.path.join(root, 'generator')
     os.makedirs(os.path.join(gen, 'data'))
     for f in GENERATOR:
@@ -244,7 +272,7 @@ def main():
         if left:
             stop('release/%s: unknown placeholder %s' % (doc, left[0]))
         open(os.path.join(root, doc), 'w', encoding='utf-8', newline='\n').write(t)
-    # the README's pictures (2026-11-19: the user's in-game screenshots, cropped)
+    # the README's pictures (2026-11-19: in-game screenshots, cropped)
     shutil.copytree(os.path.join(REL, 'media'), os.path.join(root, 'media'))
     shutil.rmtree(tmp)
     print('package tree: %d files, %.0f MB; built on install: %d files; left out: %s'

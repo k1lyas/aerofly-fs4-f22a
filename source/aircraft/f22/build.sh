@@ -2,7 +2,7 @@
 # F-22A (DCS mod by Grinnelli Designs, GPL-3 -> Aerofly FS 4, physics/systems donor: stock F/A-18). Status: README.md.
 #
 #   ./build.sh            import -> measure -> export (parts, textures) -> animation tables -> previews -> configs ->
-#                         converter (one start; user presses Convert) -> install
+#                         converter (one start; Convert pressed by hand) -> install
 #   ./build.sh export     export + animation tables + configs (geometry / texture changes, then ./build.sh convert)
 #   ./build.sh bake       bake the cockpit ambient occlusion / flood light / wear maps into work/bake (Cycles, ~35 min;
 #                         after cockpit geometry or flood lamp changes, then ./build.sh export)

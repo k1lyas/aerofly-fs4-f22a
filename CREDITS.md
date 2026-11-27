@@ -13,9 +13,31 @@ repaired, the cockpit merged with the airframe; textures were converted, cockpit
 squadron decor was painted out; missiles, ferry tanks, pylons, engine interior, afterburner, lamps and display caps
 were added. The DCS flight model, avionics code and sounds of the mod are **not** used.
 
+## Community liveries
+
+Liveries painted by DCS World players for the Grinnelli Designs F-22A on its paint kit (the model's own texture
+layout), carried over with thanks to their authors. Only their colour maps are used (the mirror coating also its
+gloss); relief and the formation light panels are this add-on's. Their pages on DCS User Files
+(https://www.digitalcombatsimulator.com/en/files/):
+
+- **USAF 31st TES ED 005** - "31st TES (ED 005) Clean" by **Texac**
+- **USAF 422nd TES OT 04-4065 (mirror coating test)** - "F-22A Raptor 422nd TES (OT 04-4065) Mirror" by **Texac**
+  (Texac's files: https://www.digitalcombatsimulator.com/en/files/filter/user-is-Texac/apply/)
+- **USAF 3rd Wing AK 193** - from "F-22A 193 and 195 - 3rd Wing and 525 FS", commissioned by **Texac**,
+  uploaded by **Aggressor11** (https://www.digitalcombatsimulator.com/en/files/3340372/)
+- **Turkish Air Force KAAN (fictional)** - "TuAF F22 Raptor | MMU KAAN" by **AsilTurq**
+  (https://www.digitalcombatsimulator.com/en/files/3348437/)
+- **Crimson Squadron (fictional)** - "Federation Peacekeeper Squadron Crimson (2nd)" by **Danksley**
+  (https://www.digitalcombatsimulator.com/en/files/filter/user-is-Danksley/apply/)
+- **ISAF Mobius One (fictional)** - "Ace Combat - ISAF Air Force - 118th Tactical Fighter Wing "Mobius 1" F-22A Raptor"
+  by **_BillyTheKid_** (https://www.digitalcombatsimulator.com/en/files/filter/user-is-_BillyTheKid_/apply/)
+
+The fictional schemes recall game series - Ace Combat (Bandai Namco) and Project Wingman (Sector D2 / Humble Games);
+their names and emblems belong to their owners, who are not connected with this add-on.
+
 ## Aerofly FS 4 conversion, systems, displays, failures, flight tuning
 
-**UkrAF**, developed with AI assistance (Claude). GPL version 3; sources in `source/` and `generator/`.
+**UkrAF**. GPL version 3; sources in `source/` and `generator/`.
 
 ## Built on the Aerofly FS 4 F/A-18C
 
@@ -52,6 +74,9 @@ Freesound (https://freesound.org), all released under CC0 (public domain dedicat
   scrape and drop down hit resonate.flac" by kyles (freesound.org/s/452587, freesound.org/s/450356)
 - "BOOMING PUNCHY EXPLOSION - close, big SCHOEPS MK41.wav" by misosound (freesound.org/s/251759)
 - "Mossberg 500A - 1 shot and pump" by AnthonyChan0 (freesound.org/s/159710)
+
+The missile launch (outside, and muffled in the cockpit) is cut from "Rocket Launch.flac" by qubodup
+(freesound.org/s/182794, CC0; from a US Government video, public domain) by `source/aircraft/f22/make_launch_sound.py`.
 
 ## Voice warnings
 

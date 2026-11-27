@@ -1,4 +1,4 @@
-"""The cockpit controls that have no function yet, prepared for later logic (2026-11-16, user: every switch, knob,
+"""The cockpit controls that have no function yet, prepared for later logic (2026-11-16: every switch, knob,
 button and wheel of the cockpit ready before publication, so that helpers can give it a function with the scripts
 alone - no model work, no converter).
 
@@ -12,8 +12,8 @@ Each control here has four things:
 Nothing in the aircraft listens to these states yet: to give a control a function, read `F22<Name>.Output` in
 make_f22.py (or one of its system modules) - see release/COCKPIT_CONTROLS.md.
 
-Directions and end positions follow the lettering around each control (user: check on the labels which way it
-moves and where it starts and ends). Geometry numbers: cockpit_fit.py (measured, work/controls/fit.py); the look-alikes
+Directions and end positions follow the lettering around each control (check on the labels which way it
+moves and where it starts and ends). Geometry numbers: cockpit_fit.py (measured offline); the look-alikes
 of controls that already work (K_VoxVolume, K_CNI, K_FlcsBit + K_FlcsGuard) take over their accepted pivots and cuts
 by the rigid transform between the two meshes.
 
@@ -94,7 +94,7 @@ CONTROLS = [
     (43, 'Obogs', 'OXYGEN', 'OBOGS', 'toggle', 'Oxygen.F22Obogs', [(0, 'OFF'), (1, 'ON')], 1),
     (45, 'AftRightGuarded', 'right console, far aft', '(no lettering)', 'guarded', 'Controls.F22AftRightGuarded',
      [(0, 'guarded'), (1, 'actuated')], 0),
-    # the two knobs of each screen (no lettering; value rises clockwise): BRT and MODE (OFF / NIGHT / DAY, user 2026-11-18,
+    # the two knobs of each screen (no lettering; value rises clockwise): BRT and MODE (OFF / NIGHT / DAY, 2026-11-18,
     # as the F/A-18 DDI's mode knob - the F-22's own bezel lettering is not public)
     (113, 'LeftUfdKnobLeft', 'left UFD', 'BRT (left knob)', 'knob', 'UFD.F22LeftKnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
     (114, 'LeftUfdKnobRight', 'left UFD', 'MODE (lower right knob)', 'selector', 'UFD.F22LeftKnobRight', [(0, 'OFF'), (1, 'NIGHT'), (2, 'DAY')], 2),
@@ -109,19 +109,19 @@ CONTROLS = [
     (140, 'LowerMfdKnobLeft', 'lower MFD', 'BRT (left knob)', 'knob', 'LowerMFD.F22KnobLeft', [(0, 'dark'), (1, 'bright')], 1.0),
     (141, 'LowerMfdKnobRight', 'lower MFD', 'MODE (upper right knob)', 'selector', 'LowerMFD.F22KnobRight', [(0, 'OFF'), (1, 'NIGHT'), (2, 'DAY')], 2),
     # ICP
-    # ICP after the F-16's (user 2026-11-18: the same thumbwheels and rockers; the F-22's ICP is not public): the upper
+    # ICP after the F-16's (2026-11-18: the same thumbwheels and rockers; the F-22's ICP is not public): the upper
     # wheels BRT (UFD / ICP, ac_f22 K_WheelUFD) and SYM (HUD, K_WheelHUD, off at the bottom), the upper left rocker
     # INC / DEC of the autothrottle target, the lower right one map range (make_f22.py). The F-16's CONT and RET DEPR on
-    # the lower wheels were tried and taken out the same day (user: contrast not wanted - the MFDs have none - and a
+    # the lower wheels were tried and taken out the same day (contrast not wanted - the MFDs have none - and a
     # fixed reticle of no use). Since 2026-11-22 the lower wheels set HSEL and CRS, as the F-16's HDG and CRS knobs on
-    # the HSI (user: the selected heading was set by the keypad only): a click is the Hornet's own heading / course
+    # the HSI (the selected heading was set by the keypad only): a click is the Hornet's own heading / course
     # step message (1 deg), the wheel turns with the value it set (dynamics() below)
     (301, 'IcpWheelLowerLeft', 'ICP', 'HDG (lower left thumbwheel)', 'wheel', 'Autopilot.SelectedHeading', [(0, ''), (1, '')], 0.5),
     (302, 'IcpWheelLowerRight', 'ICP', 'CRS (lower right thumbwheel)', 'wheel', 'Navigation.SelectedCourse1', [(0, ''), (1, '')], 0.5),
     (303, 'IcpRockerLeft', 'ICP', 'INC / DEC (upper left rocker)', 'rocker', 'ICP.F22RockerLeft', [(-1, 'DEC held'), (1, 'INC held')], 0),
     (304, 'IcpDvr', 'ICP', 'DVR key', 'button', 'ICP.F22Dvr', [(1, 'pressed')], 0),
 ]
-# the left knob of each screen is its brightness (user 2026-11-17), times the master: the INTERIOR LIGHTS panel's MFD
+# the left knob of each screen is its brightness (2026-11-17), times the master: the INTERIOR LIGHTS panel's MFD
 # knob for the MFDs, the BRT wheel by the ICP for the UFDs (make_f22.py); the right knob its mode: OFF / NIGHT (0.3) /
 # DAY (2026-11-18). ICP: the INC / DEC rocker works too (make_f22.py)
 BRIGHTNESS = {113, 115, 117, 121, 123, 140}
@@ -137,7 +137,7 @@ KNOBS, CLICKS, PRESSES, CLICK_KEYS = [], [], [], []      # ac_f22: KNOB_PARTS, C
 GUARDS = []                                              # (name, switch signal, R, t): make_f22 (servo), ac_f22 (bushing)
 
 # ---- RADIO VOL knobs and the two ECS temperature knobs: K_VoxVolume's mesh, moved (no rotation). Its pointer as
-# modelled looks 45 deg below starboard: angle = direction + 45. Volumes as the VOX knob (user 2026-11-07: OFF to the
+# modelled looks 45 deg below starboard: angle = direction + 45. Volumes as the VOX knob (2026-11-07: OFF to the
 # left, loudest to the right, clockwise over the top); TEMP / ANTIFOG from COLD at lower left clockwise over the top to
 # HOT at lower right, where the pointer stands in the model
 _VOX_BOX, _VOX_PIVOT, _VOX_BASE = ((7.45989, -0.44449, 0.63606), (7.48303, -0.42009, 0.66069)), (7.47019, -0.43153, 0.64998), -0.04987
@@ -291,7 +291,7 @@ for part, y, msg, value in (('P_ICP_IFF', -0.0089, 'UpFront.Page', 2.0), (PART[3
 CLICK_KEYS.append(([7.6277, -0.0880, 1.1657], 'MenuKeyAP', MESSAGE[304], 1.0, 'event'))
 
 
-# ---- the armrest over the right console (user 2026-11-17: good to have, but it hides the OXYGEN and CNI panels under
+# ---- the armrest over the right console (2026-11-17: good to have, but it hides the OXYGEN and CNI panels under
 # it): a pad 10 x 19 cm, 5 cm thick, standing out from the cockpit wall 6-10 cm above the console (pieces of the
 # F22_ACC2 and F22_EXTRA objects; its wall bracket, F22_TUB, stays). A click folds it up against the wall about its
 # outer upper edge - down is closed by the console under it - and a second click lowers it again. This one works: it
