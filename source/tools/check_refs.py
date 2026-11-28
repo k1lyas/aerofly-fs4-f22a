@@ -39,6 +39,23 @@ for o in lists['DynamicObjects'].children:
                     bad_out.append('%s.%s -> %s.%s' % (o.name, c.name, obj, prop))
 for b in bad_out:
     print('DYNAMICS READS OUTPUT', b)
+# a constant in an Inputs list written as 6.6e-05 is read as object '6' (property '6.6e-05' not found -> STOP sign,
+# 2026-11-27; 2.6e-07 in 2026-11-13): constants there in plain decimals
+ENOT = re.compile(r'(?<![\w.])[-+]?\d+(\.\d+)?[eE][-+]?\d+')
+for ln, lst in lists.items():
+    for o in lst.children:
+        for c in o.children:
+            if c.type == 'string8' and c.name == 'Inputs' and c.value and ENOT.search(c.value):
+                print('E-NOTATION IN INPUTS %s.%s: %s' % (o.name, c.name, c.value.strip()))
+# a RenderList names graphics objects bare (no .Output): a missing one fails the whole .tmd ("object 'X' not found",
+# tmd error hint 'RenderList X' -> STOP sign, 2026-11-28: the MSL TEST page appended to G after gfx.children was split
+# off it)
+for o in lists['GraphicObjects'].children:
+    for c in o.children:
+        if c.name == 'RenderList' and c.value:
+            for tok in c.value.split():
+                if tok not in names['GraphicObjects']:
+                    print('RENDERLIST MISSING %s.%s -> %s' % (o.name, c.name, tok))
 print('dynamics reading output objects:', len(bad_out))
 for (ln, obj), users in sorted(missing.items()):
     print('%-15s %-40s <- %s%s' % (ln[:-7], obj, ', '.join(users[:4]), ' ...+%d' % (len(users) - 4) if len(users) > 4 else ''))

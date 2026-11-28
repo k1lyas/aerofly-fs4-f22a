@@ -7,7 +7,7 @@
 
 ![F-22A releasing an AIM-120 from its main bay](media/launch.jpg)
 
-A free, open-source add-on aircraft for the desktop version of Aerofly FS 4 (Windows, macOS) - version 0.9.2.
+A free, open-source add-on aircraft for the desktop version of Aerofly FS 4 (Windows, macOS) - version 0.9.3.
 Not affiliated with or endorsed by IPACS, Lockheed Martin, Eagle Dynamics or Grinnelli Designs.
 
 **[Download the latest release](https://github.com/k1lyas/aerofly-fs4-f22a/releases/latest)** - unzip, run the installer, fly. How to fly it:
@@ -37,6 +37,9 @@ Not affiliated with or endorsed by IPACS, Lockheed Martin, Eagle Dynamics or Gri
 - **Stores**: weapon bays with AIM-120C / AIM-9X that can be released for the pictures from the SMS page (each one
   ejected or rail-launched, flying on its own glowing motor; no targets), 600 gal ferry tanks that can be jettisoned,
   also from a key; the load (clean, combat, ferry or both) picked in the cockpit, in the air too
+- **On the ramp**: after a cold start the ladder, chocks, intake and exhaust plugs, control locks, REMOVE BEFORE
+  FLIGHT streamers, a ground power cart (real ground power) and a munitions trailer - taken away as you prepare the
+  aircraft
 - **Failures and damage**: engine, electrical, hydraulic and gear failures by hand, at random or caused by how you
   fly; wings and fins that can be torn off, burst tyres, collapsing gear
 - **Voice warnings**: PULL UP, ALTITUDE, BINGO, OVER G, ENGINE / FIRE
@@ -144,7 +147,8 @@ Tested with: Aerofly FS 4 Steam build 26705403, macOS. Reports from other system
 ## Known limits of this version
 
 - Engine sound is the stock F-15E's (F100 engines, not the F-22's F119).
-- The SA page shows no other aircraft; missiles fly for the pictures only (no targets, no guidance); air refuelling
+- The SA page shows no other aircraft; missiles fly for the pictures only (no targets, no guidance) and vanish after
+  about 10 s; air refuelling
   is visual only.
 - Aerofly does not change the aircraft mass with internal fuel burn; radio and IFF settings change almost nothing in the game.
 - Items marked *(untested)* in GUIDE.md follow the F/A-18's logic and were not checked in the F-22 yet.

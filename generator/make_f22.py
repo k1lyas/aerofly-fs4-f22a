@@ -2190,7 +2190,9 @@ if H and 'HudProjection' in parts:
     # the HUD at full brightness looked about half as bright as the stock F/A-18's by day (2026-10-22; a
     # brightness above 1 is clamped): the collimated projection drawn twice - the HUD light adds up on the scene
     # (one geometry in two graphics objects stops the model from loading: each layer has its own, ac HUD_LAYERS)
-    for k in range(2, getattr(C, 'HUD_LAYERS', 1) + 1):
+    # (F22_HUD_LAYERS=1: one layer only - a configs-only test of the HUD's frame time, 2026-11-27: the frame graph
+    # stutters with the HUD in view, also on the stock F/A-18, which draws it once)
+    for k in range(2, int(os.environ.get('F22_HUD_LAYERS', getattr(C, 'HUD_LAYERS', 1))) + 1):
         hud_k = copied[H['hud']].clone()
         hud_k.name = H['hud'] + str(k)
         hud_k.set('GeometryList', ' HudProjection%d ' % k)
@@ -3204,6 +3206,13 @@ mfd_f22.pages(globals())                   # our ENG, FCS and SYS pages in place
 # a colour the compressed sprite texture keeps exactly. display2 (DisplayTexture2) is cloned from this one below
 next(o for o in G if o.name == 'GreenBackgroundColor').set('Color', ' %.6f %.6f %.6f ' % mfd_symbols.BG, 'tmvector3d')
 next(o for o in G if o.name == 'DisplayTexture').set('ClearColor', ' %.6f %.6f %.6f 1.0 ' % mfd_symbols.BG, 'tmvector4d')
+# the PMFD drawn on that colour too, as the DDIs are (their DDIClear rectangle first in the list): with only the render
+# target's clear behind it the PMFD came out a darker black than the sprites' own background - the SMS planform's
+# square showed on it, not on the side screens (2026-11-28)
+g('display_color_rectangle', 'F22PmfdClear', InputColor='GreenBackgroundColor.Output', InputAlpha='1.0',
+  Position=('tmvector2f', '   0   0 '), Size=('tmvector2d', ' 432 432 '))
+_pm = next(o for o in G if o.name == 'RenderMPCDPageWithMenu' and o.type == 'graphics_animation_render_list')
+_pm.set('RenderList', ' F22PmfdClear ' + _pm.get('RenderList').strip() + ' ')
 # the pages' picture sprites (block G): per screen, last in its list, in its atlas coordinates (mfd_f22.PAGE_SPRITES) -
 # a switch on that screen's page shows the ENG / BAY ones only while it shows that page
 for screen, render, page_var, wpos, wsize in (('L', 'RenderLeftDDIWithMenu', 'LeftMFDPage', (18, 614), 390),
@@ -3304,6 +3313,10 @@ for pname, p in sorted(parts.items()):
         g('rigidbodygraphics', pname, GeometryList=' %s ' % pname, **body('Fuselage'),
           InputLuminance=display_parts[p['cap']]['brightness'] + '.Output', ShowInside=('uint32', outside_cams))
 print('display objects copied from the F/A-18: %d' % len(copied))
+
+# ground equipment on the ramp after a cold start (ground_f22.py, 0.9.3)
+import ground_f22
+print('ground equipment: %s' % ', '.join(ground_f22.configs(obj, dyn, g, D, G)))
 
 gfx.children = G
 
@@ -3602,6 +3615,19 @@ burner_f22.apply(gfx, dyn, parts)
 # (0.9.2) the stores' light bodies always hang (loads_f22): their mass off the fuselage - the clean aircraft as before
 setv(D['Fuselage'], 'Mass', float(D['Fuselage'].get('Mass')) - loads_f22.light_total())
 print('stores: light bodies %.0f kg taken off the fuselage' % loads_f22.light_total())
+# F22_TEST=mslrec (2026-11-28): the missiles in the base aircraft instead of the stores add-on, so the MSL TEST page
+# (mfd_f22.msl_test_page, in place of APPROACH) can read them - the stock aircraft never point from the base file into
+# an add-on; the physics is the same objects
+if weapons_f22.TEST_REC:
+    rec_holder = tmd.Node('list', 'x', leaf=False)
+    g_start = len(G)          # (gfx.children is a list of its own since the duplicate pass: G grows apart from it)
+    rec_sys, rec_gfx, rec_snd = weapons_f22.addon(obj, rec_holder)
+    dyn.children += loads_f22.clock(obj, rec_holder) + rec_sys
+    G.extend(rec_gfx)
+    snd.children += rec_snd
+    mfd_f22.msl_test_page(globals())
+    gfx.children += G[g_start:]
+    print('TEST mslrec: missiles in the base aircraft, MSL TEST page on the MFD (APPROACH)')
 os.makedirs(OUT, exist_ok=True)
 tmd.save(root, os.path.join(OUT, NAME + '.tmd'))
 # flight states of the F/A-18; cold & dark as an F-22 stands on the ramp: canopy open (the lever at 0 holds it
@@ -3703,7 +3729,7 @@ farr = lambda xs: ('float64', '[ %s ]' % ' '.join('%.4f' % x for x in xs))     #
 # 0.9.2: one add-on of Type default, loaded with every livery (loads_f22): the missiles - 6 x AIM-120C (157 kg) +
 # 2 x AIM-9X (85 kg), each a light body on its launcher released from the SMS page (weapons_f22) - and the ferry
 # tanks, each a light shell; the stores' mass in station tanks; the load picked on the ground (SMS LOAD)
-combat_sys, combat_gfx, combat_snd = weapons_f22.addon(obj, holder)
+combat_sys, combat_gfx, combat_snd = weapons_f22.addon(obj, holder) if not weapons_f22.TEST_REC else ([], [], [])
 # ferry tanks: each tank with its pylon a body of its own (2050 kg: 236 kg tank and pylon, est., + 1814 kg fuel - the
 # mass stays the full one, as the internal fuel's), drag of the tank (its profile) and the pylon; on an ejector rack
 # through a breakable joint, its hull on a body of its own (breakage_f22.tank_addon: EMER JETT drops tank and pylon)
@@ -3745,8 +3771,12 @@ for side, st in (('L', 'Pylon2'), ('R', 'Pylon10')):
     ferry_gfx += t_gfx
 ad = os.path.join(OUT, 'stores')
 write_option(ad, 'Stores: missiles and ferry tanks, loaded on the ground', 'default', tags='stores')
-tmd.save(addon_file(loads_f22.clock(obj, holder) + combat_sys + ferry_sys, combat_gfx + ferry_gfx, combat_snd),
+tmd.save(addon_file((loads_f22.clock(obj, holder) if not weapons_f22.TEST_REC else []) + combat_sys + ferry_sys,
+                   combat_gfx + ferry_gfx, combat_snd),
          os.path.join(ad, 'system.tmd'))
+# the ground equipment test add-on (2026-11-27) is in the base aircraft now (ground_f22.configs)
+if os.path.isdir(os.path.join(OUT, 'ground')):
+    shutil.rmtree(os.path.join(OUT, 'ground'))
 for old in ('load_combat', 'load_ferry', 'combat', 'ferry', 'combat_ferry', 'zz_test_mass'):
     # the stage 6 add-ons and load repaints, and the mass test, gone (0.9.2)
     if os.path.isdir(os.path.join(OUT, old)):

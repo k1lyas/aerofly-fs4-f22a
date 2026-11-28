@@ -5078,6 +5078,160 @@
     -1
    ]
   },
+  "Ground_Ladder": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_CoverL": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_CoverKL": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_CoverR": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_CoverKR": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_ChockN": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_ChockL": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_ChockR": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_ExhaustL": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_ExhaustKL": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_ExhaustR": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_ExhaustKR": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_RbfStart": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_Aim9CapL": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_Aim9CapR": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_CartHose": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_Trailer": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_TrailerLoad": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_RbfGear": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_Props": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_HoseCoil": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
+  "Ground_TrailerMsl": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
+   ]
+  },
   "ColStoreTankL": {
    "nodes": "",
    "args": [],
@@ -5371,6 +5525,13 @@
    ],
    "parent_nodes": [
     16
+   ]
+  },
+  "Ground_Cart": {
+   "nodes": "",
+   "args": [],
+   "parent_nodes": [
+    -1
    ]
   },
   "D_WingLeftStub": {
@@ -5937,12 +6098,6 @@
    }
   },
   "HudCombiner": {
-   "nodes": "",
-   "args": [],
-   "parent_nodes": [],
-   "display": {}
-  },
-  "HudProjection2": {
    "nodes": "",
    "args": [],
    "parent_nodes": [],
@@ -7867,17 +8022,127 @@
    7320,
    1976
   ],
+  "Ground_Aim9CapL": [
+   3,
+   108,
+   64
+  ],
+  "Ground_Aim9CapR": [
+   3,
+   108,
+   64
+  ],
+  "Ground_Cart": [
+   5,
+   46206,
+   49461
+  ],
+  "Ground_CartHose": [
+   2,
+   1289,
+   1104
+  ],
+  "Ground_ChockL": [
+   2,
+   140,
+   80
+  ],
+  "Ground_ChockN": [
+   2,
+   126,
+   80
+  ],
+  "Ground_ChockR": [
+   2,
+   140,
+   80
+  ],
+  "Ground_CoverKL": [
+   3,
+   510,
+   246
+  ],
+  "Ground_CoverKR": [
+   3,
+   510,
+   246
+  ],
+  "Ground_CoverL": [
+   3,
+   510,
+   246
+  ],
+  "Ground_CoverR": [
+   3,
+   510,
+   246
+  ],
+  "Ground_ExhaustKL": [
+   4,
+   462,
+   270
+  ],
+  "Ground_ExhaustKR": [
+   4,
+   464,
+   270
+  ],
+  "Ground_ExhaustL": [
+   4,
+   462,
+   270
+  ],
+  "Ground_ExhaustR": [
+   4,
+   464,
+   270
+  ],
+  "Ground_HoseCoil": [
+   1,
+   624,
+   576
+  ],
+  "Ground_Ladder": [
+   5,
+   832,
+   488
+  ],
+  "Ground_Props": [
+   7,
+   1612,
+   992
+  ],
+  "Ground_RbfGear": [
+   5,
+   736,
+   588
+  ],
+  "Ground_RbfStart": [
+   6,
+   1740,
+   1028
+  ],
+  "Ground_Trailer": [
+   6,
+   4836,
+   3064
+  ],
+  "Ground_TrailerLoad": [
+   5,
+   1984,
+   1072
+  ],
+  "Ground_TrailerMsl": [
+   4,
+   9752,
+   9776
+  ],
   "HudCombiner": [
    1,
    215,
    76
   ],
   "HudProjection": [
-   1,
-   4,
-   2
-  ],
-  "HudProjection2": [
    1,
    4,
    2
@@ -8997,6 +9262,26 @@
   "store_aim9x": "standard exterior",
   "store_tank": "standard exterior",
   "store_pylon": "standard exterior",
+  "gnd_alu": "standard exterior",
+  "gnd_blue": "standard exterior",
+  "gnd_dark": "standard exterior",
+  "gnd_rubber": "standard exterior",
+  "gnd_yellow": "standard exterior",
+  "gnd_black": "standard exterior",
+  "gnd_cover": "standard exterior",
+  "gnd_red": "standard exterior",
+  "gnd_exhaust": "standard exterior",
+  "gnd_redpaint": "standard exterior",
+  "gnd_ribbon": "standard exterior",
+  "gnd_capyellow": "standard exterior",
+  "gnd_hose": "standard exterior",
+  "gnd_stencil": "standard exterior",
+  "gnd_trailer": "standard exterior",
+  "gnd_tread": "standard exterior",
+  "gnd_webbing": "standard exterior",
+  "gnd_green": "standard exterior",
+  "gnd_label": "standard exterior",
+  "gnd_tool": "standard exterior",
   "f22_fire_turbine": "standard exterior",
   "f22_fire_flap": "standard exterior",
   "f22_fire_liner": "standard exterior",
@@ -9005,6 +9290,10 @@
   "lamp_gearleftamber": "standard exterior",
   "lamp_gearnoseamber": "standard exterior",
   "lamp_gearhandle": "standard exterior",
+  "cartlight_base": "standard exterior",
+  "gpu_cart_tires": "standard exterior",
+  "gpu_cart_cart": "standard exterior",
+  "gpu_cart_accessories": "standard exterior",
   "display": "standard interior",
   "cap_eng": "standard interior",
   "cap_fuel": "standard interior",
@@ -9019,7 +9308,8 @@
   "cap_icp3": "standard interior",
   "cap_icp4": "standard interior",
   "cap_icp5": "standard interior",
-  "hud": "standard interior"
+  "hud": "standard interior",
+  "hud_combiner": "glass interior"
  },
  "full_res": [
   "f22_acc",

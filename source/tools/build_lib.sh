@@ -84,7 +84,7 @@ donor_files() {    # DONOR_FILES: further donor files the configs read (e.g. dis
 configs() {
     (cd "$A" && PYTHONPATH="$T" python3 make_$NAME.py "$DONOR" "$BD/parts.json" "$I/geometry.json" "$I/anim.json" \
         "$I/anim_pivots.json" "$BD" && PYTHONPATH="$T" python3 make_${NAME}_meta.py "$DONOR" "$I/geometry.json" \
-        "$BD/parts.json" "$BD" && python3 "$T/check_refs.py" "$BD/$NAME.tmd" | grep -E '^(Graphic|Sound|UNKNOWN|DYNAMICS READS)' || true)
+        "$BD/parts.json" "$BD" && python3 "$T/check_refs.py" "$BD/$NAME.tmd" | grep -E '^(Graphic|Sound|UNKNOWN|DYNAMICS READS|E-NOTATION|RENDERLIST)' || true)
 }
 
 # texture lookup folder: livery first, then the mod's base textures and cockpit textures (first name wins)

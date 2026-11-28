@@ -154,8 +154,8 @@ def apply(ns):
     gear_shear(ns, joint)
     tank_release(ns, joint)
     fuel_wing_loss(ns, joint)
-    if TEST not in ('', 'wingbreak', 'consolebreak', 'nosplit', 'finbreak', 'fins', 'flutter', 'stores', 'glow'):
-        raise SystemExit('F22_TEST=%s: no such test (wingbreak, consolebreak, nosplit, finbreak, fins, flutter, stores, glow)' % TEST)
+    if TEST not in ('', 'wingbreak', 'consolebreak', 'nosplit', 'finbreak', 'fins', 'flutter', 'stores', 'glow', 'mslstop', 'mslrec'):
+        raise SystemExit('F22_TEST=%s: no such test (wingbreak, consolebreak, nosplit, finbreak, fins, flutter, stores, glow, mslstop, mslrec)' % TEST)
 
 
 # burst tyres sit down on their rims (block 3, 2026-11-11). The game's wheel has no input for its pressure or radius,

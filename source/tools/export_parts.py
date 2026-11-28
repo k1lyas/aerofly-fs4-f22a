@@ -25,6 +25,7 @@ GEOM = json.load(open(args[1])) if len(args) > 1 and os.path.exists(args[1]) els
 TEX = os.path.abspath(C.TEXTURES)
 os.makedirs(OUT, exist_ok=True)
 GLASS_OUT, GLASS_IN, GLASS_PLAIN = 'glass_outside', 'glass_inside', 'glass_plain'
+HUD_GLASS_MAT = 'hud_combiner'     # the HUD combiner's own tinted glass (ac HUD_COMBINER_GLASS), else GLASS_IN
 DISPLAY_MATERIAL = getattr(C, 'DISPLAY_TEXTURE', 'displays')     # render target <name>_light of the donor's displays
 # Aerofly CULLS back faces (see-through shards in the F-22 game screenshots, reproduced offline with culling on),
 # and so does DCS: the EDM winding is what the game shows. SINGLE_SIDED keeps every triangle as authored (oriented
@@ -134,8 +135,8 @@ def material_of(o):
             return GLASS_PLAIN, 'glass exterior', tex, kind
         return GLASS_OUT, 'glass exterior', tex, kind
     if 'aerofly_material' in o:
-        if o['aerofly_material'] == GLASS_IN:
-            return GLASS_IN, 'glass interior', {}, 'glass'
+        if o['aerofly_material'] in (GLASS_IN, HUD_GLASS_MAT):
+            return o['aerofly_material'], 'glass interior', {}, 'glass'
         if o['aerofly_material'] == 'gapfill':
             return 'gapfill', 'standard exterior', {}, 'gap'
         if o['aerofly_material'].startswith('burner:'):
@@ -352,7 +353,8 @@ def hud_projection(eye):
     print('hud projection: 1 of %d plates, %d triangles, %.4f m2; projection %.3f x %.3f m, centre %s'
           % (len(plates), len(best), area[best].sum(), r1 - r0, u1 - u0, HUD_GEOM['centre']))
     out = {'HudProjection': [_mesh_object('HudProjection', proj, [(0, 1, 2, 3)], [[(0.0, 0.0)] * 4], 'hud')],
-           'HudCombiner': [_mesh_object('HudCombiner', glass, faces, uvs, GLASS_IN)]}
+           'HudCombiner': [_mesh_object('HudCombiner', glass, faces, uvs,
+                                        HUD_GLASS_MAT if getattr(C, 'HUD_COMBINER_GLASS', None) else GLASS_IN)]}
     # ac HUD_LAYERS > 1: further projection surfaces 1 mm apart towards the eye, each drawn by its own graphics_hud
     # (the game refuses one geometry in two graphics objects) - the HUD light adds up, for a brighter HUD
     for k in range(2, getattr(C, 'HUD_LAYERS', 1) + 1):
@@ -1175,6 +1177,9 @@ def main():
     for n, _ in ([] if os.environ.get('SKIP_TEX') else materials):
         if n in (GLASS_OUT, GLASS_IN, GLASS_PLAIN):
             X.write_glass_textures(OUT, n, n == GLASS_IN, **(getattr(C, 'GLASS_OUTSIDE', {}) if n == GLASS_OUT else {}))
+            continue
+        if n == HUD_GLASS_MAT:
+            X.write_glass_textures(OUT, n, True, **C.HUD_COMBINER_GLASS)
             continue
         tex, kind, nstrength = mat_src[n]
         if kind == 'display':

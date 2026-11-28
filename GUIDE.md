@@ -66,6 +66,19 @@ The aircraft stands as on the ramp: canopy open, every weapon bay open, the nozz
 open on the ground until the engine reaches idle, and close as it does; in the air they never park). Close the bays
 on the SMS page once the engines run (the doors need hydraulic pressure).
 
+**Ground equipment** (on a ground start with both engines off): the boarding ladder at the left sill, chocks at every
+wheel, red plugs in the intakes and black ones in the nozzles, covers on the nose probes, locks across the flaperons',
+ailerons' and stabilators' gaps, the hook's safety pin, gear pins and the AIM-9X seeker caps (when loaded) with REMOVE
+BEFORE FLIGHT streamers, a ground power cart with its cable, a fire extinguisher, a tool cart and a munitions trailer
+(two AIM-120C and two AIM-9X on it with the CLEAN load, empty with COMBAT or FULL). The crew takes it away as you go:
+- canopy closing: 1.5 s later the ladder is laid down and dragged to the power cart;
+- APU starting: plugs, probe covers, locks and the hook pin come off and are laid on the ramp;
+- APU running 3 s: the power cable is unplugged and coiled on the cart. Until then the cart is real ground power -
+  with BATT on it feeds the aircraft without the APU;
+- parking brake released: chocks and gear pins go, and so does anything still on the aircraft.
+Everything stays on the ramp when you taxi away. With the engines running at the start there is none; with the APU
+already running, the plugs, covers and cable are already off.
+
 1. BATT on (two positions, ON / OFF; with engines and APU off, OFF takes all power from the aircraft).
 2. APU on, about 4 s to come up: the displays get power, ICAWS shows L GEN / R GEN.
 3. Displays on: on a cold start every display is off - the right knob at each MFD and UFD (its mode) stands at OFF.
@@ -273,9 +286,9 @@ FULL) keep what is in them.
 **ARM** (the left MFD turns to SMS; SAFE puts ENG back), in the air, select **120** or **9X**, then **REL** or the key assigned to **Strobe** in the game's control
 settings (the F-22 has no strobe lights). The bay opens by itself; an AIM-120C is thrown down by its ejector and lights
 its motor a moment later, an AIM-9X leaves its rail forward with the motor lit. The missile flies on along its axis on
-its own thrust (about 6 s for the AIM-120C, 5 s for the AIM-9X, estimates) and coasts on level out of sight (it holds
-its line as if guided; launched in a dive onto water it would end the flight - the game counts any part of the
-aircraft touching water as a crash); the bay closes
+its own thrust (about 6 s for the AIM-120C, 5 s for the AIM-9X, estimates), holding its line as if guided; about 10 s
+after the launch, or when it comes near the ground or water, it vanishes (launched in a manoeuvre it steadies at
+once instead of tumbling); the bay closes
 again 1.5 s after the launch. You hear the motor light and roar away (muffled in the cockpit). One launch at a time. **STATUS:** SAFE (MASTER ARM off), GND (on the ground), LAUNCH,
 EMPTY (none of the selected kind left), READY. The motor glows; there is no smoke trail - the game has nothing to draw
 one with.

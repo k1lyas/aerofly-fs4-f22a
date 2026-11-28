@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.9.3
+
+On the ramp
+- After a cold start on the ground (both engines off) the aircraft stands as it would on the ramp: a boarding ladder,
+  wheel chocks, red intake plugs, black exhaust plugs deep in the nozzles, covers on the nose probes, locks on the
+  flaperons, ailerons and stabilators, the hook's safety pin, gear pins and AIM-9X seeker caps with REMOVE BEFORE
+  FLIGHT streamers, a ground power cart with its cable, a fire extinguisher, a tool cart and a munitions trailer (two
+  AIM-120C and two AIM-9X on it with the CLEAN load, empty when the aircraft carries them)
+- It goes as you prepare the aircraft: the ladder is laid down 1.5 s after the canopy starts closing; plugs, covers
+  and locks come off when the APU starts; the cable once the APU is up; chocks and pins when the parking brake is
+  released, which also clears anything still on the aircraft. Everything stays on the ramp when you taxi away
+- The power cart is real ground power: with BATT on it feeds the aircraft until the cable comes off
+
+Missiles
+- Fixed: after missile launches the game paused again and again as after a crash. A missile now flies about 10 s, or
+  until it comes near the ground or water, and then vanishes; one launched in a manoeuvre no longer tumbles
+
+Displays
+- HUD drawn once instead of twice: the frame rate no longer stutters while the HUD is in view. The combiner has a
+  tinted glass instead, so the symbols read well by day
+- The centre MFD has the same black as the side screens (the square around the SMS picture is gone)
+
 ## v0.9.2
 
 Stores

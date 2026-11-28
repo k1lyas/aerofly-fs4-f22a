@@ -384,6 +384,64 @@ def appr_page(ns):
     p.install({'ElectronicWarfarePage'})
 
 
+def msl_test_page(ns):
+    """MSL TEST (F22_TEST=mslrec only, 2026-11-28; in place of APPROACH): the latest AIM-120 and AIM-9X released - their
+    own sensors as the engine gives them (raw angles in degrees, so their range shows), the brake state and the forces
+    holding them - next to the aircraft's sensors. Filmed in the cockpit and read back by tools/msl_video.py; when the
+    game pauses the numbers stand still at that moment. Columns end at fixed x (msl_video.py reads them by order)."""
+    import weapons_f22
+    p = Page(ns, 'MslTest')
+    ms = weapons_f22.missiles()
+    m120 = [m['name'] for m in ms if m['kind'] == '120']
+    m9 = [m['name'] for m in ms if m['kind'] == '9x']
+    # the latest released of each kind: they go in their list's order, so the count gone is its number in the list
+    cnt = {}
+    for kind, names in (('120', m120), ('9x', m9)):
+        cnt[kind] = p.dyn('sum', 'F22DbgCount%s' % kind, Inputs=' %s ' % ' '.join(nm + 'Gone.Output' for nm in names))
+    clock = p.dyn('integral_clamped', 'F22DbgClock', Input='1.0', Range=' 0.0 100000.0 ', Value=0.0)
+
+    def pick(kind, names, out):
+        key = 'F22DbgPick%s%s' % (kind, out.replace('.', '').replace('Output', ''))
+        # (none gone yet: the first one, still on its launcher - its sensors against the aircraft's show their ranges)
+        return p.dyn('multiplexer', key, InputSelect=cnt[kind],
+                     Inputs=' %s ' % ' '.join(nm + out for nm in [names[0]] + names))
+
+    # (label, aircraft source or None, missile output suffix or None, scale, decimals)
+    rows = [('NUMBER', None, None, 1.0, 0),
+            ('TIME S', clock, 'Age.Output', 1.0, 1),
+            ('STATE', None, 'DbgState.Output', 1.0, 0),            # 0 flying, 1 stopped
+            ('RALT M', 'RadarAltimeter.Output', 'RadAlt.Output', 1.0, 1),
+            ('BARO M', 'Altimeter.PressureAltitude', 'BaroAlt.PressureAltitude', 1.0, 1),
+            ('CLB M/S', 'InertialReferenceSystem.OutputVerticalVelocity', 'Climb.Output', 1.0, 1),
+            ('TAS M/S', 'AirDataComputer.OutputTrueAirspeed', 'Pitot.TrueAirspeed', 1.0, 1),
+
+            ('GS M/S', 'InertialReferenceSystem.OutputGroundSpeed', 'Irs.OutputGroundSpeed', 1.0, 1),
+            ('PITCH DEG', 'PhysicalAttitudeIndicator.PitchAngle', 'Att.PitchAngle', DEG, 1),
+            ('BANK DEG', 'PhysicalAttitudeIndicator.BankAngle', 'Att.BankAngle', DEG, 1),
+            ('UP / W', None, 'DbgUpW.Output', 1.0, 3),
+            ('Q DEG/S', 'InertialReferenceSystem.OutputQRate', 'Irs.OutputQRate', DEG, 1),
+            ('R DEG/S', 'InertialReferenceSystem.OutputRRate', 'Irs.OutputRRate', DEG, 1),
+            ('IRS PITCH', 'InertialReferenceSystem.OutputPitchAngle', 'Irs.OutputPitchAngle', DEG, 1),
+            ('IRS BANK', 'InertialReferenceSystem.OutputBankAngle', 'Irs.OutputBankAngle', DEG, 1),
+            ('IRS DRIFT', 'InertialReferenceSystem.OutputDriftAngle', 'Irs.OutputDriftAngle', DEG, 1)]
+    p.title('MSL TEST')
+    size, dy, y0 = 27.0, 44, 850
+    xs = (480, 710, 940)                    # where the A/C, AIM-120 and AIM-9X columns end
+    for x, t in zip(xs, ('A/C', 'AIM120', 'AIM9X')):
+        p.label(t, x - int(len(t) * size * STRIDE), y0, WHITE, size=size)
+    for r, (text, ac, out, k_, dec) in enumerate(rows):
+        y = y0 - dy * (r + 1)
+        p.label(text, 40, y, size=size)
+        if ac:
+            p.value(ac, xs[0], y, 7, k_, 0.0, dec, size=size)
+        for x, kind, names in ((xs[1], '120', m120), (xs[2], '9x', m9)):
+            if text == 'NUMBER':
+                p.value(cnt[kind], x, y, 7, 1.0, 0.0, 0, size=size)
+            elif out:
+                p.value(pick(kind, names, out), x, y, 7, k_, 0.0, dec, size=size)
+    p.install({'F22MfdApprPage'})
+
+
 def pages(ns):
     eng_page(ns)
     fcs_page(ns)

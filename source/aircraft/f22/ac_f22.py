@@ -876,7 +876,49 @@ def EXTRA_OBJECTS(objs, mesh_object, X, tex_dir):
             o['aerofly_part'] = 'Pilot'
     return (_formation_panels(objs, mesh_object, X, tex_dir) + _store_objects(X, tex_dir) + _nozzle_fire(objs, mesh_object) +
             _icp_patch(objs, mesh_object) + _flcs_bushing(objs, mesh_object) + _gear_amber_plates(objs) + _gear_handle_light(objs) +
-            _gear_debris(objs, _burst_tyres(objs)))
+            _gear_debris(objs, _burst_tyres(objs)) + _ground_cart())
+
+
+# the DCS model's ground power cart (Grinnelli, GPL-3; hidden in DCS until ground power is asked for): drawn on the ramp
+# by ground_f22.py - parked (its export pose is half way along its drive-in), moved out past the wing tip and set on the
+# start's ground. Its hose is ours (ground_f22.power_hose: the DCS one ran into the side bay). Not animated here (its
+# DCS argument 617 drives it in).
+def _ground_cart_objects():
+    import bpy
+    import ground_f22
+    hidden = bpy.data.collections.get('hidden_by_dcs_visibility')
+    return [o for o in (hidden.all_objects if hidden else []) if o.type == 'MESH' and len(o.data.polygons) and
+            re.search(r'GPU_|CartLight', o.get('edm_material', '')) and o.name not in ground_f22.CART_SKIP]
+
+
+def _ground_cart_top():
+    import ground_f22
+    tops = [ground_f22.cart_point(tuple(o.matrix_world @ v.co))[2] for o in _ground_cart_objects() if o.name == 'CART'
+            for v in o.data.vertices]
+    return max(tops) if tops else None
+
+
+def _ground_cart():
+    from mathutils import Vector
+    import ground_f22
+    out = []
+    for o in _ground_cart_objects():
+        c = o.copy()
+        c.data = o.data.copy()
+        c.name = 'GROUND_' + o.name
+        mw, inv = o.matrix_world, o.matrix_world.inverted()
+        for v in c.data.vertices:
+            v.co = inv @ Vector(ground_f22.cart_point(tuple(mw @ v.co)))
+        c['aerofly_part'] = 'Ground_Cart'
+        c['aerofly_keep_all'] = 1
+        c['edm_anim_nodes'], c['edm_anim_args'] = '', ''
+        if 'edm_parent_node' in c:
+            del c['edm_parent_node']
+        out.append(c)
+    print('ground cart: %s' % ', '.join(sorted(o.name for o in out)))
+    assert out, 'no DCS power cart found'
+
+    return out
 
 
 # sheared struts (block 3, 2026-11-11): the lower strut and the wheel of each gear leg, copied as the debris that rolls
@@ -1330,7 +1372,7 @@ def _store_objects(X, tex_dir):
     S.set_skin(skin)
     objs = []
 
-    def make(name, verts, faces, uvs, smooth, material, part, nodes='', args=''):
+    def make(name, verts, faces, uvs, smooth, material, part, nodes='', args='', oriented=False):
         bm = bmesh.new()
         vs = [bm.verts.new(v) for v in verts]
         layer = bm.loops.layers.uv.new('UV')
@@ -1347,8 +1389,9 @@ def _store_objects(X, tex_dir):
         # the winding agree across every edge (one side of each fin and the pylon's end caps ran the other way), then
         # turn each piece outward by its signed volume about its own centre (the loop UVs go with the faces)
         bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-        _orient_outward(bm)
+        if not oriented:        # (ground_f22 turns its faces itself: split by material, a single face's outside is unknown)
+            bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+            _orient_outward(bm)
         _spread_flat_uvs(bm, layer)
         me = bpy.data.meshes.new(name)
         bm.to_mesh(me)
@@ -1380,6 +1423,13 @@ def _store_objects(X, tex_dir):
             side = d['name'][-1]
             objs.append(make(d['name'] + 'F', [weapons_f22.aim9_extended(tuple(p), side) for p in d['verts']],
                              d['faces'], d['uvs'], d['smooth'], 'store:' + d['material'], 'Stores_AIM9F_' + side))
+    # ground equipment on the ramp (ground_f22.py, 0.9.3): our models in a material of their own, the hose coil on the
+    # DCS power cart's top (_ground_cart)
+    import ground_f22
+    STORE_MAPS.update(ground_f22.textures())
+    for d in ground_f22.objects(_ground_cart_top()):
+        objs.append(make(d['name'], d['verts'], d['faces'], d['uvs'], d['smooth'], 'store:' + d['material'], d['part'],
+                         oriented=d.get('oriented', True)))
     for side, y in (('L', S.CONN['Pylon2'][1]), ('R', S.CONN['Pylon10'][1])):
         v, f = S.tank_hull(y)
         objs.append(make('ColStoreTank' + side, v, f, [tuple((0.5, 0.5) for _ in q) for q in f], [False] * len(f),
@@ -1557,8 +1607,12 @@ def CAP_TEXTURES(out_dir, name, X):
 HUD_GLASS = 'CP_HUD_GLASS'
 HUD_DONOR = dict(texture='HUDTexture', centre='HUDCenter', hud='HUDDisplay')
 HUD_SCALE = 0.70         # F/A-18 symbology at 70 % (0.55 left much empty glass, 0.75 cut the top) - not conformal
-HUD_LAYERS = 2           # the HUD drawn twice (export_parts.hud_projection): at full brightness it looked half as
-                         # bright as the F/A-18's by day, and the renderer clamps the brightness at 1
+# HUD_LAYERS (the HUD drawn more than once for brightness, export_parts.hud_projection) - 2 from 2026-10-22 (at full
+# brightness it looked half as bright as the F/A-18's by day; the renderer clamps the brightness at 1), back to 1 on
+# 2026-11-27: the frame time stuttered with the HUD in view and ran smooth at 60 fps with one layer (in-game test).
+# Readability by day from the combiner's own tinted glass instead, as the F/A-18's
+HUD_LAYERS = 1
+HUD_COMBINER_GLASS = dict(tint=(0.10, 0.30, 0.28), opacity=0.30, reflection=0.32)
 # display glass: little sky reflection (the green screens showed bright diagonal bands)
 DISPLAY_SURFACE = dict(specular=0.06, gloss=0.6, reflection=0.01)
 # cockpit model normals bent more than this (deg) off their triangle are flattened (MFD button caps: dark crosses)

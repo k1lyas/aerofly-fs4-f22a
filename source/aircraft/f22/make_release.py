@@ -29,7 +29,7 @@ GAME = os.path.join(STEAM, 'common', 'Aerofly FS 4 Flight Simulator')
 DONOR = os.path.join(GAME, 'aircraft', 'f18')
 GENERATOR = ['make_f22.py', 'make_f22_meta.py', 'ac_f22.py', 'breakage_f22.py', 'burner_f22.py', 'failures_f22.py',
              'stores_f22.py', 'tvc_f22.py', 'cockpit_controls.py', 'cockpit_fit.py', 'mfd_f22.py', 'mfd_symbols.py', 'engine_sound_f22.py',
-             'weapons_f22.py', 'liveries_f22.py', 'loads_f22.py']
+             'weapons_f22.py', 'liveries_f22.py', 'loads_f22.py', 'ground_f22.py']
 DATA = {'parts.json': os.path.join(BUILD, 'parts.json'), 'geometry.json': os.path.join(A, 'work', 'geometry.json'),
         'anim.json': os.path.join(A, 'work', 'anim.json'), 'anim_pivots.json': os.path.join(A, 'work', 'anim_pivots.json')}
 DOCS = ['README.md', 'GUIDE.md', 'CREDITS.md', 'CHANGELOG.md', 'COCKPIT_CONTROLS.md']     # (the last: written by cockpit_controls.py)
