@@ -48,7 +48,7 @@ for ln, lst in lists.items():
             if c.type == 'string8' and c.name == 'Inputs' and c.value and ENOT.search(c.value):
                 print('E-NOTATION IN INPUTS %s.%s: %s' % (o.name, c.name, c.value.strip()))
 # a RenderList names graphics objects bare (no .Output): a missing one fails the whole .tmd ("object 'X' not found",
-# tmd error hint 'RenderList X' -> STOP sign, 2026-11-28: the MSL TEST page appended to G after gfx.children was split
+# tmd error hint 'RenderList X' -> STOP sign, 2026-11-28: a page appended to G after gfx.children was split
 # off it)
 for o in lists['GraphicObjects'].children:
     for c in o.children:

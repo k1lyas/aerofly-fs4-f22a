@@ -103,6 +103,43 @@ def source_files():
     return sorted(keep)
 
 
+DEV_BEGIN, DEV_END = re.compile(r'^\s*# >>> dev-only'), re.compile(r'^\s*# <<< dev-only')
+# names that belong to the development switches only: none may be left in a shipped script once the dev-only blocks
+# are out (make_release.py itself names them for this check)
+DEV_NAMES = re.compile(r'F22_TEST|F22_HUD_LAYERS|TEST_REC|TEST_STOP|TEST_SHOW|DIAG_POWER|msl_test_page|_stores_test|'
+                       r'PULSE_TEST|dev-only|MSL TEST|msl_video|mslrec|mslstop')
+
+
+def strip_dev(path):
+    """The development switches out of a shipped script (2026-11-28): test builds (F22_TEST=...), the missile
+    recorder page, diagnostic recorders - each between '# >>> dev-only' and '# <<< dev-only' lines, both included.
+    The script must still compile, and none of DEV_NAMES may be left in it."""
+    out, skip = [], False
+    for line in open(path, encoding='utf-8').read().split('\n'):
+        if DEV_BEGIN.match(line):
+            if skip:
+                stop('%s: nested dev-only block' % path)
+            skip = True
+            continue
+        if DEV_END.match(line):
+            if not skip:
+                stop('%s: dev-only end without a begin' % path)
+            skip = False
+            continue
+        if not skip:
+            out.append(line)
+    if skip:
+        stop('%s: dev-only block not closed' % path)
+    text = '\n'.join(out)
+    if os.path.basename(path) != 'make_release.py':
+        left = sorted(set(DEV_NAMES.findall(text)))
+        if left:
+            stop('%s: development names left outside dev-only blocks: %s' % (path, ', '.join(left)))
+    if path.endswith('.py'):
+        compile(text, path, 'exec')
+    open(path, 'w', encoding='utf-8', newline='\n').write(text)
+
+
 def sha(path):
     h = hashlib.sha256()
     with open(path, 'rb') as fh:
@@ -194,6 +231,7 @@ def main():
     os.makedirs(os.path.join(gen, 'data'))
     for f in GENERATOR:
         shutil.copy2(os.path.join(A, f), gen)
+        strip_dev(os.path.join(gen, f))
     shutil.copy2(os.path.join(TOOLS, 'tmd.py'), gen)
     for f, src in DATA.items():
         shutil.copy2(src, os.path.join(gen, 'data', f))
@@ -212,6 +250,8 @@ def main():
     for rel in source_files():
         os.makedirs(os.path.dirname(os.path.join(src_root, rel)), exist_ok=True)
         shutil.copy2(os.path.join(REPO, rel), os.path.join(src_root, rel))
+        if rel.endswith(('.py', '.sh')):
+            strip_dev(os.path.join(src_root, rel))
     open(os.path.join(src_root, 'README.md'), 'w', encoding='utf-8').write(SOURCE_README % conf)
     shutil.copy2(os.path.join(A, 'source', 'LICENSE'), os.path.join(root, 'LICENSE'))
     open(os.path.join(root, 'VERSION'), 'w').write(version + '\n')
@@ -229,6 +269,17 @@ def main():
     before = {os.path.relpath(os.path.join(d, f), ref) for d, _, fs in os.walk(ref) for f in fs}
     inst.generate(DONOR, ref, version, os.path.join(tmp, 'generate.log'))
     built = sorted({os.path.relpath(os.path.join(d, f), ref) for d, _, fs in os.walk(ref) for f in fs} - before)
+    # the stripped generator builds what the development build built (./build.sh export / configs without F22_TEST):
+    # every config both have, byte for byte - a dev-only block that changed a released value would show here
+    # (the installer writes the version into the aircraft's description: ' v<version>' is the one difference allowed)
+    tag = (' v%s' % version).encode()
+    differ = [f for f in built if f.endswith(('.tmd', '.tmc')) and os.path.exists(os.path.join(BUILD, f))
+              and open(os.path.join(BUILD, f), 'rb').read() != open(os.path.join(ref, f), 'rb').read().replace(tag, b'')]
+    same = [f for f in built if f.endswith(('.tmd', '.tmc')) and os.path.exists(os.path.join(BUILD, f))]
+    if differ:
+        stop('the packaged generator builds other configs than build/f22 (a test build there, or a dev-only block '
+             'that changes a released value): %s' % ', '.join(differ))
+    print('packaged generator = development build: %d configs byte-identical' % len(same))
     text = ''.join(open(os.path.join(ref, f), encoding='utf-8', errors='replace').read() for f in built)
     donor_tsb = sorted(os.path.basename(p) for p in glob.glob(os.path.join(DONOR, '*.tsb')))
     for f in sorted(os.listdir(pkg_ac)):            # own sounds no config uses (left from earlier builds)

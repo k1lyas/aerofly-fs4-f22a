@@ -12,18 +12,11 @@ fuselage (see apply): a torn console falls through the ground, the flight goes o
 Test 1 wingbreak (in-game 2026-11-09, Kt 6e6 on all axes): TorqueMax 150 kN m on the left wing broke it at ~3 g, so our wing bends its
 joint with ~50 kN m per g (the inboard strake's lift works the other way about the joint: estimates had run 20 - 65);
 the game then paused on a crash during the tumble (PEAK G 4.2). 13.5 g -> 675 kN m.
-
-Mechanics tests, one per game launch, switched on by the environment for one build, off by the next normal build:
-
-    F22_TEST=wingbreak ./build.sh configs      # test build into the game
-    F22_TEST=stores ./build.sh configs         # jettisoned tanks pushed forward, graphics_quad (_stores_test)
-    ./build.sh configs                          # back to normal
 """
 import math
 import os
 import re
 
-TEST = os.environ.get('F22_TEST', '')
 
 TORQUE_PER_G = 56000.0              # N m per g at the joint, console only: test 2 (consolebreak, 2026-11-10) broke
                                     # 200 kN m at PEAK G 3.5-3.6 (estimate had been 65; test 1, with the strake's lift
@@ -31,14 +24,11 @@ TORQUE_PER_G = 56000.0              # N m per g at the joint, console only: test
 ULTIMATE_G = 13.5                   # 9 g x 1.5
 WING_TORQUE_MAX = TORQUE_PER_G * ULTIMATE_G
 WING_FORCE_MAX = 5.0e6              # N: out of reach (the lift of one wing at 13.5 g is well under it): the moment breaks it
-WINGBREAK_TORQUE_MAX = 150000.0     # test 1: broke at ~3 g
-CONSOLEBREAK_TORQUE_MAX = 200000.0  # test 2: broke at 3.5-3.6 g
 # Fins. Test 3 finbreak (in-game 2026-11-10): the left fin at 25 kN m did not break with full pedal (keyboard, held)
 # up to 600+ kt - the F/A-18 laws wash the rudder out with speed, so the laws keep the fins far from their strength,
 # as on real fighters. What breaks fins is flutter: over the speed limit the rudder buzzes beyond what its actuator
 # holds (below). Threshold 100 kN m: four times the shown-safe 25; full rudder at 750 kt would load ~200 (estimate:
 # ~5 m2, lift coefficient ~0.5, 1.2 m arm)
-FINBREAK_TORQUE_MAX = 25000.0
 FIN_TORQUE_MAX = 250000.0           # was 100 kN m: in-game 2026-11-10 a right fin went at 551 KCAS, 2.3 g, sideslip -8 deg
                                     # (first-loss snapshot) in a fast rolling pull with the laws on - sideslip loads a fin far
                                     # more than the pedal did (test 3: under 25 kN m at 600 kt); the forced rudder buzz past
@@ -121,13 +111,12 @@ def split_wings(dyn):
 def apply(ns):
     tmd, dyn = ns['tmd'], ns['dyn']
     joint = lambda name: next(o for o in dyn.children if o.name == name)
-    if TEST != 'nosplit':                   # nosplit: the donor's whole-wing aerodynamics, for the A/B handling check
-        split_wings(dyn)
+    split_wings(dyn)
     for side in ('Left', 'Right'):            # the side views ride on the wing bodies (donor): they fell with a torn wing
         cam = joint('Camera%sFuselageView' % side)
         assert cam.get('Body') == side + 'Wing', cam.name
         cam.set('Body', 'Fuselage', 'string8')
-    left = {'wingbreak': WINGBREAK_TORQUE_MAX, 'consolebreak': CONSOLEBREAK_TORQUE_MAX}.get(TEST, WING_TORQUE_MAX)
+    left = WING_TORQUE_MAX
     breakable(tmd, joint('JointFuselageLeftWing'), left, WING_FORCE_MAX)
     breakable(tmd, joint('JointFuselageRightWing'), WING_TORQUE_MAX, WING_FORCE_MAX)
     # the wings' collision hulls. A torn-off wing glides down by itself and ended the flight when IT touched the ground,
@@ -144,8 +133,8 @@ def apply(ns):
         flag = hull.find('InstantCrash')
         assert flag is not None and flag.value.strip() == 'true', hull.name
         flag.value = 'false'
-    print('wings break at %.0f / %.0f kN m (%.1f g at %.0f kN m per g)%s' % (
-        left / 1e3, WING_TORQUE_MAX / 1e3, ULTIMATE_G, TORQUE_PER_G / 1e3, ' - TEST ' + TEST if TEST else ''))
+    print('wings break at %.0f / %.0f kN m (%.1f g at %.0f kN m per g)' % (
+        left / 1e3, WING_TORQUE_MAX / 1e3, ULTIMATE_G, TORQUE_PER_G / 1e3))
     # fins: breakable, soft, flutter under COND. A yaw-away seen on 2026-11-10 stayed with the donor's fins too and went
     # with a game restart (configs had been copied with the game running); the soft fins with flutter then flew as
     # before at low speed, shook from ~760 kt and lost a fin past ~820 kt (in-game 2026-11-10)
@@ -154,8 +143,6 @@ def apply(ns):
     gear_shear(ns, joint)
     tank_release(ns, joint)
     fuel_wing_loss(ns, joint)
-    if TEST not in ('', 'wingbreak', 'consolebreak', 'nosplit', 'finbreak', 'fins', 'flutter', 'stores', 'glow', 'mslstop', 'mslrec'):
-        raise SystemExit('F22_TEST=%s: no such test (wingbreak, consolebreak, nosplit, finbreak, fins, flutter, stores, glow, mslstop, mslrec)' % TEST)
 
 
 # burst tyres sit down on their rims (block 3, 2026-11-11). The game's wheel has no input for its pressure or radius,
@@ -535,60 +522,9 @@ def tank_addon(obj, holder, side, body, cg, fuel, x_span, zc, hull_geometry):
              InputHide='GfxF22TankHolds%s.Output' % side),
            o('rigidbodygraphics', 'HullF22Tank' + side, PositionID=('uint32', hull + '.R'),
              OrientationID=('uint32', hull + '.Q'), GeometryList=' %s ' % hull_geometry, InputHide='1.0')]
-    if TEST == 'stores':
-        t_dyn, t_gfx = _stores_test(o, side, body, cg)
-        dyn += t_dyn
-        gfx += t_gfx
     return dyn, gfx
 
 
-# F22_TEST=stores (2026-11-25, before the missile launch of 0.9.2): can a free body be pushed along? A jettisoned tank
-# shell is the test body. Half a second after it is off, STORES_TEST_FORCE for STORES_TEST_S along the shell's nose:
-# left by `force` (MaxForce, Control), right by `spaceship` (its child: + InputThrottle) - both from the engine's class
-# registry, no stock config uses them, so the names of their position / direction fields are guesses (R0 and X0, as
-# the stock `hook` and `joint_force`). Expected if it works: the shell leaves forward and overtakes the aircraft
-# (~4 g on its 226 kg; the spaceship's own strength is unknown). And a `graphics_quad` (the carrier's wake foam) on the left
-# shell: is it drawn, where, how large, and does the canopy glass texture (it has a colour alpha) show through.
-STORES_TEST_FORCE = 10000.0         # N
-STORES_TEST_S = 5.0
-STORES_TEST_KICK = 60000.0         # N, third try
-STORES_TEST_KICK_S = 1.0
-
-
-def _stores_test(o, side, body, cg):
-    full = {'L': 'Left', 'R': 'Right'}[side]
-    vec = lambda v: ('tmvector3d', ' %.4f %.4f %.4f ' % tuple(v))
-    n = 'F22TestThrust' + side
-    dyn = [o('integral_clamped', n + 'Age', Input='F22TankOff%s.Output' % side, Range=' 0.0 %.1f ' % (STORES_TEST_S + 2.0),
-             Value=0.0),
-           o('logic_greater', n + 'Started', Input0=n + 'Age.Output', Input1='0.5'),
-           o('logic_greater', n + 'Running', Input0='%.1f' % (STORES_TEST_S + 0.5), Input1=n + 'Age.Output'),
-           o('logic_and', n, Inputs=' %s.Output %s.Output ' % (n + 'Started', n + 'Running'))]
-    # (first try 2026-11-25: the game takes Body, R0, X0, MaxForce, Control on `force`; `spaceship` has none of the four
-    # - only Body and InputThrottle were accepted - and graphics_quad has no R0 / Size. An unknown field stops the
-    # whole aircraft (STOP sign, tm.log 'property not found'), add-on or not)
-    # (second try, same day, video: with Control 0..1 both shells fell as before, the left perhaps a little ahead -
-    # Control is taken as the force itself, in N, MaxForce only its limit; the spaceship did nothing to be seen. Now
-    # `force` on both, Control in newtons: left the full STORES_TEST_FORCE, right a fifth of it - if the left leaves
-    # five times as hard, Control is newtons. The graphics_quad showed: a huge dark disc fading out at its edges,
-    # flat in the shell's plane (transparent, but no size or offset to set) - left out)
-    # (third try: the second video was not clear either - the shells tip nose down at once and fall, a push of
-    # ~4 g hid in that. Now one unmistakable kick on the left only: STORES_TEST_KICK (~27 g on 226 kg) for
-    # STORES_TEST_KICK_S from 1 s after separation, Control both as newtons and as a share would give the full kick
-    # (MaxForce = the kick). The right shell has no force: it falls as the reference. Expected if `force` works: the
-    # left shell leaves along its nose at ~260 m/s more than the right)
-    gfx = []
-    if side != 'L':
-        print('TEST stores: Right tank without force (reference)')
-        return dyn, gfx
-    dyn[1].set('Input1', '1.0')
-    dyn[2].set('Input0', '%.1f' % (1.0 + STORES_TEST_KICK_S))
-    dyn += [o('product', n + 'Newtons', Inputs=' %s.Output %.1f ' % (n, STORES_TEST_KICK)),
-            o('force', 'F22TestForce' + side, Body=body, R0=vec(cg), X0=vec([1.0, 0.0, 0.0]),
-              MaxForce=STORES_TEST_KICK, Control=n + 'Newtons.Output')]
-    print('TEST stores: %s tank kicked by force, %.0f N for %.1f s from 1 s after separation' % (
-        full, STORES_TEST_KICK, STORES_TEST_KICK_S))
-    return dyn, gfx
 
 
 # fuel with a lost wing (2026-11-11: "less fuel - is there a system that shuts the tanks, or should it leak beyond
@@ -693,7 +629,7 @@ def fins(ns, joint):
     assert aero.get('Body') == 'Fuselage', aero.get('Body')
     aero.set('Body', 'RightVerticalStabilizer', 'string8')
     o = lambda type_, name, **f: obj(dyn, type_, name, **f) and name + '.Output'
-    flutter = TEST not in ('fins', 'finbreak')     # the joints alone: F22_TEST=fins
+    flutter = True
     if flutter:
         over = o('linear_interpolation', 'F22FlutterOver', Input='AirspeedIndicator.IndicatedAirspeed',
                  Map=' (%.1f 0.0) (%.1f 1.0) ' % tuple(v * 0.514444 for v in FLUTTER_KCAS))
@@ -709,7 +645,7 @@ def fins(ns, joint):
           Events=' F22FailSetStab1.Trigger F22FailSetStab2.Trigger ')
         o('event_edge_rising', 'F22FlutterStabJam', Input=hard, Events=' F22FlutterStabPick.Trigger ', Value=1.0,
           Threshold=0.5)
-    torque = FINBREAK_TORQUE_MAX if TEST == 'finbreak' else FIN_TORQUE_MAX
+    torque = FIN_TORQUE_MAX
     for side, hz in (('Left', 6.0), ('Right', 6.4)):
         breakable(tmd, joint('Joint%sVerticalStabilizer' % side), torque, 5.0e6, FIN_KF, FIN_DF, FIN_KT, FIN_DT)
         hull = joint('Collision%sVerticalStabilizer' % side)      # as the wings': a torn fin must not end the flight
@@ -727,8 +663,7 @@ def fins(ns, joint):
         assert servo == 'Servo%sRudder.Output' % side, servo
         o('mixlinear', 'F22RudderAero' + side, Input0=servo, Input1=swing, Weight0=1.0, Weight1=1.0)
         st0.set('InputFlapAngle', 'F22RudderAero%s.Output' % side, 'string8')
-    print('fins break at %.0f kN m%s%s' % (torque / 1e3, ' - TEST ' + TEST if TEST else '',
-                                                  '; flutter over %.0f KCAS (COND)' % FLUTTER_KCAS[0] if flutter else ''))
+    print('fins break at %.0f kN m%s' % (torque / 1e3, '; flutter over %.0f KCAS (COND)' % FLUTTER_KCAS[0] if flutter else ''))
 
 
 # FCS page status (2026-11-10: our own layout, easy to read): the donor's FCS page (display_f18_flight_controls)

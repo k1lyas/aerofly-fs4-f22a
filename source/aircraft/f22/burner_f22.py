@@ -34,8 +34,6 @@ ROOT_BRIGHT = 0.22       # the column's brightness at its root (0.30 until 2026-
 # the inside's light x FIRE_GAIN (2026-11-27 test, x1 / x1.6 / x2.5 with the new high-contrast maps: between
 # the last two, nearer x2.5): 2.2
 FIRE_GAIN = 2.2
-# F22_TEST=glow: the pulse's depth x PULSE_TEST[k], k by SMS key 1 (make_f22.py): P0 off, P1, P2
-PULSE_TEST = (0.0, 1.0, 1.6)
 # the pulse (depth, period s, phase as part of the period): the wave, the same period in every zone, its phase later aft
 # (zone 0 aft: last), and a quick jitter of each zone's own, out of step between zones and engines. The wave's period is
 # 1 s: the stock files do not show whether Phase is in seconds or in periods (all theirs with a phase run at 1 s) - at 1 s
@@ -151,10 +149,7 @@ def apply(gfx, dyn, parts=()):
             # the liner's zones (nozzle_fire_f22.ZONES: Burner_<side>_C aft, _C1 .. forward), each its light times a pulse:
             # a slow wave running aft (PULSE_WAVE, the phase later for each zone further aft) times a quick jitter of its own
             # (PULSE_JITTER) - 2026-11-27: the fire to look alive. Each factor 1 - depth x triangle (0 .. 1), so the
-            # light only dips below what it was; the flaps go with the aft zone. F22_TEST=glow: the depth on an SMS key
-            test = os.environ.get('F22_TEST') == 'glow'
-            if test and not gfx.find('GfxF22GlowPulse'):
-                gfx.children.append(_node('graphics_input', 'GfxF22GlowPulse', InputID=('uint32', 'GfxOutF22GlowPulse.Output')))
+            # light only dips below what it was; the flaps go with the aft zone
             zones = [z for z in [fire] + ['%s%d' % (fire, k) for k in range(1, 10)] if z in parts]
             for k, zone in enumerate(zones):
                 col = eng + 'FireColor' + ('' if k == 0 else str(k))
@@ -164,10 +159,7 @@ def apply(gfx, dyn, parts=()):
                     gfx.children.append(_node('graphics_flasher', t + 'Tri', InputTime='GfxLightTime.Output', Function='Triangle',
                                               Period=period, Phase=phase, Minimum=0.0, Maximum=1.0))
                     src = t + 'Tri.Output'
-                    if test:
-                        gfx.children.append(_node('graphics_product', t + 'On', Input0=src, Input1='GfxF22GlowPulse.Output'))
-                        src = t + 'On.Output'
-                    top = max(PULSE_TEST) if test else 1.0
+                    top = 1.0
                     gfx.children.append(_node('graphics_linear_interpolation', t, Input=src,
                                               Map=('tmvector2d', ' (0.0 1.0) (%.2f %.3f) ' % (top, 1.0 - top * depth))))
                     gfx.children.append(_node('graphics_product', t + 'Level', Input0=level, Input1=t + '.Output'))

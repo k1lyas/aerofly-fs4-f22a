@@ -51,18 +51,12 @@ BAY_CLOSE_S = 1.5            # the bay shuts this long after the missile has gon
 RACK_MASS = 2.0
 # a released missile stopped and hidden (2026-11-27): this long after the release, or this near the ground / water
 STOP_AFTER_S, STOP_AGL_M = 10.0, 15.0
-TEST_STOP = __import__('os').environ.get('F22_TEST') == 'mslstop'
-# F22_TEST=mslrec - the missile recorder (2026-11-28): the missiles in the base aircraft (not the stores add-on) with the
-# MSL TEST page on the MFD (mfd_f22.msl_test_page: their sensors and forces next to the aircraft's, filmed and read back
-# by tools/msl_video.py); stopped at the release time, but left in sight
-TEST_REC = __import__('os').environ.get('F22_TEST') == 'mslrec'
-TEST_SHOW = TEST_STOP or TEST_REC
 CLIMB_T_S = 0.1              # s, the climb filter's time constant
 CLIMB_HIDDEN = 2.0           # m/s the stopped missile climbs (hidden; never sinks back to the ground)
 SPIN_TAU_S = 0.4             # s, the spin damper's time constant (a finned missile settles its rates about as fast)
 SPIN_RATE_MAX = 3.0          # rad/s the damper is sized for
 # the rate gyro's sign: the IRS rates are right-handed about the body axes (x forward, y left, z up) - a nose-down pitch
-# rate and a nose-left yaw rate are positive (MSL TEST recording 4, 2026-11-28: the aircraft's pitch rose 7 -> 21 deg
+# rate and a nose-left yaw rate are positive (in-game recording 4, 2026-11-28: the aircraft's pitch rose 7 -> 21 deg
 # with Q -6..-9 deg/s). With +1 (aviation signs, the first guess) the damper drove every missile's spin up, doubling
 # every quarter second to 16000 deg/s, and the flight paused
 SPIN_SIGN = -1.0
@@ -162,8 +156,8 @@ def base(obj, dyn, anchor):
         o('integral_clamped', n + 'GoneHeld', Input=n + 'GoneRate.Output', Range=' 0.0 1.0 ', Value=0.0)
         o('logic_greater', n + 'Gone', Input0=n + 'GoneHeld.Output', Input1='0.5')
         o('logic_invert', n + 'NotGone', Input=n + 'Gone.Output')
-        o('integral_clamped', n + 'Age', Input=n + 'Gone.Output', Range=' 0.0 %.1f ' % (3600.0 if TEST_REC else 60.0),
-          Value=0.0)
+        age_max = 60.0
+        o('integral_clamped', n + 'Age', Input=n + 'Gone.Output', Range=' 0.0 %.1f ' % age_max, Value=0.0)
         o('logic_greater', n + 'Clear', Input0=n + 'Age.Output', Input1='%.2f' % BAY_CLOSE_S)
         o('logic_invert', n + 'NotClear', Input=n + 'Clear.Output')
         o('logic_and', n + 'Busy', Inputs=' %s.Output %s.Output ' % (n + 'Req', n + 'NotClear'))
@@ -315,8 +309,8 @@ def addon(obj, holder):
         # level launch paused the flight 8 s after the stop - it may not measure the body it is put on; out again)
         # climb rate from the radar altitude by our own first-order filter (climb = (alt - lag) / T, lag the integral
         # of the climb): its sign and lag are known. With the engine's differentiator a stopped missile ran away
-        # downwards within a second (F22_TEST=mslstop, 2026-11-27) - the brake pushed the way it sank
-        # (2026-11-28, MSL TEST recording: on the radar altitude the climb was the terrain's - over hilly ground it swung
+        # downwards within a second (in-game test, 2026-11-27) - the brake pushed the way it sank
+        # (2026-11-28, in-game recording: on the radar altitude the climb was the terrain's - over hilly ground it swung
         # +-30 m/s at 450 m/s, the brake threw the missile up and down with up to 11 x its weight. Now the pressure
         # altitude from its own pitot's static port: the missile's own height, terrain does not enter)
         dyn.append(o('altimeter', n + 'BaroAlt', StaticPressure=n + 'Pitot.StaticPressure', AltimeterSetting='101325.0'))
@@ -330,7 +324,8 @@ def addon(obj, holder):
         dyn.append(o('clamp', n + 'Sink', Input=n + 'SinkRaw.Output', Range=' 0.0 %.1f ' % STOP_V_MAX))
         dyn.append(o('mixlinear', n + 'LowAt', Input0=n + 'Sink.Output', Input1='1.0', Weight0=STOP_LEAD_S, Weight1=STOP_AGL_M))
         dyn.append(o('logic_greater', n + 'Low', Input0=n + 'LowAt.Output', Input1=n + 'RadAlt.Output'))
-        dyn.append(o('logic_greater', n + 'Old', Input0=n + 'Age.Output', Input1='%.1f' % (2.0 if TEST_STOP else STOP_AFTER_S)))
+        stop_after = STOP_AFTER_S
+        dyn.append(o('logic_greater', n + 'Old', Input0=n + 'Age.Output', Input1='%.1f' % stop_after))
         dyn.append(o('logic_or', n + 'StopNow', Inputs=' %sLow.Output %sOld.Output ' % (n, n)))
         dyn.append(o('logic_and', n + 'StopGo', Inputs=' %sStopNow.Output %sGone.Output ' % (n, n)))
         dyn.append(o('mixlinear', n + 'StopRate', Input0=n + 'StopGo.Output', Input1='0.0', Weight0=50.0, Weight1=0.0))
@@ -358,7 +353,7 @@ def addon(obj, holder):
         # paused as a crash. Before, Control and MaxForce were always equal and both readings agreed)
         brake_max = mass * STOP_V_MAX / STOP_TAU_S
         up_max = W + brake_max                  # weight + the climb brake, the most any body axis can get
-        # No horizontal brake once stopped (final design, 2026-11-28, after MSL TEST recordings 1 - 10): every horizontal
+        # No horizontal brake once stopped (final design, 2026-11-28, after in-game recordings 1 - 10): every horizontal
         # brake tried leaned on a sensor whose direction folds - the pitot's angle of attack and sideslip and the IRS's
         # drift angle all stay within +-90 deg, so a motion backwards reads as forwards and the brake, once it had
         # overshot through nought (cross wind, a near-vertical dive turned round by the climb brake, a lagging IRS
@@ -368,13 +363,13 @@ def addon(obj, holder):
         # kept off the water by the climb. The motor is cut at the stop (below)
         irs = n + 'Irs'                         # its rate gyro (the spin damper's input)
         dyn.append(o('inertial_reference_system', irs, Body=body))
-        # Spin damper (2026-11-28, MSL TEST recording 3: an AIM-9X released while the aircraft pulled out of a dive at
+        # Spin damper (2026-11-28, in-game recording 3: an AIM-9X released while the aircraft pulled out of a dive at
         # ~20 deg/s kept that rate for good and tumbled over and over - the body has no aerodynamics to damp it, a
         # real missile's fins and autopilot settle it within a fraction of a second). Its pitch and yaw rates from a
         # rate gyro on its own body (inertial_reference_system: OutputQRate / OutputRRate, rad/s), a couple against
         # each - equal and opposite forces at its nose and tail. Only in its visible flight (released, not stopped):
         # on the launcher it would fight the aircraft, hidden it does not matter
-        # (on from the release for good, also once stopped - MSL TEST recording 9: two AIM-120 kept a roll of 10 - 13
+        # (on from the release for good, also once stopped - in-game recording 9: two AIM-120 kept a roll of 10 - 13
         # deg/s after the stop, and as the bank went through 90 deg the horizontal brake's sideways part turned over)
         dyn.append(o('linear', n + 'DampOn', Input=n + 'Gone.Output', Scaling=1.0))
         lx, ly, lz = kd['inertia']
@@ -407,9 +402,8 @@ def addon(obj, holder):
                     dyn.append(o('force', n + 'Spin%s%s%s' % (tag, 'A' if k > 0 else 'B', sh), Body=body,
                                  R0=vec(at_), X0=vec(d), MaxForce=f_max, Control=n + 'Spin%s%s.Output' % (tag, sh)))
         # hidden once stopped: the missile and its plume
-        # (F22_TEST=mslstop: stopped 2 s after the release and left in sight - to watch what a stopped missile does)
-        dyn.append(o('logic_or', n + 'FreeHidden', Inputs=(' %sNotGone.Output ' % n) if TEST_SHOW else
-                     ' %sNotGone.Output %sStopped.Output ' % (n, n)))
+        hide_ins = ' %sNotGone.Output %sStopped.Output ' % (n, n)
+        dyn.append(o('logic_or', n + 'FreeHidden', Inputs=hide_ins))
         dyn.append(o('logic_and', n + 'BurnShown', Inputs=' %sBurn.Output %sFlying.Output ' % (n, n)))
         dyn.append(o('output', 'GfxOut%sFreeHidden' % n, Input=n + 'FreeHidden.Output'))
         dyn.append(o('output', 'GfxOut%sBurnShown' % n, Input=n + 'BurnShown.Output'))
@@ -431,9 +425,6 @@ def addon(obj, holder):
                 dyn.append(o('force', n + 'Lift%s%s' % (comp, tag), Body=body, R0=vec(c),
                              X0=vec([sgn * v for v in axes[comp]]), MaxForce=up_max,
                              Control=n + 'Up%s%s.Output' % (comp, tag)))
-        if TEST_REC:        # for the MSL TEST page: its state (0 flying, 1 stopped) and the force up / weight
-            dyn.append(o('mixlinear', n + 'DbgState', Input0=n + 'Stopped.Output', Input1='0.0', Weight0=1.0, Weight1=0.0))
-            dyn.append(o('mixlinear', n + 'DbgUpW', Input0=n + 'UpForce.Output', Input1='0.0', Weight0=1.0 / W, Weight1=0.0))
         # graphics: the copy on its own body once released, the plume while the motor burns
         gfx.append(o('graphics_input', 'GfxF22Msl%dNotGone' % m['k'], InputID=('uint32', 'GfxOut%sFreeHidden.Output' % n)))
         gfx.append(o('graphics_input', 'GfxF22Msl%dBurn' % m['k'], InputID=('uint32', 'GfxOut%sBurnShown.Output' % n)))

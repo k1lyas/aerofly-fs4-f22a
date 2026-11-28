@@ -53,7 +53,7 @@ LIVERIES = [
          name='Federation Peacekeeper Squadron Crimson (2nd)', author='Danksley',
          page='https://www.digitalcombatsimulator.com/en/files/filter/user-is-Danksley/apply/'),
 ]
-# The paint changed in flight was tried (F22_TEST=paint, 2026-11-26) and dropped: texture_animation on the skin colour
+# The paint changed in flight was tried (a test build, 2026-11-26) and dropped: texture_animation on the skin colour
 # draws only mip level 0 - the skin stayed the clear colour from a distance (docs/reference/ENGINE_CATALOG.md).
 
 

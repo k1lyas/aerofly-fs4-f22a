@@ -846,25 +846,6 @@ for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
             els[k] = tmd.Node('text_menu_basic_page_element', 'Blank', leaf=False)
     els[2] = stores_menu
     D[prefix + 'StoresMenuPage'].find('Elements').children = els
-# F22_TEST=glow (2026-11-27): the fire's pulse (burner_f22 PULSE_*) x burner_f22.PULSE_TEST[k], k by SMS key 0 (bottom
-# left): P0 off, P1, P2 (P1 at start). Not in a release (make_release.py refuses F22_TEST)
-if os.environ.get('F22_TEST') == 'glow':
-    import burner_f22 as _B
-    n_ = len(_B.PULSE_TEST)
-    obj(dyn, 'variable', 'F22GlowTest', D['F22BayMenuLabel'], Value='1.0')
-    obj(dyn, 'linear_interpolation', 'F22GlowTestNext', D['F22BayMenuLabel'], Input='F22GlowTest.Output',
-        Map=' %s ' % ' '.join('(%.1f %.1f)' % (k, (k + 1) % n_) for k in range(n_)))
-    obj(dyn, 'event_value', 'F22GlowTestCycle', D['F22BayMenuLabel'], Input='F22GlowTestNext.Output', Events=' F22GlowTest.Set ')
-    obj(dyn, 'linear_interpolation', 'F22GlowPulse', D['F22BayMenuLabel'], Input='F22GlowTest.Output',
-        Map=' %s ' % ' '.join('(%.1f %.3f)' % (k, g) for k, g in enumerate(_B.PULSE_TEST)))
-    obj(dyn, 'output', 'GfxOutF22GlowPulse', D['F22BayMenuLabel'], Input='F22GlowPulse.Output')
-    for k in range(n_):
-        obj(dyn, 'constant_text', 'F22GlowTestLabel%d' % k, D['F22BayMenuLabel'], Input='P%d' % k)
-    obj(dyn, 'multiplexer_text', 'F22GlowTestLabel', D['F22BayMenuLabel'], InputSelect='F22GlowTest.Output',
-        Inputs=' %s ' % ' '.join('F22GlowTestLabel%d.Output' % k for k in range(n_)))
-    for prefix in ('LeftMFD', 'RightMFD', 'MPCD', 'LowerMFD'):
-        D[prefix + 'StoresMenuPage'].find('Elements').children[0] = _menu_el('F22GlowTestButton', 'F22GlowTestLabel.Output',
-                                                                             'F22GlowTestCycle.Trigger')
 # Page buttons. The Hornet's own events on these are its dummy DEV0 (the stock aircraft does nothing with them either), so a label with no function goes
 # (2026-11-01; real meaning in brackets): ADI INS / STBY (attitude source: the game has no INS failure to switch away from), FUEL FLBIT (built in
 # test), FCS BLIN / AOA (BIT logic inspection, AOA cross check), ENG RECORD (data recorder), most of HSI and SA (sensors, ACLS, waypoint sequencing, datalink).
@@ -1241,7 +1222,7 @@ for k in (1, 2):
     # speed only at N2 0.57)
     setv(D['Engine%dGeneratorDriveRotationSpeed0' % k], 'Map', ' (0.40 0.0) (0.50 600.0) ')
 # displays blink for ~0.5 s as each engine generator comes online, accepted as is (2026-10-21). Measured with the
-# recorder below (DIAG_POWER): once a generator is a bus's only feed (the APU contactor or the bus tie opening) the bus
+# recorder below (a diagnostic page, off): once a generator is a bus's only feed (the APU contactor or the bus tie opening) the bus
 # stays below the displays' 100 V for 0.5 - 0.63 s while the generator side holds 116 V across the closed contactor -
 # Aerofly's network settling, not the wiring. Tried and reverted: the APU held on 0.5 s longer (only moved the dip),
 # a 1 s ride-through on the display power-on signals (still blinked, shorter).
@@ -1695,7 +1676,7 @@ obj(dyn, 'event_edge_rising', 'F22ApuStopped', D['APUN1'], Input='F22ApuOffPos.O
 # Fuel or DC lost for 2 s stops it (the APU controller rides through a short interruption). Without the ride-through
 # the APU died ~1 s after it came up (2026-11-06): the battery feeds DC ESS only while DC L is below 12 V
 # (DCBusEssentialFeedFromUtilityBattery, BatterySwitchOnAndDCBusLeftOff) while DCBusEssentialOn needs 20 V, so as the
-# APU generator picks up the network (the ~0.5 s settling measured with DIAG_POWER) DC ESS reads off and the latch reset.
+# APU generator picks up the network (the ~0.5 s settling measured with a power recorder) DC ESS reads off and the latch reset.
 obj(dyn, 'logic_invert', 'F22ApuCannotRunNow', D['APUN1'], Input='F22ApuCanRun.Output')
 obj(dyn, 'logic_confirm_delay', 'F22ApuCannotRun', D['APUN1'], Input='F22ApuCannotRunNow.Output', TimeUp=2.0,
     TimeDown=0.0001, Threshold=0.5)
@@ -2190,9 +2171,10 @@ if H and 'HudProjection' in parts:
     # the HUD at full brightness looked about half as bright as the stock F/A-18's by day (2026-10-22; a
     # brightness above 1 is clamped): the collimated projection drawn twice - the HUD light adds up on the scene
     # (one geometry in two graphics objects stops the model from loading: each layer has its own, ac HUD_LAYERS)
-    # (F22_HUD_LAYERS=1: one layer only - a configs-only test of the HUD's frame time, 2026-11-27: the frame graph
-    # stutters with the HUD in view, also on the stock F/A-18, which draws it once)
-    for k in range(2, int(os.environ.get('F22_HUD_LAYERS', getattr(C, 'HUD_LAYERS', 1))) + 1):
+    # (one layer since 2026-11-27, ac HUD_LAYERS: with two the frame graph stuttered while the HUD was in view - the
+    # stock F/A-18, which draws it once, stutters too, less)
+    layers = getattr(C, 'HUD_LAYERS', 1)
+    for k in range(2, layers + 1):
         hud_k = copied[H['hud']].clone()
         hud_k.name = H['hud'] + str(k)
         hud_k.set('GeometryList', ' HudProjection%d ' % k)
@@ -3238,63 +3220,7 @@ breakage_f22.damage_graphics(globals())    # torn consoles / fins fly away on th
 failures_f22.gear_graphics(globals())      # the gear legs drawn where their joints are (folds, jams), not the handle
 # No traffic on any cockpit screen: the Hornet's SA and radar pages and the C90's MFD hand their tmtraffic_display to an empty function in this build of the game (game code, arm64), and the
 # Learjet's TCAS panel draws only its rings (tried 2026-11-01: an empty scope with traffic all round). Nothing in the configs can reach the traffic.
-# TEMPORARY power recorder (the displays blink as each generator comes online), counted from 2 s after the APU is up,
-# integrals only (a peak hold reading its own output made Aerofly recurse until its stack overflowed). Lower SMFD:
-# - per bus the live voltage and the ms at zero (< 10 V), low (< 100 V, the displays' minimum), high (> 130 V);
-#   first test: AC L / R low ~0.5 s per engine start, never zero, the generators and the APU never low;
-# - AC L / R low split by whether the bus had a second feed (AC L: APU contactor closed, AC R: bus tie closed);
-# - each contactor's live state (%) and the ms it spent between open and closed.
-# Off = the FCS page back.
-DIAG_POWER = False
 lower_items = ['DDILower']
-if DIAG_POWER:
-    DIAG_FONT = dict(FontID='0', FontSize=18.0, Stride=16.2)
-    obj(dyn, 'logic_confirm_delay', 'DiagArmed', anchor, Input='APUAvailable.Output', TimeUp=2.0, TimeDown=0.0001,
-        Threshold=0.5)
-
-    def timer(key, inputs):
-        """ms during which all inputs (dynamics outputs) are > 0.5, while armed."""
-        obj(dyn, 'logic_and', key + 'Armed', anchor, Inputs=' DiagArmed.Output %s ' % ' '.join(inputs))
-        obj(dyn, 'integral', key + 'Time', anchor, Input=key + 'Armed.Output', Value=0.0)
-        return key + 'Time.Output'
-
-    def greater(key, a, b):
-        obj(dyn, 'logic_greater', key, anchor, Input0=a, Input1=b)
-        return key + '.Output'
-
-    diag = [label('MS', (30, 970), 18), label('NOW', (110, 970), 18), label('ZERO', (180, 970), 18),
-            label('LOW', (260, 970), 18), label('HIGH', (330, 970), 18)]
-    for row, (text, bus, arm) in enumerate([('AC L', 'ACBusLeft', []), ('AC R', 'ACBusRight', []),
-                                            ('GEN1', 'ACBusEngine1Generator', ['Engine1GeneratorContactor.Output']),
-                                            ('GEN2', 'ACBusEngine2Generator', ['Engine2GeneratorContactor.Output']),
-                                            ('EXT', 'ACBusExternalPower', [])]):
-        y, k = 940 - 30 * row, 'Diag' + bus
-        diag += [label(text, (30, y), 18), number_of(bus + '.Output', k + 'Now', (100, y), n=4, font=DIAG_FONT)]
-        for col, (cond, a, b) in enumerate([('Zero', '10.0', bus + '.Output'), ('Low', '100.0', bus + '.Output'),
-                                            ('High', bus + '.Output', '130.0')]):
-            t = timer(k + cond, [greater(k + cond, a, b)] + arm)
-            diag.append(number_of(t, k + cond, (180 + 75 * col, y), 1000.0, n=4, font=DIAG_FONT))
-    diag += [label('LOW MS', (30, 790), 18), label('2 FEED', (165, 790), 18), label('1 FEED', (285, 790), 18)]
-    for row, (text, bus, feed) in enumerate([('AC L', 'ACBusLeft', 'ExternalPowerContactor'),
-                                             ('AC R', 'ACBusRight', 'ACBusTie')]):
-        y, k = 762 - 28 * row, 'Diag' + bus
-        fed = greater(k + 'SecondFeed', feed + '.Output', '0.5')
-        alone = greater(k + 'OneFeed', '0.5', feed + '.Output')
-        diag += [label(text, (30, y), 18),
-                 number_of(timer(k + 'LowTwoFeeds', [k + 'Low.Output', fed]), k + 'LowTwo', (180, y), 1000.0, n=4,
-                           font=DIAG_FONT),
-                 number_of(timer(k + 'LowOneFeed', [k + 'Low.Output', alone]), k + 'LowOne', (300, y), 1000.0, n=4,
-                           font=DIAG_FONT)]
-    diag += [label('SW', (30, 706), 18), label('NOW', (75, 706), 18), label('MID', (140, 706), 18),
-             label('SW', (215, 706), 18), label('NOW', (260, 706), 18), label('MID', (325, 706), 18)]
-    for n_, (text, sw) in enumerate([('G1', 'Engine1GeneratorContactor'), ('G2', 'Engine2GeneratorContactor'),
-                                     ('EX', 'ExternalPowerContactor'), ('TI', 'ACBusTie')]):
-        x, y, k = 30 + 185 * (n_ % 2), 678 - 28 * (n_ // 2), 'Diag' + sw
-        mid = timer(k + 'Mid', [greater(k + 'Above', sw + '.Output', '0.05'), greater(k + 'Below', '0.95', sw + '.Output')])
-        diag += [label(text, (x, y), 18), number_of(sw + '.Output', k + 'Now', (x + 40, y), 100.0, n=3, font=DIAG_FONT),
-                 number_of(mid, k + 'Mid', (x + 105, y), 1000.0, n=4, font=DIAG_FONT)]
-    window('DiagPower', display_parts['DisplayLowerMFD'], diag)
-    lower_items = ['DiagPower']
 tex2 = copied['DisplayTexture'].clone()
 tex2.name = 'DisplayTexture2'
 tex2.set('TextureName', 'display2_light')
@@ -3610,24 +3536,11 @@ nz = next(o for o in dyn.children if o.name == 'NozzleAngle')      # nozzles: fu
 obj(dyn, 'product', 'F22NozzleCommandPowered', nz, Inputs=' %s F22NozzleActuation.Output ' % nz.get('Input').strip())
 nz.set('Input', 'F22NozzleCommandPowered.Output', 'string8')
 failures_f22.after_tvc(globals())          # NOZZLE failure: the command frozen
-breakage_f22.apply(globals())              # wing consoles break at 13.5 g; mechanics tests via F22_TEST=...
+breakage_f22.apply(globals())              # wing consoles break at 13.5 g
 burner_f22.apply(gfx, dyn, parts)
 # (0.9.2) the stores' light bodies always hang (loads_f22): their mass off the fuselage - the clean aircraft as before
 setv(D['Fuselage'], 'Mass', float(D['Fuselage'].get('Mass')) - loads_f22.light_total())
 print('stores: light bodies %.0f kg taken off the fuselage' % loads_f22.light_total())
-# F22_TEST=mslrec (2026-11-28): the missiles in the base aircraft instead of the stores add-on, so the MSL TEST page
-# (mfd_f22.msl_test_page, in place of APPROACH) can read them - the stock aircraft never point from the base file into
-# an add-on; the physics is the same objects
-if weapons_f22.TEST_REC:
-    rec_holder = tmd.Node('list', 'x', leaf=False)
-    g_start = len(G)          # (gfx.children is a list of its own since the duplicate pass: G grows apart from it)
-    rec_sys, rec_gfx, rec_snd = weapons_f22.addon(obj, rec_holder)
-    dyn.children += loads_f22.clock(obj, rec_holder) + rec_sys
-    G.extend(rec_gfx)
-    snd.children += rec_snd
-    mfd_f22.msl_test_page(globals())
-    gfx.children += G[g_start:]
-    print('TEST mslrec: missiles in the base aircraft, MSL TEST page on the MFD (APPROACH)')
 os.makedirs(OUT, exist_ok=True)
 tmd.save(root, os.path.join(OUT, NAME + '.tmd'))
 # flight states of the F/A-18; cold & dark as an F-22 stands on the ramp: canopy open (the lever at 0 holds it
@@ -3729,7 +3642,8 @@ farr = lambda xs: ('float64', '[ %s ]' % ' '.join('%.4f' % x for x in xs))     #
 # 0.9.2: one add-on of Type default, loaded with every livery (loads_f22): the missiles - 6 x AIM-120C (157 kg) +
 # 2 x AIM-9X (85 kg), each a light body on its launcher released from the SMS page (weapons_f22) - and the ferry
 # tanks, each a light shell; the stores' mass in station tanks; the load picked on the ground (SMS LOAD)
-combat_sys, combat_gfx, combat_snd = weapons_f22.addon(obj, holder) if not weapons_f22.TEST_REC else ([], [], [])
+combat_sys, combat_gfx, combat_snd = weapons_f22.addon(obj, holder)
+stores_clock = loads_f22.clock(obj, holder)
 # ferry tanks: each tank with its pylon a body of its own (2050 kg: 236 kg tank and pylon, est., + 1814 kg fuel - the
 # mass stays the full one, as the internal fuel's), drag of the tank (its profile) and the pylon; on an ejector rack
 # through a breakable joint, its hull on a body of its own (breakage_f22.tank_addon: EMER JETT drops tank and pylon)
@@ -3771,8 +3685,7 @@ for side, st in (('L', 'Pylon2'), ('R', 'Pylon10')):
     ferry_gfx += t_gfx
 ad = os.path.join(OUT, 'stores')
 write_option(ad, 'Stores: missiles and ferry tanks, loaded on the ground', 'default', tags='stores')
-tmd.save(addon_file((loads_f22.clock(obj, holder) if not weapons_f22.TEST_REC else []) + combat_sys + ferry_sys,
-                   combat_gfx + ferry_gfx, combat_snd),
+tmd.save(addon_file(stores_clock + combat_sys + ferry_sys, combat_gfx + ferry_gfx, combat_snd),
          os.path.join(ad, 'system.tmd'))
 # the ground equipment test add-on (2026-11-27) is in the base aircraft now (ground_f22.configs)
 if os.path.isdir(os.path.join(OUT, 'ground')):
